@@ -11,12 +11,22 @@ namespace UrbanGenesis.Simulation
     /// Rules the model keeps true at all times:
     ///  * A road cell never has a zone or a building on it.
     ///  * A zoned cell is always "served", meaning a road is within <see cref="ZoneDepth"/> cells.
-    ///  * A building only exists on a zoned cell of the same type.
+    ///  * A building covers one or more cells, and every cell it covers is zoned for the building's type.
+    ///  * Buildings never overlap.
     /// </summary>
     public sealed class CitySimulation
     {
         /// <summary>How far (in cells, counted along the grid) a zone can be from the nearest road.</summary>
         public const int ZoneDepth = 4;
+
+        /// <summary>How many random templates growth tries on one spot before settling for a 1x1 building.</summary>
+        private const int TemplateTries = 4;
+
+        /// <summary>How far in front of a building (in cells) growth looks for a road when deciding which way it faces.</summary>
+        private const int FacingScanDistance = 8;
+
+        private static readonly int[] FrontDx = { 0, -1, 0, 1 };
+        private static readonly int[] FrontDy = { -1, 0, 1, 0 };
 
         private readonly Dictionary<int, Building> buildings = new Dictionary<int, Building>();
         private readonly List<GridCoord> candidates = new List<GridCoord>();
@@ -66,6 +76,7 @@ namespace UrbanGenesis.Simulation
             return count;
         }
 
+        /// <summary>Finds the building covering a cell. Works for any of the cells a larger building covers.</summary>
         public bool TryGetBuildingAt(GridCoord c, out Building building)
         {
             building = null;
@@ -144,8 +155,8 @@ namespace UrbanGenesis.Simulation
 
         /// <summary>
         /// Sets the zone of every valid cell in the rectangle. Zoning over a different zone replaces it
-        /// (and removes its building). Passing <see cref="ZoneType.None"/> clears zoning.
-        /// Returns how many cells changed.
+        /// (and removes the building on it, even if that building also covers cells outside the rectangle).
+        /// Passing <see cref="ZoneType.None"/> clears zoning. Returns how many cells changed.
         /// </summary>
         public int PaintZone(GridRect rect, ZoneType zone)
         {
@@ -177,8 +188,10 @@ namespace UrbanGenesis.Simulation
         }
 
         /// <summary>
-        /// Clears everything (road, zone, building) in the rectangle. Removing roads can leave nearby
-        /// zones without service; those zones are cleared too. Returns how many cells in the rectangle had something removed.
+        /// Clears everything (road, zone, building) in the rectangle. A building that is only partly inside
+        /// the rectangle is removed completely, but only the cells inside the rectangle lose their zone.
+        /// Removing roads can leave nearby zones without service; those zones are cleared too.
+        /// Returns how many cells in the rectangle had something removed.
         /// </summary>
         public int Bulldoze(GridRect rect)
         {
@@ -255,15 +268,164 @@ namespace UrbanGenesis.Simulation
                 candidates[index] = candidates[candidates.Count - 1];
                 candidates.RemoveAt(candidates.Count - 1);
 
-                SpawnBuilding(cell, zone);
+                // A bigger building placed earlier this tick may already cover this cell.
+                if (Grid.GetBuildingId(cell) != CityGrid.NoBuilding)
+                {
+                    continue;
+                }
+
+                GrowAt(cell, zone);
             }
         }
 
-        private void SpawnBuilding(GridCoord cell, ZoneType zone)
+        /// <summary>
+        /// Grows one building that covers <paramref name="cell"/>. It tries a few random templates and
+        /// settles for a 1x1 building if none of them fit around the cell.
+        /// </summary>
+        private void GrowAt(GridCoord cell, ZoneType zone)
         {
-            var building = new Building(nextBuildingId++, cell, zone, PickFloors(zone));
+            for (int tries = 0; tries < TemplateTries; tries++)
+            {
+                BuildingTemplate template = BuildingCatalog.Pick(zone, rng, false);
+                if (TryPlace(template, cell))
+                {
+                    return;
+                }
+            }
+
+            TryPlace(BuildingCatalog.Pick(zone, rng, true), cell);
+        }
+
+        /// <summary>
+        /// Looks at every way of laying the template over <paramref name="seed"/> (four rotations, and every
+        /// position that still covers the seed cell) and builds on the best one that fits. "Best" means the
+        /// front of the building is closest to a road; ties are broken at random.
+        /// </summary>
+        private bool TryPlace(BuildingTemplate template, GridCoord seed)
+        {
+            bool found = false;
+            GridCoord bestAnchor = seed;
+            int bestRotation = 0;
+            int bestScore = int.MaxValue;
+            int ties = 0;
+
+            for (int rotation = 0; rotation < 4; rotation++)
+            {
+                bool turned = rotation % 2 == 1;
+                int width = turned ? template.Depth : template.Width;
+                int depth = turned ? template.Width : template.Depth;
+
+                for (int oy = 0; oy < depth; oy++)
+                {
+                    for (int ox = 0; ox < width; ox++)
+                    {
+                        GridCoord anchor = seed.Offset(-ox, -oy);
+                        if (!FitsAt(anchor, width, depth, template.Zone))
+                        {
+                            continue;
+                        }
+
+                        int score = DistanceToRoadInFront(anchor, width, depth, rotation);
+                        if (!found || score < bestScore)
+                        {
+                            found = true;
+                            bestScore = score;
+                            bestAnchor = anchor;
+                            bestRotation = rotation;
+                            ties = 1;
+                        }
+                        else if (score == bestScore)
+                        {
+                            ties++;
+                            if (rng.Next(ties) == 0)
+                            {
+                                bestAnchor = anchor;
+                                bestRotation = rotation;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                return false;
+            }
+
+            SpawnBuilding(template, bestAnchor, bestRotation);
+            return true;
+        }
+
+        /// <summary>True if every cell of the rectangle is inside the grid, zoned for <paramref name="zone"/> and empty.</summary>
+        private bool FitsAt(GridCoord anchor, int width, int depth, ZoneType zone)
+        {
+            for (int dy = 0; dy < depth; dy++)
+            {
+                for (int dx = 0; dx < width; dx++)
+                {
+                    GridCoord c = anchor.Offset(dx, dy);
+                    if (!Grid.InBounds(c)
+                        || Grid.GetZone(c) != zone
+                        || Grid.GetBuildingId(c) != CityGrid.NoBuilding
+                        || Roads.HasNode(c))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// How many cells you walk from the front edge of the footprint to reach a road, looking straight ahead
+        /// across the whole width of the building. Returns a large number if there is none close by.
+        /// </summary>
+        private int DistanceToRoadInFront(GridCoord anchor, int width, int depth, int rotation)
+        {
+            int dx = FrontDx[rotation];
+            int dy = FrontDy[rotation];
+
+            for (int distance = 1; distance <= FacingScanDistance; distance++)
+            {
+                if (dy != 0)
+                {
+                    int y = dy < 0 ? anchor.Y - distance : anchor.Y + depth - 1 + distance;
+                    for (int x = anchor.X; x < anchor.X + width; x++)
+                    {
+                        if (Roads.HasNode(new GridCoord(x, y)))
+                        {
+                            return distance;
+                        }
+                    }
+                }
+                else
+                {
+                    int x = dx < 0 ? anchor.X - distance : anchor.X + width - 1 + distance;
+                    for (int y = anchor.Y; y < anchor.Y + depth; y++)
+                    {
+                        if (Roads.HasNode(new GridCoord(x, y)))
+                        {
+                            return distance;
+                        }
+                    }
+                }
+            }
+
+            return FacingScanDistance + 1;
+        }
+
+        private void SpawnBuilding(BuildingTemplate template, GridCoord anchor, int rotation)
+        {
+            int floors = rng.Next(template.MinFloors, template.MaxFloors + 1);
+            int variant = rng.Next();
+
+            var building = new Building(nextBuildingId++, anchor, template, rotation, floors, variant);
             buildings[building.Id] = building;
-            Grid.SetBuildingId(cell, building.Id);
+            foreach (GridCoord c in building.Cells())
+            {
+                Grid.SetBuildingId(c, building.Id);
+            }
 
             Action<Building> spawned = BuildingSpawned;
             if (spawned != null)
@@ -271,23 +433,18 @@ namespace UrbanGenesis.Simulation
                 spawned(building);
             }
 
-            RaiseCellChanged(cell);
-        }
-
-        private int PickFloors(ZoneType zone)
-        {
-            switch (zone)
+            foreach (GridCoord c in building.Cells())
             {
-                case ZoneType.Residential: return rng.Next(1, 4); // 1 to 3 floors
-                case ZoneType.Commercial: return rng.Next(2, 5);  // 2 to 4 floors
-                case ZoneType.Industrial: return rng.Next(1, 3);  // 1 to 2 floors
-                default: return 1;
+                RaiseCellChanged(c);
             }
         }
 
         // ---------------------------------------------------------------- helpers
 
-        /// <summary>Removes the building on a cell if there is one. Does not touch the zone. Returns true if one was removed.</summary>
+        /// <summary>
+        /// Removes the building covering a cell, along with its hold on every other cell it covers.
+        /// Does not touch any zone. Returns true if there was a building.
+        /// </summary>
         private bool RemoveBuildingAt(GridCoord c)
         {
             int id = Grid.GetBuildingId(c);
@@ -299,12 +456,31 @@ namespace UrbanGenesis.Simulation
             Building building;
             buildings.TryGetValue(id, out building);
             buildings.Remove(id);
-            Grid.SetBuildingId(c, CityGrid.NoBuilding);
+
+            if (building == null)
+            {
+                Grid.SetBuildingId(c, CityGrid.NoBuilding);
+                return true;
+            }
+
+            foreach (GridCoord covered in building.Cells())
+            {
+                Grid.SetBuildingId(covered, CityGrid.NoBuilding);
+            }
 
             Action<Building> removed = BuildingRemoved;
-            if (removed != null && building != null)
+            if (removed != null)
             {
                 removed(building);
+            }
+
+            // The caller reports the cell it was working on; tell listeners about the others.
+            foreach (GridCoord covered in building.Cells())
+            {
+                if (covered != c)
+                {
+                    RaiseCellChanged(covered);
+                }
             }
 
             return true;

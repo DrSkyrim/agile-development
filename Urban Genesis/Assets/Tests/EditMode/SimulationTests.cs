@@ -266,6 +266,65 @@ namespace UrbanGenesis.Tests
             }
         }
 
+        private int CountCoveredCells()
+        {
+            int count = 0;
+            for (int y = 0; y < sim.Grid.Height; y++)
+            {
+                for (int x = 0; x < sim.Grid.Width; x++)
+                {
+                    if (sim.Grid.GetBuildingId(new GridCoord(x, y)) != CityGrid.NoBuilding)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        // Every building must sit entirely on matching zoned, road-free cells that point back at it,
+        // and no cell may point at a building that does not cover it.
+        private void AssertBuildingsAreConsistent()
+        {
+            int covered = 0;
+            foreach (Building b in sim.Buildings)
+            {
+                foreach (GridCoord c in b.Cells())
+                {
+                    Assert.IsTrue(sim.Grid.InBounds(c), "building " + b.Id + " sticks out of the grid at " + c);
+                    Assert.AreEqual(b.Id, sim.Grid.GetBuildingId(c), "cell " + c + " does not point at building " + b.Id);
+                    Assert.AreEqual(b.Zone, sim.Grid.GetZone(c), "zone does not match building " + b.Id + " at " + c);
+                    Assert.IsFalse(sim.IsRoad(c), "building " + b.Id + " is on a road at " + c);
+                    covered++;
+                }
+            }
+
+            Assert.AreEqual(CountCoveredCells(), covered, "some cells point at a building that does not cover them");
+        }
+
+        // Grows a city until a building that covers more than one cell appears, and returns it.
+        private Building MakeABigBuilding()
+        {
+            BuildMainRoad();
+            sim.PaintZone(new GridRect(2, 2, 17, 18), ZoneType.Commercial);
+
+            for (int i = 0; i < 300; i++)
+            {
+                sim.Step();
+                foreach (Building b in sim.Buildings)
+                {
+                    if (b.Width * b.Depth > 1)
+                    {
+                        return b;
+                    }
+                }
+            }
+
+            Assert.IsTrue(false, "no multi-cell building appeared in 300 ticks");
+            return null;
+        }
+
         // ------------------------------------------------------------ roads
 
         [Test]
@@ -448,9 +507,10 @@ namespace UrbanGenesis.Tests
             sim.PaintZone(new GridRect(2, 6, 17, 14), ZoneType.Residential);
             int zoned = CountZonedCells();
 
-            RunTicks(200);
+            RunTicks(300);
 
-            Assert.AreEqual(zoned, sim.BuildingCount);
+            Assert.AreEqual(zoned, CountCoveredCells(), "every zoned cell should end up under some building");
+            AssertBuildingsAreConsistent();
         }
 
         [Test]
@@ -463,12 +523,7 @@ namespace UrbanGenesis.Tests
             RunTicks(200);
 
             Assert.Greater(sim.BuildingCount, 0);
-            foreach (Building b in sim.Buildings)
-            {
-                Assert.AreEqual(b.Zone, sim.Grid.GetZone(b.Cell));
-                Assert.IsFalse(sim.IsRoad(b.Cell));
-                Assert.AreEqual(b.Id, sim.Grid.GetBuildingId(b.Cell));
-            }
+            AssertBuildingsAreConsistent();
         }
 
         [Test]
@@ -507,23 +562,11 @@ namespace UrbanGenesis.Tests
 
             RunTicks(200);
 
+            Assert.Greater(sim.BuildingCount, 0);
             foreach (Building b in sim.Buildings)
             {
-                switch (b.Zone)
-                {
-                    case ZoneType.Residential:
-                        Assert.GreaterOrEqual(b.Floors, 1);
-                        Assert.LessOrEqual(b.Floors, 3);
-                        break;
-                    case ZoneType.Commercial:
-                        Assert.GreaterOrEqual(b.Floors, 2);
-                        Assert.LessOrEqual(b.Floors, 4);
-                        break;
-                    case ZoneType.Industrial:
-                        Assert.GreaterOrEqual(b.Floors, 1);
-                        Assert.LessOrEqual(b.Floors, 2);
-                        break;
-                }
+                Assert.GreaterOrEqual(b.Floors, b.Template.MinFloors, b.Shape + " is too short");
+                Assert.LessOrEqual(b.Floors, b.Template.MaxFloors, b.Shape + " is too tall");
             }
         }
 
@@ -546,7 +589,8 @@ namespace UrbanGenesis.Tests
             var parts = new List<string>();
             foreach (Building b in other.Buildings)
             {
-                parts.Add(b.Id + "@" + b.Cell + "x" + b.Floors);
+                parts.Add(b.Id + "@" + b.Cell + " " + b.Shape + " " + b.Width + "x" + b.Depth
+                    + " turn " + b.Rotation + " floors " + b.Floors + " variant " + b.Variant);
             }
 
             return string.Join(";", parts.ToArray());
@@ -660,7 +704,411 @@ namespace UrbanGenesis.Tests
                         }
                     }
                 }
+
+                AssertBuildingsAreConsistent();
             }
+        }
+
+        // ------------------------------------------------------------ multi-cell buildings
+
+        [Test]
+        public void Growth_MakesBuildingsOfSeveralSizesAndShapes()
+        {
+            BuildMainRoad();
+            sim.PaintZone(new GridRect(2, 2, 17, 18), ZoneType.Residential);
+
+            RunTicks(300);
+
+            int big = 0;
+            var shapes = new HashSet<BuildingShape>();
+            foreach (Building b in sim.Buildings)
+            {
+                if (b.Width * b.Depth > 1)
+                {
+                    big++;
+                }
+
+                shapes.Add(b.Shape);
+            }
+
+            Assert.Greater(big, 0);
+            Assert.Greater(shapes.Count, 3);
+            AssertBuildingsAreConsistent();
+        }
+
+        [Test]
+        public void Growth_InAOneCellWideStrip_OnlyBuildsThingsThatFit()
+        {
+            BuildMainRoad();
+            sim.PaintZone(new GridRect(2, 11, 17, 11), ZoneType.Commercial);
+
+            RunTicks(200);
+
+            Assert.Greater(sim.BuildingCount, 0);
+            foreach (Building b in sim.Buildings)
+            {
+                Assert.AreEqual(1, b.Depth, b.Shape + " does not fit a strip one cell deep");
+            }
+
+            AssertBuildingsAreConsistent();
+        }
+
+        [Test]
+        public void Growth_TurnsBuildingsToFaceTheRoad()
+        {
+            BuildMainRoad(); // runs along y = 10
+            sim.PaintZone(new GridRect(2, 11, 17, 14), ZoneType.Residential); // north side: front must face south (turn 0)
+            sim.PaintZone(new GridRect(2, 6, 17, 9), ZoneType.Residential);   // south side: front must face north (turn 2)
+
+            RunTicks(300);
+
+            int northTotal = 0, northFacing = 0, southTotal = 0, southFacing = 0;
+            foreach (Building b in sim.Buildings)
+            {
+                if (b.Cell.Y > 10)
+                {
+                    northTotal++;
+                    if (b.Rotation == 0) { northFacing++; }
+                }
+                else
+                {
+                    southTotal++;
+                    if (b.Rotation == 2) { southFacing++; }
+                }
+            }
+
+            Assert.Greater(northTotal, 0);
+            Assert.Greater(southTotal, 0);
+            Assert.GreaterOrEqual(northFacing * 10, northTotal * 8, "most buildings north of the road should face south");
+            Assert.GreaterOrEqual(southFacing * 10, southTotal * 8, "most buildings south of the road should face north");
+        }
+
+        [Test]
+        public void BigBuilding_CanBeFoundFromEveryCellItCovers()
+        {
+            Building big = MakeABigBuilding();
+
+            foreach (GridCoord c in big.Cells())
+            {
+                Building found;
+                Assert.IsTrue(sim.TryGetBuildingAt(c, out found), "nothing found at " + c);
+                Assert.AreEqual(big.Id, found.Id);
+            }
+        }
+
+        [Test]
+        public void BigBuilding_BlocksRoadsOnAnyOfItsCells()
+        {
+            Building big = MakeABigBuilding();
+
+            foreach (GridCoord c in big.Cells())
+            {
+                Assert.IsFalse(sim.CanPlaceRoad(c), "a road could be built on " + c);
+            }
+        }
+
+        [Test]
+        public void Bulldoze_OneCellOfABigBuilding_RemovesTheWholeBuildingButOnlyThatCellsZone()
+        {
+            Building big = MakeABigBuilding();
+            GridCoord target = big.Cell;
+            var others = new List<GridCoord>();
+            foreach (GridCoord c in big.Cells())
+            {
+                if (c != target)
+                {
+                    others.Add(c);
+                }
+            }
+
+            int removedEvents = 0;
+            sim.BuildingRemoved += b => removedEvents++;
+
+            sim.Bulldoze(new GridRect(target.X, target.Y, target.X, target.Y));
+
+            Building found;
+            Assert.IsFalse(sim.TryGetBuildingAt(target, out found));
+            Assert.AreEqual(ZoneType.None, sim.Grid.GetZone(target));
+            Assert.AreEqual(1, removedEvents, "the building should be reported removed exactly once");
+            foreach (GridCoord c in others)
+            {
+                Assert.AreEqual(CityGrid.NoBuilding, sim.Grid.GetBuildingId(c), "building still holds " + c);
+                Assert.AreEqual(big.Zone, sim.Grid.GetZone(c), "zone should be kept at " + c);
+            }
+
+            AssertBuildingsAreConsistent();
+        }
+
+        [Test]
+        public void PaintZone_DifferentZoneOnOneCellOfABigBuilding_RemovesTheWholeBuilding()
+        {
+            Building big = MakeABigBuilding();
+            GridCoord target = big.Cell;
+
+            sim.PaintZone(new GridRect(target.X, target.Y, target.X, target.Y), ZoneType.Industrial);
+
+            foreach (GridCoord c in big.Cells())
+            {
+                Assert.AreEqual(CityGrid.NoBuilding, sim.Grid.GetBuildingId(c), "building still holds " + c);
+            }
+
+            Assert.AreEqual(ZoneType.Industrial, sim.Grid.GetZone(target));
+            AssertBuildingsAreConsistent();
+        }
+
+        [Test]
+        public void PaintZone_SameZoneOverABigBuilding_LeavesItAlone()
+        {
+            Building big = MakeABigBuilding();
+
+            sim.PaintZone(new GridRect(0, 0, 19, 19), ZoneType.Commercial);
+
+            Building found;
+            Assert.IsTrue(sim.TryGetBuildingAt(big.Cell, out found));
+            Assert.AreEqual(big.Id, found.Id);
+        }
+    }
+
+    [TestFixture]
+    public class BuildingTests
+    {
+        private static BuildingTemplate Template(int width, int depth)
+        {
+            return new BuildingTemplate(BuildingShape.Warehouse, ZoneType.Industrial, width, depth, 1, 2, 1.0);
+        }
+
+        [Test]
+        public void Cells_CoverTheWholeFootprintStartingAtTheAnchor()
+        {
+            var b = new Building(1, new GridCoord(5, 7), Template(3, 2), 0, 1, 0);
+
+            var cells = new List<GridCoord>(b.Cells());
+
+            Assert.AreEqual(6, cells.Count);
+            Assert.AreEqual(3, b.Width);
+            Assert.AreEqual(2, b.Depth);
+            Assert.IsTrue(cells.Contains(new GridCoord(5, 7)));
+            Assert.IsTrue(cells.Contains(new GridCoord(7, 8)));
+            Assert.IsFalse(cells.Contains(new GridCoord(8, 7)));
+        }
+
+        [Test]
+        public void ARotationByAQuarterTurn_SwapsWidthAndDepth()
+        {
+            var b = new Building(1, new GridCoord(5, 7), Template(3, 2), 1, 1, 0);
+
+            var cells = new List<GridCoord>(b.Cells());
+
+            Assert.AreEqual(2, b.Width);
+            Assert.AreEqual(3, b.Depth);
+            Assert.AreEqual(6, cells.Count);
+            Assert.IsTrue(cells.Contains(new GridCoord(6, 9)));
+            Assert.IsFalse(cells.Contains(new GridCoord(7, 7)));
+        }
+
+        [Test]
+        public void Rotation_IsWrappedIntoZeroToThree()
+        {
+            Assert.AreEqual(1, new Building(1, new GridCoord(0, 0), Template(1, 1), 5, 1, 0).Rotation);
+            Assert.AreEqual(3, new Building(1, new GridCoord(0, 0), Template(1, 1), -1, 1, 0).Rotation);
+        }
+    }
+
+    [TestFixture]
+    public class BuildingCatalogTests
+    {
+        private static readonly ZoneType[] Zones = { ZoneType.Residential, ZoneType.Commercial, ZoneType.Industrial };
+
+        [Test]
+        public void EveryZone_HasAtLeastOneSingleCellTemplate()
+        {
+            foreach (ZoneType zone in Zones)
+            {
+                bool found = false;
+                foreach (BuildingTemplate t in BuildingCatalog.ForZone(zone))
+                {
+                    if (t.CellCount == 1)
+                    {
+                        found = true;
+                    }
+                }
+
+                Assert.IsTrue(found, zone + " needs a 1x1 template to fill gaps");
+            }
+        }
+
+        [Test]
+        public void EveryTemplate_HasSensibleNumbersAndBelongsToItsZone()
+        {
+            foreach (ZoneType zone in Zones)
+            {
+                foreach (BuildingTemplate t in BuildingCatalog.ForZone(zone))
+                {
+                    Assert.AreEqual(zone, t.Zone, t.Shape + " is listed under the wrong zone");
+                    Assert.GreaterOrEqual(t.Width, 1);
+                    Assert.GreaterOrEqual(t.Depth, 1);
+                    Assert.GreaterOrEqual(t.MinFloors, 1);
+                    Assert.GreaterOrEqual(t.MaxFloors, t.MinFloors);
+                    Assert.IsTrue(t.Weight > 0.0, t.Shape + " can never be picked");
+                }
+            }
+        }
+
+        [Test]
+        public void EveryShape_HasAtLeastOneTemplate()
+        {
+            var used = new HashSet<BuildingShape>();
+            foreach (BuildingTemplate t in BuildingCatalog.All())
+            {
+                used.Add(t.Shape);
+            }
+
+            foreach (BuildingShape shape in System.Enum.GetValues(typeof(BuildingShape)))
+            {
+                Assert.IsTrue(used.Contains(shape), shape + " is never used by any template");
+            }
+        }
+
+        [Test]
+        public void Pick_SingleCellOnly_NeverReturnsABiggerTemplate()
+        {
+            var rng = new System.Random(3);
+            foreach (ZoneType zone in Zones)
+            {
+                for (int i = 0; i < 200; i++)
+                {
+                    Assert.AreEqual(1, BuildingCatalog.Pick(zone, rng, true).CellCount);
+                }
+            }
+        }
+
+        [Test]
+        public void Pick_EventuallyReturnsEveryTemplateOfAZone()
+        {
+            var rng = new System.Random(4);
+            foreach (ZoneType zone in Zones)
+            {
+                var seen = new HashSet<BuildingTemplate>();
+                for (int i = 0; i < 3000; i++)
+                {
+                    seen.Add(BuildingCatalog.Pick(zone, rng, false));
+                }
+
+                Assert.AreEqual(BuildingCatalog.ForZone(zone).Count, seen.Count, "some " + zone + " templates are never picked");
+            }
+        }
+    }
+
+    [TestFixture]
+    public class BuildingDesignerTests
+    {
+        private const float Tolerance = 0.001f;
+
+        private static string Signature(List<BuildingPart> parts)
+        {
+            var text = new List<string>();
+            foreach (BuildingPart p in parts)
+            {
+                text.Add(string.Format("{0} {1:0.00},{2:0.00} {3:0.00}x{4:0.00} h{5:0.00} e{6:0.00} {7} {8}",
+                    p.Kind, p.CenterX, p.CenterY, p.SizeX, p.SizeY, p.Height, p.Elevation, p.Tone, p.RidgeAlongX));
+            }
+
+            return string.Join("|", text.ToArray());
+        }
+
+        [Test]
+        public void EveryTemplate_GetsPartsThatStayInsideItsFootprint_ForManyVariantsAndFloorCounts()
+        {
+            foreach (BuildingTemplate t in BuildingCatalog.All())
+            {
+                for (int floors = t.MinFloors; floors <= t.MaxFloors; floors++)
+                {
+                    for (int variant = 0; variant < 60; variant++)
+                    {
+                        var b = new Building(1, new GridCoord(0, 0), t, variant % 4, floors, variant);
+                        List<BuildingPart> parts = BuildingDesigner.Design(b);
+                        string what = t.Shape + " " + t.Width + "x" + t.Depth + " floors " + floors + " variant " + variant;
+
+                        Assert.Greater(parts.Count, 0, what + " has no parts");
+                        foreach (BuildingPart p in parts)
+                        {
+                            Assert.IsTrue(p.SizeX > 0f && p.SizeY > 0f, what + ": a part has no size");
+                            Assert.IsTrue(p.Height > 0f, what + ": a part has no height");
+                            Assert.IsTrue(p.Elevation >= 0f, what + ": a part is below the ground");
+                            Assert.IsTrue(p.CenterX - p.SizeX * 0.5f >= -t.Width * 0.5f - Tolerance, what + ": a part sticks out on the left");
+                            Assert.IsTrue(p.CenterX + p.SizeX * 0.5f <= t.Width * 0.5f + Tolerance, what + ": a part sticks out on the right");
+                            Assert.IsTrue(p.CenterY - p.SizeY * 0.5f >= -t.Depth * 0.5f - Tolerance, what + ": a part sticks out at the front");
+                            Assert.IsTrue(p.CenterY + p.SizeY * 0.5f <= t.Depth * 0.5f + Tolerance, what + ": a part sticks out at the back");
+                        }
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void EveryBuilding_IsAtLeastAsTallAsItsFloorCount()
+        {
+            foreach (BuildingTemplate t in BuildingCatalog.All())
+            {
+                for (int floors = t.MinFloors; floors <= t.MaxFloors; floors++)
+                {
+                    for (int variant = 0; variant < 30; variant++)
+                    {
+                        var b = new Building(1, new GridCoord(0, 0), t, 0, floors, variant);
+                        float top = 0f;
+                        foreach (BuildingPart p in BuildingDesigner.Design(b))
+                        {
+                            top = System.Math.Max(top, p.Elevation + p.Height);
+                        }
+
+                        Assert.IsTrue(top >= floors - Tolerance, t.Shape + " with " + floors + " floors only reaches " + top);
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void SameBuilding_AlwaysGetsTheSameDesign()
+        {
+            foreach (BuildingTemplate t in BuildingCatalog.All())
+            {
+                var b = new Building(1, new GridCoord(0, 0), t, 0, t.MinFloors, 12345);
+
+                Assert.AreEqual(Signature(BuildingDesigner.Design(b)), Signature(BuildingDesigner.Design(b)), t.Shape + " is not deterministic");
+            }
+        }
+
+        [Test]
+        public void EveryTemplate_HasMoreThanOneLook_AcrossVariants()
+        {
+            foreach (BuildingTemplate t in BuildingCatalog.All())
+            {
+                var looks = new HashSet<string>();
+                for (int variant = 0; variant < 60; variant++)
+                {
+                    looks.Add(Signature(BuildingDesigner.Design(new Building(1, new GridCoord(0, 0), t, 0, t.MinFloors, variant))));
+                }
+
+                Assert.Greater(looks.Count, 1, t.Shape + " " + t.Width + "x" + t.Depth + " always looks the same");
+            }
+        }
+
+        [Test]
+        public void DifferentShapes_LookDifferent()
+        {
+            var looks = new HashSet<string>();
+            int shapes = 0;
+            var seen = new HashSet<BuildingShape>();
+            foreach (BuildingTemplate t in BuildingCatalog.All())
+            {
+                if (seen.Add(t.Shape))
+                {
+                    shapes++;
+                    looks.Add(Signature(BuildingDesigner.Design(new Building(1, new GridCoord(0, 0), t, 0, t.MinFloors, 0))));
+                }
+            }
+
+            Assert.AreEqual(shapes, looks.Count);
         }
     }
 }
