@@ -1,0 +1,17 @@
+{
+    "name": "UrbanGenesis.Game",
+    "rootNamespace": "UrbanGenesis.Game",
+    "references": [
+        "UrbanGenesis.Simulation",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
