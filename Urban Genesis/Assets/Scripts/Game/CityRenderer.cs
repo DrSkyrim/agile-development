@@ -16,7 +16,6 @@ namespace UrbanGenesis.Game
     {
         private const int PixelsPerCell = 8;
         private const float OverlayHeight = 0.15f;
-        private const float FloorHeight = 3.5f;
 
         private CitySimulation sim;
 
@@ -36,7 +35,7 @@ namespace UrbanGenesis.Game
         // Buildings
         private Transform buildingRoot;
         private readonly Dictionary<int, GameObject> buildingObjects = new Dictionary<int, GameObject>();
-        private readonly Dictionary<int, Material> buildingMaterials = new Dictionary<int, Material>();
+        private readonly BuildingModelFactory modelFactory = new BuildingModelFactory();
 
         public void Init(CitySimulation simulation)
         {
@@ -265,52 +264,19 @@ namespace UrbanGenesis.Game
 
         private void OnBuildingSpawned(Building building)
         {
-            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.name = building.Zone + " building " + building.Id;
-            cube.transform.SetParent(buildingRoot, false);
-
-            // Clicks are handled with maths against the ground plane, so buildings do not need colliders.
-            Collider collider = cube.GetComponent<Collider>();
-            if (collider != null)
-            {
-                Destroy(collider);
-            }
-
-            cube.GetComponent<MeshRenderer>().sharedMaterial = GetBuildingMaterial(building);
-
-            float footprint = (building.Zone == ZoneType.Industrial ? 0.90f : 0.78f) * CityMetrics.CellSize;
-            float height = building.Floors * FloorHeight;
-
-            cube.AddComponent<BuildingPopIn>().Begin(CityMetrics.CellCenter(building.Cell), footprint, height);
-            buildingObjects[building.Id] = cube;
+            GameObject model = modelFactory.Create(building, buildingRoot);
+            model.AddComponent<BuildingPopIn>().Begin();
+            buildingObjects[building.Id] = model;
         }
 
         private void OnBuildingRemoved(Building building)
         {
-            GameObject cube;
-            if (buildingObjects.TryGetValue(building.Id, out cube))
+            GameObject model;
+            if (buildingObjects.TryGetValue(building.Id, out model))
             {
                 buildingObjects.Remove(building.Id);
-                Destroy(cube);
+                Destroy(model);
             }
-        }
-
-        // Five shades per zone, shared between buildings so Unity can batch them.
-        private Material GetBuildingMaterial(Building building)
-        {
-            int shade = building.Id % 5;
-            int key = (int)building.Zone * 10 + shade;
-
-            Material material;
-            if (!buildingMaterials.TryGetValue(key, out material))
-            {
-                float brightness = CityPalette.BuildingBrightness(building.Zone) + (shade - 2) * 0.04f;
-                material = MaterialFactory.CreateLitGray(Mathf.Clamp01(brightness));
-                material.name = "Building " + building.Zone + " " + shade;
-                buildingMaterials[key] = material;
-            }
-
-            return material;
         }
     }
 }

@@ -55,7 +55,24 @@ namespace UrbanGenesis.Game
             return new Color(fill.r / 255f, fill.g / 255f, fill.b / 255f, 0.60f);
         }
 
-        /// <summary>Gray level for building cubes (the game is grayscale for now).</summary>
+        /// <summary>
+        /// Gray level for one part of a building: the zone's base gray, nudged by a per-building shade
+        /// (0 to 4) so neighbours differ a little, then lightened for roofs and accents or darkened for plinths.
+        /// </summary>
+        public static float PartBrightness(ZoneType zone, int shade, PartTone tone)
+        {
+            float brightness = BuildingBrightness(zone) + (shade - 2) * 0.04f;
+
+            switch (tone)
+            {
+                case PartTone.Light: brightness += 0.14f; break;
+                case PartTone.Dark: brightness -= 0.26f; break;
+            }
+
+            return Mathf.Clamp(brightness, 0.06f, 1f);
+        }
+
+        /// <summary>Gray level for the main walls of a building (the game is grayscale for now).</summary>
         public static float BuildingBrightness(ZoneType zone)
         {
             switch (zone)

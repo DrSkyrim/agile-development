@@ -12,6 +12,9 @@ namespace UrbanGenesis.Game
     {
         public const float CellSize = 8f;
 
+        /// <summary>How tall one floor of a building is, in world units.</summary>
+        public const float FloorHeight = 3.5f;
+
         /// <summary>World position of the centre of a cell, at ground level.</summary>
         public static Vector3 CellCenter(GridCoord c)
         {
