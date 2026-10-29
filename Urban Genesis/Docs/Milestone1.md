@@ -16,7 +16,7 @@
 | Mouse wheel | Zoom |
 | `Space` | Pause / resume |
 
-Rules: roads go in straight lines along the grid. Zones can only be painted within 2 cells of a road, and they are
+Rules: roads go in straight lines along the grid. Zones can only be painted within 4 cells of a road, and they are
 cleared again if that road is removed. Buildings cannot be built over; bulldoze them first.
 
 ## Run the tests

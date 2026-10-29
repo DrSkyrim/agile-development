@@ -343,10 +343,11 @@ namespace UrbanGenesis.Tests
         {
             sim.PlaceRoad(new[] { new GridCoord(10, 10) });
 
-            Assert.IsTrue(sim.IsServed(new GridCoord(10, 12)), "2 cells straight away");
-            Assert.IsFalse(sim.IsServed(new GridCoord(10, 13)), "3 cells straight away");
-            Assert.IsTrue(sim.IsServed(new GridCoord(11, 11)), "diagonal neighbour, 2 steps");
-            Assert.IsFalse(sim.IsServed(new GridCoord(12, 11)), "3 steps");
+            Assert.AreEqual(4, CitySimulation.ZoneDepth);
+            Assert.IsTrue(sim.IsServed(new GridCoord(10, 14)), "4 cells straight away");
+            Assert.IsFalse(sim.IsServed(new GridCoord(10, 15)), "5 cells straight away");
+            Assert.IsTrue(sim.IsServed(new GridCoord(12, 12)), "diagonal, 4 steps");
+            Assert.IsFalse(sim.IsServed(new GridCoord(13, 12)), "5 steps");
         }
 
         [Test]
@@ -365,12 +366,15 @@ namespace UrbanGenesis.Tests
         {
             BuildMainRoad();
 
-            sim.PaintZone(new GridRect(2, 6, 17, 14), ZoneType.Residential);
+            sim.PaintZone(new GridRect(2, 2, 17, 18), ZoneType.Residential);
 
-            // Rows 8, 9, 11, 12 are within 2 cells of the road row (y = 10); row 10 is the road itself.
-            Assert.AreEqual(4 * 16, CountZonedCells());
-            Assert.AreEqual(ZoneType.None, sim.Grid.GetZone(new GridCoord(5, 10)));
-            Assert.AreEqual(ZoneType.None, sim.Grid.GetZone(new GridCoord(5, 7)));
+            // Rows 6 to 9 and 11 to 14 are within 4 cells of the road row (y = 10); row 10 is the road itself.
+            Assert.AreEqual(8 * 16, CountZonedCells());
+            Assert.AreEqual(ZoneType.None, sim.Grid.GetZone(new GridCoord(5, 10)), "the road itself");
+            Assert.AreEqual(ZoneType.Residential, sim.Grid.GetZone(new GridCoord(5, 6)), "4 cells below the road");
+            Assert.AreEqual(ZoneType.Residential, sim.Grid.GetZone(new GridCoord(5, 14)), "4 cells above the road");
+            Assert.AreEqual(ZoneType.None, sim.Grid.GetZone(new GridCoord(5, 5)), "5 cells below the road");
+            Assert.AreEqual(ZoneType.None, sim.Grid.GetZone(new GridCoord(5, 15)), "5 cells above the road");
         }
 
         [Test]

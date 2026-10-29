@@ -16,7 +16,7 @@ namespace UrbanGenesis.Simulation
     public sealed class CitySimulation
     {
         /// <summary>How far (in cells, counted along the grid) a zone can be from the nearest road.</summary>
-        public const int ZoneDepth = 2;
+        public const int ZoneDepth = 4;
 
         private readonly Dictionary<int, Building> buildings = new Dictionary<int, Building>();
         private readonly List<GridCoord> candidates = new List<GridCoord>();
