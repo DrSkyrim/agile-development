@@ -232,6 +232,39 @@ namespace UrbanGenesis.Simulation
             return result;
         }
 
+        /// <summary>The lot whose area contains the point, or null.</summary>
+        public Lot LotAt(Vec2 p)
+        {
+            List<Lot> bucket;
+            if (hash.TryGetValue(HashKey(CellOf(p.X), CellOf(p.Y)), out bucket))
+            {
+                for (int i = 0; i < bucket.Count; i++)
+                {
+                    if (bucket[i].Bounds.Contains(p) && Geometry.PointInConvex(p, bucket[i].Corners))
+                    {
+                        return bucket[i];
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Every lot on one side of a road segment, in all rows.</summary>
+        public List<Lot> LotsOfSide(int segmentId, int side)
+        {
+            var result = new List<Lot>();
+            foreach (Lot lot in lots.Values)
+            {
+                if (lot.Key.SegmentId == segmentId && lot.Key.Side == side)
+                {
+                    result.Add(lot);
+                }
+            }
+
+            return result;
+        }
+
         /// <summary>Lots whose box overlaps the given box.</summary>
         public List<Lot> LotsNear(Aabb box)
         {

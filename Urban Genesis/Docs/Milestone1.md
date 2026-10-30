@@ -13,6 +13,7 @@
 | `1` Road, `2` Residential, `3` Commercial, `4` Industrial, `5` Bulldoze | Pick a tool (or use the toolbar) |
 | `C` | Road tool: switch between **Straight** and **Curved** |
 | `[` / `]` | Smaller / bigger brush (zone and bulldoze tools) |
+| `F` | Zone tools: toggle **Fill** (click a lot to zone that whole side of the road) |
 | `Esc` or right-click | Cancel the road you are drawing, or drop the tool |
 | `WASD` / arrows (+ `Shift`) | Move the camera |
 | `Q` / `E`, or right-drag | Rotate (right-drag up/down tilts) |
@@ -33,7 +34,8 @@
 
 * Zoning is painted with a round brush. Lots exist only beside roads: **4 rows deep, on both sides** (32 m), following the curve.
   While a zone or bulldoze tool is active every lot is shown faintly.
-* Painting a different zone over a lot removes the building on it.
+* **Fill (`F`):** with a zone tool, click a lot and the whole side of that road, all four rows, up to the next junction, is zoned in one go. A highlight shows what will be filled.
+* Painting or filling a different zone over a lot removes the building on it.
 * Bulldoze: drag to clear buildings and zoning under the brush. **Click on a road** to remove it (the stretch between its two
   junctions) together with everything beside it.
 

@@ -112,7 +112,15 @@ namespace UrbanGenesis.Game
                 tools.SetRoadMode(curved ? RoadMode.Straight : RoadMode.Curved);
             }
 
-            float brushX = topPanel.x + Margin + ButtonWidth * 1.5f + Gap * 2f;
+            GUI.backgroundColor = tools.FillMode ? active : normal;
+            if (GUI.Button(new Rect(topPanel.x + Margin + ButtonWidth * 1.5f + Gap, optionsY, ButtonWidth * 0.9f, ButtonHeight - 4f),
+                tools.FillMode ? "Fill: On (F)" : "Fill: Off (F)"))
+            {
+                tools.SetFillMode(!tools.FillMode);
+            }
+
+            GUI.backgroundColor = normal;
+            float brushX = topPanel.x + Margin + ButtonWidth * 2.4f + Gap * 3f;
             GUI.Label(new Rect(brushX, optionsY, 120f, ButtonHeight - 4f), "Brush " + Mathf.RoundToInt(tools.BrushRadius * 2f) + " m");
             if (GUI.Button(new Rect(brushX + 100f, optionsY, 30f, ButtonHeight - 4f), "-"))
             {
@@ -169,7 +177,7 @@ namespace UrbanGenesis.Game
             GUI.Label(new Rect(x, bottomPanel.y + 6f, width, 22f), status);
             GUI.Label(new Rect(x, bottomPanel.y + 28f, width, 22f), statsText);
             GUI.Label(new Rect(x, bottomPanel.y + 50f, width, 22f),
-                "WASD move   Q/E or right-drag rotate   middle-drag pan   wheel zoom   [ ] brush   Space pause   Esc cancel");
+                "WASD move   Q/E or right-drag rotate   middle-drag pan   wheel zoom   [ ] brush   F fill   Space pause   Esc cancel");
         }
     }
 }

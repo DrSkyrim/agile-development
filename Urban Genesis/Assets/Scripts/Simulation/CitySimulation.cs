@@ -232,8 +232,31 @@ namespace UrbanGenesis.Simulation
         /// </summary>
         public int PaintZone(Vec2 center, double radius, ZoneType zone)
         {
+            return SetZone(Lots.LotsInCircle(center, radius), zone);
+        }
+
+        /// <summary>
+        /// Fills: zones every lot on the same side of the same stretch of road as the lot under <paramref name="point"/>
+        /// (all rows, from one junction to the next). Does nothing if the point is not on a lot.
+        /// Returns how many lots changed.
+        /// </summary>
+        public int FillZone(Vec2 point, ZoneType zone)
+        {
+            List<Lot> lots = LotsToFill(point);
+            return lots == null ? 0 : SetZone(lots, zone);
+        }
+
+        /// <summary>The lots <see cref="FillZone"/> would zone for this point (so a preview can show them), or null if there is no lot there.</summary>
+        public List<Lot> LotsToFill(Vec2 point)
+        {
+            Lot lot = Lots.LotAt(point);
+            return lot == null ? null : Lots.LotsOfSide(lot.Key.SegmentId, lot.Key.Side);
+        }
+
+        private int SetZone(List<Lot> lots, ZoneType zone)
+        {
             int changed = 0;
-            foreach (Lot lot in Lots.LotsInCircle(center, radius))
+            foreach (Lot lot in lots)
             {
                 if (lot.Zone == zone)
                 {

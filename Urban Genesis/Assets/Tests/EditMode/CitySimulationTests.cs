@@ -206,6 +206,66 @@ namespace UrbanGenesis.Tests
             CityChecks.AssertAllRulesHold(city);
         }
 
+        [Test]
+        public void FillZone_ZonesTheWholeSideOfTheRoad_AllFourRows_AndNothingElse()
+        {
+            CitySimulation city = CityWithRoad(20);
+
+            int changed = city.FillZone(new Vec2(-50, 12), ZoneType.Residential);
+
+            Assert.AreEqual(50 * LotLayout.Rows, changed);
+            foreach (Lot lot in city.Lots.Lots)
+            {
+                bool leftSide = lot.Key.Side == 0;
+                Assert.AreEqual(leftSide ? ZoneType.Residential : ZoneType.None, lot.Zone, lot.Key.ToString());
+            }
+        }
+
+        [Test]
+        public void FillZone_StopsAtJunctions()
+        {
+            CitySimulation city = CityWithRoad(21);
+            Assert.IsNotNull(city.PlaceRoad(city.PlanRoad(new Vec2(0, -150), null, new Vec2(0, 3))));
+
+            // The main road is now two pieces. Filling the north side of the west piece must not touch the east piece.
+            city.FillZone(new Vec2(-100, 12), ZoneType.Commercial);
+
+            bool west = false;
+            foreach (Lot lot in city.Lots.Lots)
+            {
+                if (lot.Zone == ZoneType.Commercial)
+                {
+                    west = true;
+                    Assert.Less(lot.Center.X, 0.0, "the fill ran past the junction");
+                }
+            }
+
+            Assert.IsTrue(west);
+        }
+
+        [Test]
+        public void FillZone_ReplacesZoningAndBuildings_AndDoesNothingOffALot()
+        {
+            CitySimulation city = CityWithRoad(22);
+            city.SpawnChance = 1.0;
+            ZoneEverything(city, ZoneType.Residential);
+            Run(city, 100);
+            Assert.Greater(city.BuildingCount, 0);
+
+            Assert.AreEqual(0, city.FillZone(new Vec2(0, 300), ZoneType.Industrial));
+            Assert.Greater(city.FillZone(new Vec2(0, 12), ZoneType.Industrial), 0);
+
+            foreach (Building b in city.Buildings)
+            {
+                foreach (Lot lot in b.Lots)
+                {
+                    Assert.AreEqual(b.Zone, lot.Zone);
+                }
+            }
+
+            CityChecks.AssertAllRulesHold(city);
+        }
+
         // ---------------------------------------------------------------- growth
 
         [Test]

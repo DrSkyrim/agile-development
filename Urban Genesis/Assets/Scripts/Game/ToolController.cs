@@ -21,6 +21,7 @@ namespace UrbanGenesis.Game
     ///   Road      Straight: press, drag, release.  Curved (toggle with C): click start, click a point to bend through, click end.
     ///             A road can start or end in open ground, on a junction, or on another road (it joins there).
     ///   Zone      Paint with a round brush; only lots beside roads exist, up to four rows deep.
+    ///             Fill (toggle with F): click a lot to zone that whole side of the road, all rows, up to the next junction.
     ///   Bulldoze  Paint to clear buildings and zoning; click a road to remove it.
     /// [ and ] change the brush size. While you aim, a coloured preview shows what will happen.
     /// Esc (or right-click) cancels a road in progress, or drops the tool.
@@ -56,6 +57,7 @@ namespace UrbanGenesis.Game
         private ToolType shownTool;
         private float shownBrush;
         private RoadMode shownMode;
+        private bool shownFill;
 
         private string liveText = "";
         private string resultText = "";
@@ -63,6 +65,14 @@ namespace UrbanGenesis.Game
 
         public ToolType CurrentTool { get; private set; }
         public RoadMode RoadMode { get; private set; }
+
+        /// <summary>When on, the zone tools fill a whole side of a road with one click instead of painting with the brush.</summary>
+        public bool FillMode { get; private set; }
+
+        public bool IsZoneTool
+        {
+            get { return ZoneForTool(CurrentTool) != ZoneType.None; }
+        }
         public float BrushRadius { get; private set; }
 
         /// <summary>Short message for the toolbar: what the current aim would do, or what the last action did.</summary>
@@ -99,6 +109,13 @@ namespace UrbanGenesis.Game
         {
             CancelRoad();
             RoadMode = mode;
+            HidePreview();
+        }
+
+        public void SetFillMode(bool on)
+        {
+            FillMode = on;
+            painting = false;
             HidePreview();
         }
 
@@ -191,6 +208,11 @@ namespace UrbanGenesis.Game
             if (keyboard.cKey.wasPressedThisFrame)
             {
                 SetRoadMode(RoadMode == RoadMode.Straight ? RoadMode.Curved : RoadMode.Straight);
+            }
+
+            if (keyboard.fKey.wasPressedThisFrame)
+            {
+                SetFillMode(!FillMode);
             }
 
             if (keyboard.leftBracketKey.wasPressedThisFrame) { ChangeBrush(-1); }
@@ -428,12 +450,16 @@ namespace UrbanGenesis.Game
                     {
                         paintedCount += sim.Bulldoze(p, BrushRadius, true);
                     }
+                    else if (FillMode)
+                    {
+                        paintedCount += sim.FillZone(p, zone);
+                    }
                     else
                     {
                         paintedCount += sim.PaintZone(p, BrushRadius, zone);
                     }
                 }
-                else if (painting && mouse.leftButton.isPressed)
+                else if (painting && mouse.leftButton.isPressed && !(FillMode && !bulldoze))
                 {
                     paintedCount += bulldoze ? sim.Bulldoze(p, BrushRadius, false) : sim.PaintZone(p, BrushRadius, zone);
                 }
@@ -449,7 +475,7 @@ namespace UrbanGenesis.Game
                 else
                 {
                     ShowResult(paintedCount == 0
-                        ? "Nothing zoned (zones go on lots beside roads)"
+                        ? (FillMode ? "Nothing to fill: click a lot beside a road" : "Nothing zoned (zones go on lots beside roads)")
                         : "Zoned " + paintedCount + " lots " + ToolLabel(CurrentTool).ToLowerInvariant());
                 }
             }
@@ -504,6 +530,30 @@ namespace UrbanGenesis.Game
                 return;
             }
 
+            if (FillMode)
+            {
+                List<Lot> fill = sim.LotsToFill(p);
+                if (fill == null)
+                {
+                    liveText = ToolLabel(CurrentTool) + " fill: point at a lot beside a road";
+                    return;
+                }
+
+                int fillChanging = 0;
+                foreach (Lot lot in fill)
+                {
+                    bool already = lot.Zone == zone;
+                    cityRenderer.PreviewQuad(lot.Corners, already ? CityPalette.PreviewNeutral : CityPalette.ZonePreview(zone));
+                    if (!already)
+                    {
+                        fillChanging++;
+                    }
+                }
+
+                liveText = ToolLabel(CurrentTool) + " fill: click to zone " + fillChanging + " lots along this side of the road";
+                return;
+            }
+
             int changing = 0;
             foreach (Lot lot in lots)
             {
@@ -548,6 +598,7 @@ namespace UrbanGenesis.Game
                 && shownTool == CurrentTool
                 && shownStage == roadStage
                 && shownMode == RoadMode
+                && shownFill == FillMode
                 && shownRevision == sim.Revision
                 && Mathf.Approximately(shownBrush, BrushRadius)
                 && Vec2.Distance(shownPoint, p) < 0.25;
@@ -560,6 +611,7 @@ namespace UrbanGenesis.Game
             shownTool = CurrentTool;
             shownStage = roadStage;
             shownMode = RoadMode;
+            shownFill = FillMode;
             shownRevision = sim.Revision;
             shownBrush = BrushRadius;
         }
