@@ -6,18 +6,19 @@ namespace UrbanGenesis.Game
     /// <summary>All the colours used on the ground and in tool previews, in one place.</summary>
     public static class CityPalette
     {
-        // Ground texture
+        // Ground and roads
         public static readonly Color32 Ground = new Color32(140, 152, 128, 255);
-        public static readonly Color32 GroundLine = new Color32(121, 133, 110, 255);
+        public static readonly Color32 GroundLine = new Color32(129, 141, 118, 255);
         public static readonly Color32 Road = new Color32(52, 52, 58, 255);
-        public static readonly Color32 RoadEdge = new Color32(96, 96, 106, 255);
+        public static readonly Color32 RoadEdge = new Color32(176, 176, 186, 255);
+        public static readonly Color32 RoadCentre = new Color32(226, 196, 84, 255);
 
         private static readonly Color32 ResidentialFill = new Color32(112, 196, 106, 255);
-        private static readonly Color32 ResidentialLine = new Color32(88, 160, 84, 255);
         private static readonly Color32 CommercialFill = new Color32(92, 142, 230, 255);
-        private static readonly Color32 CommercialLine = new Color32(70, 112, 190, 255);
         private static readonly Color32 IndustrialFill = new Color32(234, 198, 78, 255);
-        private static readonly Color32 IndustrialLine = new Color32(190, 160, 58, 255);
+
+        // Lots that are not zoned yet (only shown while a zoning or bulldoze tool is active)
+        public static readonly Color LotOutline = new Color(1f, 1f, 1f, 0.16f);
 
         // Tool preview overlay (translucent)
         public static readonly Color PreviewValid = new Color(0.35f, 0.85f, 1.00f, 0.50f);
@@ -37,15 +38,11 @@ namespace UrbanGenesis.Game
             }
         }
 
-        public static Color32 ZoneLine(ZoneType zone)
+        /// <summary>A zone's colour with the given opacity, for tinting lots.</summary>
+        public static Color ZoneTint(ZoneType zone, float alpha)
         {
-            switch (zone)
-            {
-                case ZoneType.Residential: return ResidentialLine;
-                case ZoneType.Commercial: return CommercialLine;
-                case ZoneType.Industrial: return IndustrialLine;
-                default: return GroundLine;
-            }
+            Color32 fill = ZoneFill(zone);
+            return new Color(fill.r / 255f, fill.g / 255f, fill.b / 255f, alpha);
         }
 
         /// <summary>Translucent version of a zone's colour, for tool previews.</summary>

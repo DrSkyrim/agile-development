@@ -14,7 +14,7 @@ namespace UrbanGenesis.Game
     public sealed class CameraRig : MonoBehaviour
     {
         private const float MinDistance = 30f;
-        private const float MaxDistance = 700f;
+        private const float MaxDistance = 1200f;
         private const float MinPitch = 25f;
         private const float MaxPitch = 85f;
 
@@ -24,17 +24,18 @@ namespace UrbanGenesis.Game
         private Vector3 focus;
         private float yaw;
         private float pitch = 55f;
-        private float distance = 160f;
-        private float targetDistance = 160f;
-        private Vector2 groundSize;
+        private float distance = 260f;
+        private float targetDistance = 260f;
+        private float halfExtent;
 
         public Camera Camera { get { return cam; } }
 
-        public void Init(HudToolbar toolbar, float worldWidth, float worldDepth)
+        /// <summary>Starts looking at the middle of the map. <paramref name="mapHalfExtent"/> is half the map's side length in metres.</summary>
+        public void Init(HudToolbar toolbar, float mapHalfExtent)
         {
             hud = toolbar;
-            groundSize = new Vector2(worldWidth, worldDepth);
-            focus = new Vector3(worldWidth * 0.5f, 0f, worldDepth * 0.5f);
+            halfExtent = mapHalfExtent;
+            focus = Vector3.zero;
 
             cam = Camera.main;
             if (cam == null)
@@ -54,9 +55,9 @@ namespace UrbanGenesis.Game
                 cam.gameObject.AddComponent<AudioListener>();
             }
 
-            // The default clip planes are tuned for small scenes; a 512 m city needs longer ones.
+            // The default clip planes are tuned for small scenes; a 1 km city needs longer ones.
             cam.nearClipPlane = 5f;
-            cam.farClipPlane = 4000f;
+            cam.farClipPlane = 6000f;
 
             ApplyToCamera();
         }
@@ -111,8 +112,8 @@ namespace UrbanGenesis.Game
 
             distance = Mathf.Lerp(distance, targetDistance, 1f - Mathf.Exp(-12f * dt));
 
-            focus.x = Mathf.Clamp(focus.x, 0f, groundSize.x);
-            focus.z = Mathf.Clamp(focus.z, 0f, groundSize.y);
+            focus.x = Mathf.Clamp(focus.x, -halfExtent, halfExtent);
+            focus.z = Mathf.Clamp(focus.z, -halfExtent, halfExtent);
 
             ApplyToCamera();
         }

@@ -4,33 +4,28 @@ using UrbanGenesis.Simulation;
 namespace UrbanGenesis.Game
 {
     /// <summary>
-    /// How grid cells map to the 3D world. One cell is <see cref="CellSize"/> world units wide
-    /// (1 unit = 1 metre, matching Blender's default). The grid's corner (0, 0) sits at the world origin,
-    /// grid X runs along world X and grid Y runs along world Z.
+    /// How the simulation's flat ground coordinates map to the 3D world. The simulation measures in metres on a plane
+    /// (X east, Y north) with the map centred on (0, 0). In Unity that is world X and world Z, with 1 unit = 1 metre
+    /// (matching Blender's default). Height is world Y.
     /// </summary>
     public static class CityMetrics
     {
-        public const float CellSize = 8f;
+        /// <summary>
+        /// Size of one lot cell in metres. Building designs are drawn in lot cells, so this scales them to metres.
+        /// </summary>
+        public const float CellSize = (float)RoadNetwork.LotSize;
 
         /// <summary>How tall one floor of a building is, in world units.</summary>
         public const float FloorHeight = 3.5f;
 
-        /// <summary>World position of the centre of a cell, at ground level.</summary>
-        public static Vector3 CellCenter(GridCoord c)
+        public static Vector3 ToWorld(Vec2 p, float height)
         {
-            return new Vector3((c.X + 0.5f) * CellSize, 0f, (c.Y + 0.5f) * CellSize);
+            return new Vector3((float)p.X, height, (float)p.Y);
         }
 
-        /// <summary>World position of the lower-left (minimum X/Z) corner of a cell.</summary>
-        public static Vector3 CellCorner(GridCoord c)
+        public static Vec2 ToGround(Vector3 world)
         {
-            return new Vector3(c.X * CellSize, 0f, c.Y * CellSize);
-        }
-
-        /// <summary>The cell that contains a world position. May be outside the grid; check with CityGrid.InBounds.</summary>
-        public static GridCoord WorldToCell(Vector3 world)
-        {
-            return new GridCoord(Mathf.FloorToInt(world.x / CellSize), Mathf.FloorToInt(world.z / CellSize));
+            return new Vec2(world.x, world.z);
         }
     }
 }
