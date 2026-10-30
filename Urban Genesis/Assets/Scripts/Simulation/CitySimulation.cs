@@ -4,40 +4,49 @@ using System.Collections.Generic;
 namespace UrbanGenesis.Simulation
 {
     /// <summary>
-    /// The whole city model: grid, roads, zones and buildings. It has no idea Unity exists.
-    /// The Unity layer sends it commands (PlaceRoad, PaintZone, Bulldoze), calls <see cref="Step"/>
-    /// on a fixed timer, and listens to the events to update what is on screen.
+    /// The whole city model: roads, the lots around them, zones and buildings. It has no idea Unity exists.
+    /// The Unity layer sends it commands (PlanRoad/PlaceRoad, PaintZone, Bulldoze), calls <see cref="Step"/>
+    /// on a fixed timer, and listens to the events (or watches <see cref="Revision"/>) to update what is on screen.
     ///
     /// Rules the model keeps true at all times:
-    ///  * A road cell never has a zone or a building on it.
-    ///  * A zoned cell is always "served", meaning a road is within <see cref="ZoneDepth"/> cells.
-    ///  * A building covers one or more cells, and every cell it covers is zoned for the building's type.
-    ///  * Buildings never overlap.
+    ///  * Roads are free-form curves <see cref="RoadNetwork.RoadWidth"/> metres wide and never cross each other.
+    ///  * Lots exist only beside roads, up to <see cref="LotLayout.Rows"/> rows deep, and never under a road.
+    ///  * A building stands on a block of lots beside ONE road. Its front is on that road: the lots of its first row
+    ///    touch the road, so every building has a direct connection to a road.
+    ///  * Every lot a building stands on is zoned for the building's type, and buildings never overlap each other or a road.
     /// </summary>
     public sealed class CitySimulation
     {
-        /// <summary>How far (in cells, counted along the grid) a zone can be from the nearest road.</summary>
-        public const int ZoneDepth = 4;
+        public const double DefaultWorldSize = 1024.0;
 
-        /// <summary>How many random templates growth tries on one spot before settling for a 1x1 building.</summary>
-        private const int TemplateTries = 4;
+        /// <summary>A building may stick into a road by this much (metres) because curves bend the straight edges.</summary>
+        public const double BuildingRoadTolerance = 0.4;
 
-        /// <summary>How far in front of a building (in cells) growth looks for a road when deciding which way it faces.</summary>
-        private const int FacingScanDistance = 8;
+        /// <summary>Two buildings may overlap by this much (metres) beside a tight bend.</summary>
+        public const double BuildingOverlapTolerance = 1.0;
 
-        private static readonly int[] FrontDx = { 0, -1, 0, 1 };
-        private static readonly int[] FrontDy = { -1, 0, 1, 0 };
+        /// <summary>A building is moved to touch the road, but is refused if that would take more than this (metres).</summary>
+        public const double RoadContactTolerance = 1.5;
+
+        private const double HashCell = 32.0;
 
         private readonly Dictionary<int, Building> buildings = new Dictionary<int, Building>();
-        private readonly List<GridCoord> candidates = new List<GridCoord>();
+        private readonly Dictionary<long, List<Building>> buildingHash = new Dictionary<long, List<Building>>();
         private readonly Random rng;
         private int nextBuildingId = 1;
 
-        public CityGrid Grid { get; private set; }
+        private readonly List<Lot> residentialCandidates = new List<Lot>();
+        private readonly List<Lot> commercialCandidates = new List<Lot>();
+        private readonly List<Lot> industrialCandidates = new List<Lot>();
+
         public RoadNetwork Roads { get; private set; }
+        public LotLayout Lots { get; private set; }
 
         /// <summary>Number of simulation ticks run so far.</summary>
         public int TickCount { get; private set; }
+
+        /// <summary>Goes up every time roads, lots, zones or buildings change. Handy for "redraw if changed".</summary>
+        public int Revision { get; private set; }
 
         /// <summary>Chance (0 to 1) that each growth attempt on a tick actually places a building.</summary>
         public double SpawnChance { get; set; }
@@ -45,18 +54,35 @@ namespace UrbanGenesis.Simulation
         /// <summary>How many growth attempts each zone type gets per tick.</summary>
         public int GrowthAttemptsPerZonePerTick { get; set; }
 
-        /// <summary>Raised when anything about one cell changes (road, zone or building).</summary>
-        public event Action<GridCoord> CellChanged;
+        /// <summary>
+        /// How strongly big buildings are preferred (0 to 1). Growth always tries the biggest buildings first; at 1 it
+        /// always takes the biggest one that fits, below 1 it sometimes skips a big one to keep the skyline varied.
+        /// </summary>
+        public double BigBuildingPriority { get; set; }
+
         public event Action<Building> BuildingSpawned;
         public event Action<Building> BuildingRemoved;
 
-        public CitySimulation(int width, int height, int seed)
+        /// <summary>Raised when the zone of a lot changes.</summary>
+        public event Action<Lot> ZoneChanged;
+
+        public CitySimulation(int seed) : this(DefaultWorldSize, seed)
         {
-            Grid = new CityGrid(width, height);
-            Roads = new RoadNetwork();
+        }
+
+        public CitySimulation(double worldSize, int seed)
+        {
+            double half = worldSize * 0.5;
+            Roads = new RoadNetwork(new Aabb(-half, -half, half, half));
+            Lots = new LotLayout(Roads);
             rng = new Random(seed);
             SpawnChance = 0.5;
             GrowthAttemptsPerZonePerTick = 2;
+            BigBuildingPriority = 0.85;
+
+            Roads.SegmentSplit += OnSegmentSplit;
+            Roads.SegmentAdded += OnSegmentAdded;
+            Roads.SegmentRemoved += OnSegmentRemoved;
         }
 
         public int BuildingCount { get { return buildings.Count; } }
@@ -76,35 +102,77 @@ namespace UrbanGenesis.Simulation
             return count;
         }
 
-        /// <summary>Finds the building covering a cell. Works for any of the cells a larger building covers.</summary>
-        public bool TryGetBuildingAt(GridCoord c, out Building building)
+        /// <summary>Finds the building standing on a spot of ground.</summary>
+        public bool TryGetBuildingAt(Vec2 p, out Building building)
         {
-            building = null;
-            if (!Grid.InBounds(c))
+            List<Building> bucket;
+            if (buildingHash.TryGetValue(HashKey(CellOf(p.X), CellOf(p.Y)), out bucket))
             {
-                return false;
+                for (int i = 0; i < bucket.Count; i++)
+                {
+                    if (bucket[i].Bounds.Contains(p) && Geometry.PointInConvex(p, bucket[i].Footprint))
+                    {
+                        building = bucket[i];
+                        return true;
+                    }
+                }
             }
 
-            int id = Grid.GetBuildingId(c);
-            return id != CityGrid.NoBuilding && buildings.TryGetValue(id, out building);
+            building = null;
+            return false;
         }
 
-        // ---------------------------------------------------------------- queries
+        // ---------------------------------------------------------------- roads
 
-        public bool IsRoad(GridCoord c)
+        /// <summary>
+        /// Checks a road before building it: the network's own rules (length, bend, junctions, clearance) plus
+        /// "no buildings in the way". <paramref name="control"/> is null for a straight road. Nothing is changed.
+        /// </summary>
+        public RoadPlan PlanRoad(Vec2 start, Vec2? control, Vec2 end)
         {
-            return Roads.HasNode(c);
-        }
-
-        /// <summary>True if a road lies within <see cref="ZoneDepth"/> cells of <paramref name="c"/>.</summary>
-        public bool IsServed(GridCoord c)
-        {
-            for (int dy = -ZoneDepth; dy <= ZoneDepth; dy++)
+            RoadPlan plan = Roads.Plan(start, control, end);
+            if (!plan.IsValid)
             {
-                int remaining = ZoneDepth - Math.Abs(dy);
-                for (int dx = -remaining; dx <= remaining; dx++)
+                return plan;
+            }
+
+            if (BuildingsOnRoad(plan.Curve))
+            {
+                return RoadPlan.Fail("There are buildings in the way. Bulldoze them first.");
+            }
+
+            return plan;
+        }
+
+        /// <summary>Builds a road from a valid plan. Returns the new segment, or null if the plan was not valid.</summary>
+        public RoadSegment PlaceRoad(RoadPlan plan)
+        {
+            if (plan == null || !plan.IsValid || BuildingsOnRoad(plan.Curve))
+            {
+                return null;
+            }
+
+            RoadSegment segment = Roads.AddRoad(plan);
+            Revision++;
+            return segment;
+        }
+
+        private bool BuildingsOnRoad(RoadCurve curve)
+        {
+            var probe = new RoadSegment(0, null, null, curve, 1f);
+            Aabb box = curve.Bounds.Expanded(RoadNetwork.HalfWidth);
+            IList<Vec2[]> surface = probe.Surface;
+
+            foreach (Building b in buildings.Values)
+            {
+                if (!b.Bounds.Overlaps(box))
                 {
-                    if (Roads.HasNode(c.Offset(dx, dy)))
+                    continue;
+                }
+
+                for (int i = 0; i < surface.Count; i++)
+                {
+                    if (Geometry.ConvexOverlap(b.Footprint, surface[i], BuildingRoadTolerance))
                     {
                         return true;
                     }
@@ -114,120 +182,146 @@ namespace UrbanGenesis.Simulation
             return false;
         }
 
-        public bool CanPlaceRoad(GridCoord c)
+        private void OnSegmentSplit(RoadSegment old, RoadSegment first, RoadSegment second, double length)
         {
-            return Grid.InBounds(c)
-                && !Roads.HasNode(c)
-                && Grid.GetBuildingId(c) == CityGrid.NoBuilding;
+            Lots.Remap(old, first, second, length);
         }
 
-        public bool CanZone(GridCoord c)
+        private void OnSegmentAdded(RoadSegment segment)
         {
-            return Grid.InBounds(c) && !Roads.HasNode(c) && IsServed(c);
+            RefreshAround(segment);
         }
 
-        // ---------------------------------------------------------------- commands
-
-        /// <summary>Places a road on every valid cell in the list. Returns how many roads were actually placed.</summary>
-        public int PlaceRoad(IEnumerable<GridCoord> cells)
+        private void OnSegmentRemoved(RoadSegment segment)
         {
-            int placed = 0;
-            foreach (GridCoord c in cells)
+            ClearRemovedLots(Lots.RemoveSegment(segment.Id));
+            RefreshAround(segment);
+            Revision++;
+        }
+
+        /// <summary>Re-checks the lots of every road near the segment, since roads cover (or uncover) each other's land.</summary>
+        private void RefreshAround(RoadSegment segment)
+        {
+            double margin = LotLayout.Rows * RoadNetwork.LotSize + RoadNetwork.RoadWidth;
+            foreach (RoadSegment near in Roads.SegmentsNear(segment.Curve.Bounds, margin))
             {
-                if (!CanPlaceRoad(c))
-                {
-                    continue;
-                }
-
-                // Building a road over empty zoned land simply removes the zoning.
-                if (Grid.GetZone(c) != ZoneType.None)
-                {
-                    Grid.SetZone(c, ZoneType.None);
-                }
-
-                Roads.AddNode(c);
-                placed++;
-                RaiseCellChanged(c);
+                ClearRemovedLots(Lots.Refresh(near));
             }
 
-            return placed;
+            Revision++;
         }
 
+        /// <summary>Anything that stood on a lot that no longer exists goes with it.</summary>
+        private void ClearRemovedLots(List<Lot> removed)
+        {
+            for (int i = 0; i < removed.Count; i++)
+            {
+                if (removed[i].Building != null)
+                {
+                    RemoveBuilding(removed[i].Building);
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------- zoning and bulldozing
+
         /// <summary>
-        /// Sets the zone of every valid cell in the rectangle. Zoning over a different zone replaces it
-        /// (and removes the building on it, even if that building also covers cells outside the rectangle).
-        /// Passing <see cref="ZoneType.None"/> clears zoning. Returns how many cells changed.
+        /// Zones every lot whose centre is within <paramref name="radius"/> metres of the point. Zoning over a different
+        /// zone replaces it (and removes any building standing on that lot). <see cref="ZoneType.None"/> clears zoning.
+        /// Returns how many lots changed.
         /// </summary>
-        public int PaintZone(GridRect rect, ZoneType zone)
+        public int PaintZone(Vec2 center, double radius, ZoneType zone)
         {
             int changed = 0;
-            foreach (GridCoord c in ClipToGrid(rect).Cells())
+            foreach (Lot lot in Lots.LotsInCircle(center, radius))
             {
-                if (Roads.HasNode(c))
+                if (lot.Zone == zone)
                 {
                     continue;
                 }
 
-                if (zone != ZoneType.None && !IsServed(c))
+                if (lot.Building != null)
                 {
-                    continue;
+                    RemoveBuilding(lot.Building);
                 }
 
-                if (Grid.GetZone(c) == zone)
-                {
-                    continue;
-                }
-
-                RemoveBuildingAt(c);
-                Grid.SetZone(c, zone);
+                lot.Zone = zone;
                 changed++;
-                RaiseCellChanged(c);
+                Action<Lot> handler = ZoneChanged;
+                if (handler != null)
+                {
+                    handler(lot);
+                }
+            }
+
+            if (changed > 0)
+            {
+                Revision++;
             }
 
             return changed;
         }
 
         /// <summary>
-        /// Clears everything (road, zone, building) in the rectangle. A building that is only partly inside
-        /// the rectangle is removed completely, but only the cells inside the rectangle lose their zone.
-        /// Removing roads can leave nearby zones without service; those zones are cleared too.
-        /// Returns how many cells in the rectangle had something removed.
+        /// Clears the ground around a point: removes buildings that come within <paramref name="radius"/> metres of it and
+        /// clears the zoning of lots in that circle. With <paramref name="includeRoad"/> set, a road under the point is
+        /// removed too (the whole stretch between its two junctions, with everything beside it).
+        /// Returns how many things (roads, buildings, lots) changed.
         /// </summary>
-        public int Bulldoze(GridRect rect)
+        public int Bulldoze(Vec2 center, double radius, bool includeRoad)
         {
-            GridRect area = ClipToGrid(rect);
             int changed = 0;
-            bool roadsRemoved = false;
 
-            foreach (GridCoord c in area.Cells())
+            if (includeRoad)
             {
-                bool touched = RemoveBuildingAt(c);
-
-                if (Grid.GetZone(c) != ZoneType.None)
-                {
-                    Grid.SetZone(c, ZoneType.None);
-                    touched = true;
-                }
-
-                if (Roads.RemoveNode(c))
-                {
-                    touched = true;
-                    roadsRemoved = true;
-                }
-
-                if (touched)
+                double length;
+                RoadSegment segment = Roads.FindSegmentNear(center, RoadNetwork.HalfWidth, out length);
+                if (segment != null && Roads.RemoveSegment(segment))
                 {
                     changed++;
-                    RaiseCellChanged(c);
                 }
             }
 
-            if (roadsRemoved)
+            var doomed = new List<Building>();
+            Aabb box = new Aabb(center.X - radius, center.Y - radius, center.X + radius, center.Y + radius);
+            foreach (Building b in buildings.Values)
             {
-                ClearUnservedZones(area.Expanded(ZoneDepth));
+                if (b.Bounds.Overlaps(box) && DistanceToPolygon(center, b.Footprint) <= radius)
+                {
+                    doomed.Add(b);
+                }
+            }
+
+            for (int i = 0; i < doomed.Count; i++)
+            {
+                RemoveBuilding(doomed[i]);
+                changed++;
+            }
+
+            changed += PaintZone(center, radius, ZoneType.None);
+
+            if (changed > 0)
+            {
+                Revision++;
             }
 
             return changed;
+        }
+
+        private static double DistanceToPolygon(Vec2 p, Vec2[] polygon)
+        {
+            if (Geometry.PointInConvex(p, polygon))
+            {
+                return 0.0;
+            }
+
+            double best = double.MaxValue;
+            for (int i = 0; i < polygon.Length; i++)
+            {
+                best = Math.Min(best, Geometry.DistanceToSegment(p, polygon[i], polygon[(i + 1) % polygon.Length]));
+            }
+
+            return best;
         }
 
         // ---------------------------------------------------------------- simulation
@@ -236,26 +330,34 @@ namespace UrbanGenesis.Simulation
         public void Step()
         {
             TickCount++;
-            GrowZone(ZoneType.Residential);
-            GrowZone(ZoneType.Commercial);
-            GrowZone(ZoneType.Industrial);
-        }
 
-        private void GrowZone(ZoneType zone)
-        {
-            candidates.Clear();
-            for (int y = 0; y < Grid.Height; y++)
+            residentialCandidates.Clear();
+            commercialCandidates.Clear();
+            industrialCandidates.Clear();
+
+            // Only lots on the road itself (row 0) can start a building: that is what gives it a road connection.
+            foreach (Lot lot in Lots.Lots)
             {
-                for (int x = 0; x < Grid.Width; x++)
+                if (lot.Key.Row != 0 || lot.Building != null)
                 {
-                    var c = new GridCoord(x, y);
-                    if (Grid.GetZone(c) == zone && Grid.GetBuildingId(c) == CityGrid.NoBuilding)
-                    {
-                        candidates.Add(c);
-                    }
+                    continue;
+                }
+
+                switch (lot.Zone)
+                {
+                    case ZoneType.Residential: residentialCandidates.Add(lot); break;
+                    case ZoneType.Commercial: commercialCandidates.Add(lot); break;
+                    case ZoneType.Industrial: industrialCandidates.Add(lot); break;
                 }
             }
 
+            Grow(residentialCandidates, ZoneType.Residential);
+            Grow(commercialCandidates, ZoneType.Commercial);
+            Grow(industrialCandidates, ZoneType.Industrial);
+        }
+
+        private void Grow(List<Lot> candidates, ZoneType zone)
+        {
             for (int attempt = 0; attempt < GrowthAttemptsPerZonePerTick && candidates.Count > 0; attempt++)
             {
                 if (rng.NextDouble() >= SpawnChance)
@@ -264,257 +366,308 @@ namespace UrbanGenesis.Simulation
                 }
 
                 int index = rng.Next(candidates.Count);
-                GridCoord cell = candidates[index];
+                Lot seed = candidates[index];
                 candidates[index] = candidates[candidates.Count - 1];
                 candidates.RemoveAt(candidates.Count - 1);
 
-                // A bigger building placed earlier this tick may already cover this cell.
-                if (Grid.GetBuildingId(cell) != CityGrid.NoBuilding)
+                // A bigger building placed earlier this tick may already stand here.
+                if (seed.Building != null)
                 {
                     continue;
                 }
 
-                GrowAt(cell, zone);
+                GrowAt(seed, zone);
             }
         }
 
         /// <summary>
-        /// Grows one building that covers <paramref name="cell"/>. It tries a few random templates and
-        /// settles for a 1x1 building if none of them fit around the cell.
+        /// Grows one building on a road-side lot. Templates are tried biggest first (see <see cref="BigBuildingPriority"/>);
+        /// the first one that fits on the lots around the seed is built, and 1x1 buildings are the last resort.
         /// </summary>
-        private void GrowAt(GridCoord cell, ZoneType zone)
+        private void GrowAt(Lot seed, ZoneType zone)
         {
-            for (int tries = 0; tries < TemplateTries; tries++)
+            List<BuildingTemplate> order = TemplatesBiggestFirst(zone);
+            for (int i = 0; i < order.Count; i++)
             {
-                BuildingTemplate template = BuildingCatalog.Pick(zone, rng, false);
-                if (TryPlace(template, cell))
+                BuildingTemplate template = order[i];
+                if (template.CellCount > 1 && rng.NextDouble() >= BigBuildingPriority)
+                {
+                    continue;
+                }
+
+                if (TryPlace(template, seed))
                 {
                     return;
                 }
             }
 
-            TryPlace(BuildingCatalog.Pick(zone, rng, true), cell);
+            // Every 1x1 template fits anywhere the seed lot itself is free, but the priority roll may have skipped them all.
+            TryPlace(BuildingCatalog.Pick(zone, rng, true), seed);
+        }
+
+        private List<BuildingTemplate> TemplatesBiggestFirst(ZoneType zone)
+        {
+            IList<BuildingTemplate> templates = BuildingCatalog.ForZone(zone);
+            var entries = new List<KeyValuePair<double, BuildingTemplate>>(templates.Count);
+
+            foreach (BuildingTemplate t in templates)
+            {
+                // Same-size templates are put in a random order, favouring the common ones.
+                double tie = -Math.Log(Math.Max(1e-9, rng.NextDouble())) / t.Weight;
+                entries.Add(new KeyValuePair<double, BuildingTemplate>(-t.CellCount * 1000.0 + tie, t));
+            }
+
+            entries.Sort((a, b) => a.Key.CompareTo(b.Key));
+
+            var result = new List<BuildingTemplate>(entries.Count);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                result.Add(entries[i].Value);
+            }
+
+            return result;
         }
 
         /// <summary>
-        /// Looks at every way of laying the template over <paramref name="seed"/> (four rotations, and every
-        /// position that still covers the seed cell) and builds on the best one that fits. "Best" means the
-        /// front of the building is closest to a road; ties are broken at random.
+        /// Tries every position along the road that covers the seed lot with this template and builds on a
+        /// random one that fits (zoned, free, clear of roads and other buildings, and touching the road).
         /// </summary>
-        private bool TryPlace(BuildingTemplate template, GridCoord seed)
+        private bool TryPlace(BuildingTemplate template, Lot seed)
         {
-            bool found = false;
-            GridCoord bestAnchor = seed;
-            int bestRotation = 0;
-            int bestScore = int.MaxValue;
-            int ties = 0;
-
-            for (int rotation = 0; rotation < 4; rotation++)
-            {
-                bool turned = rotation % 2 == 1;
-                int width = turned ? template.Depth : template.Width;
-                int depth = turned ? template.Width : template.Depth;
-
-                for (int oy = 0; oy < depth; oy++)
-                {
-                    for (int ox = 0; ox < width; ox++)
-                    {
-                        GridCoord anchor = seed.Offset(-ox, -oy);
-                        if (!FitsAt(anchor, width, depth, template.Zone))
-                        {
-                            continue;
-                        }
-
-                        int score = DistanceToRoadInFront(anchor, width, depth, rotation);
-                        if (!found || score < bestScore)
-                        {
-                            found = true;
-                            bestScore = score;
-                            bestAnchor = anchor;
-                            bestRotation = rotation;
-                            ties = 1;
-                        }
-                        else if (score == bestScore)
-                        {
-                            ties++;
-                            if (rng.Next(ties) == 0)
-                            {
-                                bestAnchor = anchor;
-                                bestRotation = rotation;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!found)
+            RoadSegment segment = Roads.GetSegment(seed.Key.SegmentId);
+            if (segment == null)
             {
                 return false;
             }
 
-            SpawnBuilding(template, bestAnchor, bestRotation);
-            return true;
-        }
+            List<Lot> bestLots = null;
+            Vec2 bestCenter = Vec2.Zero;
+            Vec2 bestBack = Vec2.Zero;
+            int fits = 0;
 
-        /// <summary>True if every cell of the rectangle is inside the grid, zoned for <paramref name="zone"/> and empty.</summary>
-        private bool FitsAt(GridCoord anchor, int width, int depth, ZoneType zone)
-        {
-            for (int dy = 0; dy < depth; dy++)
+            for (int col = seed.Key.Col - template.Width + 1; col <= seed.Key.Col; col++)
             {
-                for (int dx = 0; dx < width; dx++)
+                if (col < 0)
                 {
-                    GridCoord c = anchor.Offset(dx, dy);
-                    if (!Grid.InBounds(c)
-                        || Grid.GetZone(c) != zone
-                        || Grid.GetBuildingId(c) != CityGrid.NoBuilding
-                        || Roads.HasNode(c))
-                    {
-                        return false;
-                    }
+                    continue;
+                }
+
+                List<Lot> lots = CollectLots(seed.Key, col, template);
+                if (lots == null)
+                {
+                    continue;
+                }
+
+                Vec2 center;
+                Vec2 back;
+                if (!Place(segment, seed.Key.Side, col, template, out center, out back))
+                {
+                    continue;
+                }
+
+                fits++;
+                if (rng.Next(fits) == 0)
+                {
+                    bestLots = lots;
+                    bestCenter = center;
+                    bestBack = back;
                 }
             }
 
+            if (bestLots == null)
+            {
+                return false;
+            }
+
+            SpawnBuilding(template, bestCenter, bestBack, bestLots);
             return true;
+        }
+
+        /// <summary>The lots a template would stand on, or null if any is missing, taken or zoned for something else.</summary>
+        private List<Lot> CollectLots(LotKey seed, int firstCol, BuildingTemplate template)
+        {
+            var lots = new List<Lot>(template.CellCount);
+            for (int row = 0; row < template.Depth; row++)
+            {
+                for (int i = 0; i < template.Width; i++)
+                {
+                    Lot lot = Lots.Get(new LotKey(seed.SegmentId, seed.Side, firstCol + i, row));
+                    if (lot == null || lot.Building != null || lot.Zone != template.Zone)
+                    {
+                        return null;
+                    }
+
+                    lots.Add(lot);
+                }
+            }
+
+            return lots;
         }
 
         /// <summary>
-        /// How many cells you walk from the front edge of the footprint to reach a road, looking straight ahead
-        /// across the whole width of the building. Returns a large number if there is none close by.
+        /// Works out where the building would stand: centred over its lots, front edge moved to just touch the
+        /// road, and checked against roads, other buildings and the edge of the map.
         /// </summary>
-        private int DistanceToRoadInFront(GridCoord anchor, int width, int depth, int rotation)
+        private bool Place(RoadSegment segment, int side, int firstCol, BuildingTemplate template, out Vec2 center, out Vec2 back)
         {
-            int dx = FrontDx[rotation];
-            int dy = FrontDy[rotation];
+            double widthM = template.Width * RoadNetwork.LotSize;
+            double depthM = template.Depth * RoadNetwork.LotSize;
+            double sMid = (firstCol + template.Width * 0.5) * RoadNetwork.LotSize;
 
-            for (int distance = 1; distance <= FacingScanDistance; distance++)
+            back = segment.Curve.NormalAtLength(sMid) * (side == 0 ? 1.0 : -1.0);
+            center = segment.Curve.PointAtLength(sMid) + back * (RoadNetwork.HalfWidth + depthM * 0.5);
+
+            // Straight edges cut across bends, so measure the real gap between the front edge and the road and close it.
+            Vec2[] footprint = Building.MakeFootprint(center, back, widthM, depthM);
+            double nearest = double.MaxValue;
+            const int samples = 8;
+            for (int k = 0; k <= samples; k++)
             {
-                if (dy != 0)
+                Vec2 p = Vec2.Lerp(footprint[0], footprint[1], k / (double)samples);
+                nearest = Math.Min(nearest, segment.Curve.DistanceTo(p));
+            }
+
+            double shift = RoadNetwork.HalfWidth - nearest;
+            if (Math.Abs(shift) > RoadContactTolerance)
+            {
+                return false;
+            }
+
+            center = center + back * shift;
+            footprint = Building.MakeFootprint(center, back, widthM, depthM);
+
+            Aabb inner = Roads.WorldBounds.Expanded(-RoadNetwork.LotSize);
+            for (int i = 0; i < footprint.Length; i++)
+            {
+                if (!inner.Contains(footprint[i]))
                 {
-                    int y = dy < 0 ? anchor.Y - distance : anchor.Y + depth - 1 + distance;
-                    for (int x = anchor.X; x < anchor.X + width; x++)
+                    return false;
+                }
+            }
+
+            return !OverlapsRoad(footprint) && !OverlapsBuilding(footprint);
+        }
+
+        private bool OverlapsRoad(Vec2[] footprint)
+        {
+            Aabb box = Aabb.Of(footprint);
+            foreach (RoadSegment segment in Roads.SegmentsNear(box, 0.0))
+            {
+                IList<Vec2[]> surface = segment.Surface;
+                for (int i = 0; i < surface.Count; i++)
+                {
+                    if (Aabb.Of(surface[i]).Overlaps(box) && Geometry.ConvexOverlap(footprint, surface[i], BuildingRoadTolerance))
                     {
-                        if (Roads.HasNode(new GridCoord(x, y)))
-                        {
-                            return distance;
-                        }
+                        return true;
                     }
                 }
-                else
+            }
+
+            return false;
+        }
+
+        private bool OverlapsBuilding(Vec2[] footprint)
+        {
+            Aabb box = Aabb.Of(footprint);
+            for (int cx = CellOf(box.MinX); cx <= CellOf(box.MaxX); cx++)
+            {
+                for (int cy = CellOf(box.MinY); cy <= CellOf(box.MaxY); cy++)
                 {
-                    int x = dx < 0 ? anchor.X - distance : anchor.X + width - 1 + distance;
-                    for (int y = anchor.Y; y < anchor.Y + depth; y++)
+                    List<Building> bucket;
+                    if (!buildingHash.TryGetValue(HashKey(cx, cy), out bucket))
                     {
-                        if (Roads.HasNode(new GridCoord(x, y)))
+                        continue;
+                    }
+
+                    for (int i = 0; i < bucket.Count; i++)
+                    {
+                        if (bucket[i].Bounds.Overlaps(box) && Geometry.ConvexOverlap(footprint, bucket[i].Footprint, BuildingOverlapTolerance))
                         {
-                            return distance;
+                            return true;
                         }
                     }
                 }
             }
 
-            return FacingScanDistance + 1;
+            return false;
         }
 
-        private void SpawnBuilding(BuildingTemplate template, GridCoord anchor, int rotation)
+        private void SpawnBuilding(BuildingTemplate template, Vec2 center, Vec2 back, List<Lot> lots)
         {
             int floors = rng.Next(template.MinFloors, template.MaxFloors + 1);
             int variant = rng.Next();
 
-            var building = new Building(nextBuildingId++, anchor, template, rotation, floors, variant);
+            var building = new Building(nextBuildingId++, template, floors, variant, center, back, lots);
             buildings[building.Id] = building;
-            foreach (GridCoord c in building.Cells())
+            for (int i = 0; i < lots.Count; i++)
             {
-                Grid.SetBuildingId(c, building.Id);
+                lots[i].Building = building;
             }
+
+            HashBuilding(building, true);
+            Revision++;
 
             Action<Building> spawned = BuildingSpawned;
             if (spawned != null)
             {
                 spawned(building);
             }
-
-            foreach (GridCoord c in building.Cells())
-            {
-                RaiseCellChanged(c);
-            }
         }
 
-        // ---------------------------------------------------------------- helpers
-
-        /// <summary>
-        /// Removes the building covering a cell, along with its hold on every other cell it covers.
-        /// Does not touch any zone. Returns true if there was a building.
-        /// </summary>
-        private bool RemoveBuildingAt(GridCoord c)
+        private void RemoveBuilding(Building building)
         {
-            int id = Grid.GetBuildingId(c);
-            if (id == CityGrid.NoBuilding)
+            if (!buildings.Remove(building.Id))
             {
-                return false;
+                return;
             }
 
-            Building building;
-            buildings.TryGetValue(id, out building);
-            buildings.Remove(id);
-
-            if (building == null)
+            for (int i = 0; i < building.Lots.Count; i++)
             {
-                Grid.SetBuildingId(c, CityGrid.NoBuilding);
-                return true;
+                if (building.Lots[i].Building == building)
+                {
+                    building.Lots[i].Building = null;
+                }
             }
 
-            foreach (GridCoord covered in building.Cells())
-            {
-                Grid.SetBuildingId(covered, CityGrid.NoBuilding);
-            }
+            HashBuilding(building, false);
+            Revision++;
 
             Action<Building> removed = BuildingRemoved;
             if (removed != null)
             {
                 removed(building);
             }
+        }
 
-            // The caller reports the cell it was working on; tell listeners about the others.
-            foreach (GridCoord covered in building.Cells())
+        // ---------------------------------------------------------------- spatial index for buildings
+
+        private void HashBuilding(Building b, bool add)
+        {
+            for (int cx = CellOf(b.Bounds.MinX); cx <= CellOf(b.Bounds.MaxX); cx++)
             {
-                if (covered != c)
+                for (int cy = CellOf(b.Bounds.MinY); cy <= CellOf(b.Bounds.MaxY); cy++)
                 {
-                    RaiseCellChanged(covered);
+                    long key = HashKey(cx, cy);
+                    List<Building> bucket;
+                    if (add)
+                    {
+                        if (!buildingHash.TryGetValue(key, out bucket))
+                        {
+                            bucket = new List<Building>();
+                            buildingHash[key] = bucket;
+                        }
+
+                        bucket.Add(b);
+                    }
+                    else if (buildingHash.TryGetValue(key, out bucket))
+                    {
+                        bucket.Remove(b);
+                    }
                 }
             }
-
-            return true;
         }
 
-        private void ClearUnservedZones(GridRect region)
-        {
-            foreach (GridCoord c in ClipToGrid(region).Cells())
-            {
-                if (Grid.GetZone(c) != ZoneType.None && !IsServed(c))
-                {
-                    RemoveBuildingAt(c);
-                    Grid.SetZone(c, ZoneType.None);
-                    RaiseCellChanged(c);
-                }
-            }
-        }
-
-        private GridRect ClipToGrid(GridRect rect)
-        {
-            return new GridRect(
-                Math.Max(0, rect.MinX),
-                Math.Max(0, rect.MinY),
-                Math.Min(Grid.Width - 1, rect.MaxX),
-                Math.Min(Grid.Height - 1, rect.MaxY));
-        }
-
-        private void RaiseCellChanged(GridCoord c)
-        {
-            Action<GridCoord> handler = CellChanged;
-            if (handler != null)
-            {
-                handler(c);
-            }
-        }
+        private static int CellOf(double v) { return (int)Math.Floor(v / HashCell); }
+        private static long HashKey(int cx, int cy) { return ((long)cx << 32) ^ (uint)cy; }
     }
 }

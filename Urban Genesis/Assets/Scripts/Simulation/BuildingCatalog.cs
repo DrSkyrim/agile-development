@@ -7,6 +7,10 @@ namespace UrbanGenesis.Simulation
     /// Every building template, grouped by zone. To add a new building, add a line here
     /// (and teach the Unity layer to draw its shape). Every zone must keep at least one 1x1 template,
     /// because that is what fills the gaps that bigger buildings do not fit into.
+    ///
+    /// Width is the number of lot cells along the road and Depth the number of rows away from it. Lots are
+    /// <see cref="LotLayout.Rows"/> rows deep, so a Depth above that never fits. A building always stands with its
+    /// front on the road, so deep templates are what make use of the back rows of a zoned strip.
     /// </summary>
     public static class BuildingCatalog
     {
@@ -14,11 +18,16 @@ namespace UrbanGenesis.Simulation
         {
             new BuildingTemplate(BuildingShape.Cottage,        ZoneType.Residential, 1, 1, 1, 2, 5.0),
             new BuildingTemplate(BuildingShape.RowHouses,      ZoneType.Residential, 2, 1, 2, 3, 3.0),
+            new BuildingTemplate(BuildingShape.RowHouses,      ZoneType.Residential, 3, 1, 2, 3, 2.0),
             new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 2, 1, 3, 5, 2.0),
             new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 2, 2, 3, 6, 2.0),
             new BuildingTemplate(BuildingShape.LBlock,         ZoneType.Residential, 2, 2, 3, 5, 1.5),
+            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 3, 3, 4, 7, 1.5),
+            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 4, 3, 4, 8, 1.0),
             new BuildingTemplate(BuildingShape.CourtyardBlock, ZoneType.Residential, 3, 2, 3, 5, 1.0),
-            new BuildingTemplate(BuildingShape.TerraceTower,   ZoneType.Residential, 2, 2, 5, 8, 1.0)
+            new BuildingTemplate(BuildingShape.CourtyardBlock, ZoneType.Residential, 4, 4, 3, 6, 0.8),
+            new BuildingTemplate(BuildingShape.TerraceTower,   ZoneType.Residential, 2, 2, 5, 8, 1.0),
+            new BuildingTemplate(BuildingShape.TerraceTower,   ZoneType.Residential, 3, 3, 6, 10, 0.6)
         };
 
         private static readonly BuildingTemplate[] Commercial =
@@ -26,8 +35,11 @@ namespace UrbanGenesis.Simulation
             new BuildingTemplate(BuildingShape.Shop,        ZoneType.Commercial, 1, 1, 1, 2, 4.0),
             new BuildingTemplate(BuildingShape.OfficeSlab,  ZoneType.Commercial, 2, 1, 3, 6, 3.0),
             new BuildingTemplate(BuildingShape.Tower,       ZoneType.Commercial, 1, 1, 5, 9, 2.0),
+            new BuildingTemplate(BuildingShape.OfficeSlab,  ZoneType.Commercial, 3, 2, 4, 8, 1.5),
             new BuildingTemplate(BuildingShape.PodiumTower, ZoneType.Commercial, 2, 2, 4, 8, 1.5),
-            new BuildingTemplate(BuildingShape.Mall,        ZoneType.Commercial, 3, 2, 1, 2, 1.0)
+            new BuildingTemplate(BuildingShape.PodiumTower, ZoneType.Commercial, 3, 3, 6, 12, 0.8),
+            new BuildingTemplate(BuildingShape.Mall,        ZoneType.Commercial, 3, 2, 1, 2, 1.0),
+            new BuildingTemplate(BuildingShape.Mall,        ZoneType.Commercial, 4, 3, 1, 3, 0.8)
         };
 
         private static readonly BuildingTemplate[] Industrial =
@@ -35,7 +47,10 @@ namespace UrbanGenesis.Simulation
             new BuildingTemplate(BuildingShape.Shed,      ZoneType.Industrial, 1, 1, 1, 1, 3.0),
             new BuildingTemplate(BuildingShape.Warehouse, ZoneType.Industrial, 2, 1, 1, 2, 3.0),
             new BuildingTemplate(BuildingShape.Warehouse, ZoneType.Industrial, 3, 1, 1, 2, 2.0),
+            new BuildingTemplate(BuildingShape.Warehouse, ZoneType.Industrial, 4, 2, 1, 2, 1.5),
             new BuildingTemplate(BuildingShape.Factory,   ZoneType.Industrial, 2, 2, 1, 2, 2.0),
+            new BuildingTemplate(BuildingShape.Factory,   ZoneType.Industrial, 3, 3, 1, 3, 1.0),
+            new BuildingTemplate(BuildingShape.Factory,   ZoneType.Industrial, 4, 4, 1, 3, 0.6),
             new BuildingTemplate(BuildingShape.SiloYard,  ZoneType.Industrial, 2, 1, 1, 1, 2.0)
         };
 
