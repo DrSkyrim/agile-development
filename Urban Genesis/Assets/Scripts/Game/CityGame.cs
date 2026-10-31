@@ -36,7 +36,7 @@ namespace UrbanGenesis.Game
             cityRenderer.Init(Simulation);
             rig.Init(hud, mapSize * 0.5f);
             tools.Init(Simulation, rig, cityRenderer, hud);
-            hud.Init(Simulation, Clock, tools);
+            hud.Init(Simulation, Clock, tools, rig);
 
             EnsureLight();
         }

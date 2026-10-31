@@ -43,6 +43,23 @@
 * Bulldoze: drag to clear buildings and zoning under the brush. **Click on a road** to remove it (the stretch between its two
   junctions) together with everything beside it.
 
+## The interface
+
+The HUD follows the Figma mock-up *Urban Genesis UI mock UP* and is built with UI Toolkit (`HudToolbar.cs` creates the elements, `Resources/UI/UrbanGenesis.uss` styles them). Icons are the same Lucide icons the mock-up uses.
+
+| Area | What it does |
+| --- | --- |
+| Top left, city card | City name, buildings and roads count |
+| Top right, session bar | Weather, notifications, save, settings, menu (placeholders: they only show a notice) |
+| Top right, advisory card | What the current tool would do or just did, otherwise a hint |
+| Left, city menu | Layers, statistics, policies, map (placeholders) |
+| Right, camera | North arrow (turns with the camera, click to face north), zoom in / out, recentre |
+| Bottom centre, toolbar | **Roads**, **Zoning**, **Demolish** work. Power, Water, Services, Transit, Parks, Terrain are dimmed until they exist |
+| Strip above the toolbar | Appears with a tool: Straight / Curved for roads, Residential / Commercial / Industrial and Fill for zoning, brush size for zoning and demolish |
+| Bottom bar | Game clock with pause, play, speed (click to cycle 1x to 3x) and fast-forward; Treasury, Population, Happiness, zoning demand (R/C/I), next population milestone |
+
+Placeholders to replace once the simulation has them: weather (fixed 18 C), Treasury and Happiness (shown as a dash). **Population is an estimate** (residential floors x lots x 2). **Demand** bars show how much of the zoned land of that type is still empty. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
+
 ## Rules
 
 * **Roads never cross each other. This is a deliberate rule:** roads only meet at T-junctions (or at the end of another road).
@@ -104,8 +121,11 @@ Assets/Scripts/Game         Unity layer. Draws the model and turns input into co
   CityRenderer              Ground, roads, lot tints, building models, tool preview overlay
   BuildingModelFactory      Builds a building's meshes from its design (the place to plug in Blender models later)
   ToolController            Mouse tools and previews
-  CameraRig, HudToolbar     Camera, and the placeholder toolbar (immediate-mode GUI)
+  CameraRig                 Camera
+  HudToolbar                The HUD, built from code with UI Toolkit (see "The interface")
 
+Assets/Resources/UI         HUD style sheet (UrbanGenesis.uss), icons (white PNGs, tinted by the style sheet) and Inter fonts
+Assets/Editor               Import settings for the HUD icons
 Assets/Tests/EditMode       Unit tests for the Simulation code
 ```
 

@@ -1,0 +1,153 @@
+/* Urban Genesis HUD. Colours and sizes come from the Figma mock-up "Urban Genesis UI mock UP".
+   The elements are created in HudToolbar.cs; this file only styles them by class name. */
+
+.ug-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.ug-panel {
+    position: absolute;
+    background-color: rgba(32, 42, 53, 0.96);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.ug-col { flex-direction: column; }
+.ug-row { flex-direction: row; align-items: center; }
+
+/* Text */
+.ug-text { color: rgb(241, 245, 249); font-size: 12px; white-space: nowrap; }
+.ug-text--title { font-size: 16px; }
+.ug-text--value { font-size: 14px; }
+.ug-text--muted { color: rgb(129, 145, 162); font-size: 10px; }
+.ug-text--soft { color: rgb(176, 189, 201); }
+.ug-text--good { color: rgb(128, 207, 172); }
+.ug-text--accent { color: rgb(113, 183, 255); }
+.ug-text--warn { color: rgb(207, 189, 124); }
+
+/* Icons: the PNGs are white; -unity-background-image-tint-color colours them. */
+.ug-icon {
+    width: 20px;
+    height: 20px;
+    background-size: 100% 100%;
+    -unity-background-image-tint-color: rgb(176, 189, 201);
+}
+.ug-icon--sm { width: 18px; height: 18px; }
+.ug-icon--xs { width: 14px; height: 14px; }
+.ug-icon--tool { width: 22px; height: 22px; }
+.ug-icon--metric { -unity-background-image-tint-color: rgb(176, 189, 201); }
+
+/* Small square buttons (28 px in the clock, 36 px elsewhere) */
+.ug-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0);
+}
+.ug-btn--28 { width: 28px; height: 28px; }
+.ug-btn:hover { background-color: rgba(255, 255, 255, 0.08); }
+.ug-btn:active { background-color: rgba(255, 255, 255, 0.14); }
+.ug-btn--on { background-color: rgb(52, 77, 104); }
+.ug-btn--on:hover { background-color: rgb(52, 77, 104); }
+.ug-btn--on .ug-icon { -unity-background-image-tint-color: rgb(113, 183, 255); }
+.ug-btn--disabled .ug-icon { -unity-background-image-tint-color: rgb(93, 106, 120); }
+
+.ug-divider { background-color: rgba(255, 255, 255, 0.08); }
+.ug-divider--v { width: 1px; height: 28px; }
+.ug-divider--h { height: 1px; }
+
+/* Construction tools */
+.ug-tool {
+    width: 76px;
+    height: 64px;
+    border-radius: 6px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0);
+}
+.ug-tool:hover { background-color: rgba(255, 255, 255, 0.06); }
+.ug-tool .ug-text { color: rgb(176, 189, 201); font-size: 11px; margin-top: 8px; }
+.ug-tool--on { background-color: rgb(52, 77, 104); }
+.ug-tool--on:hover { background-color: rgb(52, 77, 104); }
+.ug-tool--on .ug-text { color: rgb(113, 183, 255); }
+.ug-tool--on .ug-icon { -unity-background-image-tint-color: rgb(113, 183, 255); }
+.ug-tool--disabled .ug-text { color: rgb(93, 106, 120); }
+.ug-tool--disabled .ug-icon { -unity-background-image-tint-color: rgb(93, 106, 120); }
+.ug-tool--disabled:hover { background-color: rgba(255, 255, 255, 0); }
+.ug-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 28px;
+    width: 20px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: rgb(113, 183, 255);
+    display: none;
+}
+.ug-tool--on .ug-indicator { display: flex; }
+
+/* Options strip above the toolbar (road style, zone type, fill, brush) */
+.ug-chip {
+    height: 28px;
+    padding-left: 12px;
+    padding-right: 12px;
+    margin-left: 2px;
+    margin-right: 2px;
+    border-radius: 6px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0);
+}
+.ug-chip .ug-text { color: rgb(176, 189, 201); font-size: 11px; }
+.ug-chip:hover { background-color: rgba(255, 255, 255, 0.08); }
+.ug-chip--on { background-color: rgb(52, 77, 104); }
+.ug-chip--on:hover { background-color: rgb(52, 77, 104); }
+.ug-chip--on .ug-text { color: rgb(113, 183, 255); }
+.ug-dot { width: 8px; height: 8px; border-radius: 4px; margin-right: 7px; }
+.ug-dot--r { background-color: rgb(128, 207, 172); }
+.ug-dot--c { background-color: rgb(113, 183, 255); }
+.ug-dot--i { background-color: rgb(207, 189, 124); }
+
+/* Bars */
+.ug-track {
+    background-color: rgb(48, 61, 75);
+    border-radius: 2px;
+}
+.ug-track--v { width: 6px; height: 20px; justify-content: flex-end; }
+.ug-track--h { height: 3px; width: 132px; }
+.ug-fill { border-radius: 2px; }
+.ug-fill--v { width: 6px; }
+.ug-fill--h { height: 3px; background-color: rgb(113, 183, 255); }
+.ug-bg--r { background-color: rgb(128, 207, 172); }
+.ug-bg--c { background-color: rgb(113, 183, 255); }
+.ug-bg--i { background-color: rgb(207, 189, 124); }
+
+/* Misc */
+.ug-emblem {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    background-color: rgb(48, 61, 75);
+    align-items: center;
+    justify-content: center;
+}
+.ug-status-dot { width: 5px; height: 5px; border-radius: 3px; background-color: rgb(128, 207, 172); margin-right: 6px; }
+.ug-advisory--warn .ug-icon { -unity-background-image-tint-color: rgb(207, 189, 124); }
+.ug-advisory--ok .ug-icon { -unity-background-image-tint-color: rgb(128, 207, 172); }
+.ug-hint {
+    position: absolute;
+    background-color: rgba(32, 42, 53, 0.96);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 4px 8px;
+}

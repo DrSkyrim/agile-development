@@ -30,6 +30,27 @@ namespace UrbanGenesis.Game
 
         public Camera Camera { get { return cam; } }
 
+        /// <summary>Which way the camera is turned, in degrees. 0 means north is straight up on screen.</summary>
+        public float YawDegrees { get { return yaw; } }
+
+        /// <summary>Zooms one step in (positive) or out (negative), like one notch of the mouse wheel.</summary>
+        public void ZoomStep(int direction)
+        {
+            targetDistance = Mathf.Clamp(targetDistance * Mathf.Pow(0.8f, direction), MinDistance, MaxDistance);
+        }
+
+        /// <summary>Turns the camera so north is straight up on screen.</summary>
+        public void FaceNorth()
+        {
+            yaw = 0f;
+        }
+
+        /// <summary>Moves the view back to the middle of the map.</summary>
+        public void Recenter()
+        {
+            focus = Vector3.zero;
+        }
+
         /// <summary>Starts looking at the middle of the map. <paramref name="mapHalfExtent"/> is half the map's side length in metres.</summary>
         public void Init(HudToolbar toolbar, float mapHalfExtent)
         {

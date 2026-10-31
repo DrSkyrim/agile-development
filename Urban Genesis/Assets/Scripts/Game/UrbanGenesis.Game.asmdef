@@ -3,7 +3,8 @@
     "rootNamespace": "UrbanGenesis.Game",
     "references": [
         "UrbanGenesis.Simulation",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
