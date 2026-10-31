@@ -20,11 +20,15 @@ namespace UrbanGenesis.Game
         [Tooltip("Real seconds per simulation tick at 1x speed.")]
         [SerializeField] private float secondsPerTick = 0.5f;
 
+        /// <summary>A random name for this launch's city (no saves or maps yet, so nothing else names it).</summary>
+        public string CityName { get; private set; }
+
         public CitySimulation Simulation { get; private set; }
         public TickClock Clock { get; private set; }
 
         private void Awake()
         {
+            CityName = CityNames.PickRandom();
             Simulation = new CitySimulation(mapSize, randomSeed);
             Clock = new TickClock(secondsPerTick, 8);
 
@@ -36,7 +40,7 @@ namespace UrbanGenesis.Game
             cityRenderer.Init(Simulation);
             rig.Init(hud, mapSize * 0.5f);
             tools.Init(Simulation, rig, cityRenderer, hud);
-            hud.Init(Simulation, Clock, tools, rig);
+            hud.Init(Simulation, Clock, tools, rig, CityName);
 
             EnsureLight();
         }

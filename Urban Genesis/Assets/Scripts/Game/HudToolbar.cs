@@ -81,6 +81,7 @@ namespace UrbanGenesis.Game
         private Label brushLabel;
         private readonly List<ToolEntry> toolEntries = new List<ToolEntry>();
 
+        private string cityName = "New city";
         private int lastRunningSpeed = 1;
         private float statsUpdatedAt = -100f;
         private int lastPopulation = -1;
@@ -90,8 +91,9 @@ namespace UrbanGenesis.Game
         private string message = "";
         private float messageUntil;
 
-        public void Init(CitySimulation simulation, TickClock tickClock, ToolController toolController, CameraRig cameraRig)
+        public void Init(CitySimulation simulation, TickClock tickClock, ToolController toolController, CameraRig cameraRig, string name)
         {
+            cityName = name;
             sim = simulation;
             clock = tickClock;
             tools = toolController;
@@ -380,7 +382,7 @@ namespace UrbanGenesis.Game
             var details = new VisualElement();
             details.style.flexGrow = 1;
             details.style.marginLeft = 12;
-            details.Add(Text("Northhaven", "ug-text--title", Weight.SemiBold));
+            details.Add(Text(cityName, "ug-text--title", Weight.SemiBold));
 
             var milestone = new VisualElement();
             milestone.style.flexDirection = FlexDirection.Row;

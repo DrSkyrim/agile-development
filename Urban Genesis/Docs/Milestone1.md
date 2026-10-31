@@ -49,7 +49,7 @@ The HUD follows the Figma mock-up *Urban Genesis UI mock UP* and is built with U
 
 | Area | What it does |
 | --- | --- |
-| Top left, city card | City name, buildings and roads count |
+| Top left, city card | City name (picked at random from `CityNames.cs` each launch, until maps and saves exist), buildings and roads count |
 | Top right, session bar | Weather, notifications, save, settings, menu (placeholders: they only show a notice) |
 | Top right, advisory card | What the current tool would do or just did, otherwise a hint |
 | Left, city menu | Layers, statistics, policies, map (placeholders) |
