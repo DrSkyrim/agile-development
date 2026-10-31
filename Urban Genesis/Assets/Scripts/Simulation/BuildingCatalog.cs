@@ -14,20 +14,18 @@ namespace UrbanGenesis.Simulation
     /// </summary>
     public static class BuildingCatalog
     {
+        // Small homes only: the biggest is a two-storey building with four apartments. Residents come from Homes
+        // (two to four people per home), so the population grows slowly.
         private static readonly BuildingTemplate[] Residential =
         {
-            new BuildingTemplate(BuildingShape.Cottage,        ZoneType.Residential, 1, 1, 1, 2, 5.0),
-            new BuildingTemplate(BuildingShape.RowHouses,      ZoneType.Residential, 2, 1, 2, 3, 3.0),
-            new BuildingTemplate(BuildingShape.RowHouses,      ZoneType.Residential, 3, 1, 2, 3, 2.0),
-            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 2, 1, 3, 5, 2.0),
-            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 2, 2, 3, 6, 2.0),
-            new BuildingTemplate(BuildingShape.LBlock,         ZoneType.Residential, 2, 2, 3, 5, 1.5),
-            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 3, 3, 4, 7, 1.5),
-            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.Residential, 4, 3, 4, 8, 1.0),
-            new BuildingTemplate(BuildingShape.CourtyardBlock, ZoneType.Residential, 3, 2, 3, 5, 1.0),
-            new BuildingTemplate(BuildingShape.CourtyardBlock, ZoneType.Residential, 4, 4, 3, 6, 0.8),
-            new BuildingTemplate(BuildingShape.TerraceTower,   ZoneType.Residential, 2, 2, 5, 8, 1.0),
-            new BuildingTemplate(BuildingShape.TerraceTower,   ZoneType.Residential, 3, 3, 6, 10, 0.6)
+            new BuildingTemplate(BuildingShape.Cottage,   ZoneType.Residential, 1, 1, 1, 2, 5.0, 1),
+            new BuildingTemplate(BuildingShape.Bungalow,  ZoneType.Residential, 1, 1, 1, 1, 3.5, 1),
+            new BuildingTemplate(BuildingShape.Chalet,    ZoneType.Residential, 1, 1, 1, 2, 1.5, 1),
+            new BuildingTemplate(BuildingShape.Villa,     ZoneType.Residential, 1, 1, 2, 2, 1.5, 1),
+            new BuildingTemplate(BuildingShape.Farmhouse, ZoneType.Residential, 1, 2, 1, 2, 1.5, 1),
+            new BuildingTemplate(BuildingShape.RowHouses, ZoneType.Residential, 2, 1, 1, 2, 3.0, 2),
+            new BuildingTemplate(BuildingShape.RowHouses, ZoneType.Residential, 3, 1, 1, 2, 1.5, 3),
+            new BuildingTemplate(BuildingShape.FourPlex,  ZoneType.Residential, 2, 1, 2, 2, 1.5, 4)
         };
 
         private static readonly BuildingTemplate[] Commercial =

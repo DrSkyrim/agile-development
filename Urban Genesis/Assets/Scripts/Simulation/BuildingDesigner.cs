@@ -22,10 +22,11 @@ namespace UrbanGenesis.Simulation
             {
                 case BuildingShape.Cottage: Cottage(sketch); break;
                 case BuildingShape.RowHouses: RowHouses(sketch); break;
-                case BuildingShape.ApartmentBlock: ApartmentBlock(sketch); break;
-                case BuildingShape.LBlock: LBlock(sketch); break;
-                case BuildingShape.CourtyardBlock: CourtyardBlock(sketch); break;
-                case BuildingShape.TerraceTower: TerraceTower(sketch); break;
+                case BuildingShape.Bungalow: Bungalow(sketch); break;
+                case BuildingShape.Chalet: Chalet(sketch); break;
+                case BuildingShape.Villa: Villa(sketch); break;
+                case BuildingShape.Farmhouse: Farmhouse(sketch); break;
+                case BuildingShape.FourPlex: FourPlex(sketch); break;
 
                 case BuildingShape.Shop: Shop(sketch); break;
                 case BuildingShape.OfficeSlab: OfficeSlab(sketch); break;
@@ -66,98 +67,66 @@ namespace UrbanGenesis.Simulation
             }
         }
 
-        private static void ApartmentBlock(Sketch s)
+        private static void Bungalow(Sketch s)
         {
+            // One wide, low house under a hipped roof, with a porch at the front.
             float f = s.Floors;
-            const float plinth = 0.6f;
-
-            s.Box(0.05f, 0.05f, s.W - 0.05f, s.D - 0.05f, plinth, 0f, PartTone.Dark);
-
-            bool stepped = s.Rng.Next(2) == 0;
-            float roofX = s.W * 0.5f;
-            float roofY = s.D * 0.5f;
-
-            if (stepped && s.D >= 2)
-            {
-                // The front half is lower than the back half.
-                s.Box(0.14f, 0.14f, s.W - 0.14f, s.D * 0.5f, Math.Max(2f, f - 2f), plinth, PartTone.Wall);
-                s.Box(0.14f, s.D * 0.5f, s.W - 0.14f, s.D - 0.14f, f, plinth, PartTone.Wall);
-                roofY = s.D * 0.75f;
-            }
-            else if (stepped)
-            {
-                // Too shallow for that, so one end steps down instead.
-                s.Box(0.14f, 0.14f, s.W * 0.5f, s.D - 0.14f, f, plinth, PartTone.Wall);
-                s.Box(s.W * 0.5f, 0.14f, s.W - 0.14f, s.D - 0.14f, Math.Max(2f, f - 2f), plinth, PartTone.Wall);
-                roofX = s.W * 0.25f;
-            }
-            else
-            {
-                s.Box(0.14f, 0.14f, s.W - 0.14f, s.D - 0.14f, f, plinth, PartTone.Wall);
-            }
-
-            s.Box(roofX - 0.3f, roofY - 0.18f, roofX + 0.3f, roofY + 0.18f, 0.5f, plinth + f, PartTone.Light);
-        }
-
-        private static void LBlock(Sketch s)
-        {
-            // A 2x2 footprint with one quarter left empty: two wings that meet at a corner.
-            float f = s.Floors;
-            int missingX = s.Rng.Next(2);
-            int missingY = s.Rng.Next(2);
-
-            int fullRow = 1 - missingY;
-            int armColumn = 1 - missingX;
-
-            s.Box(0.1f, fullRow + 0.1f, 1.9f, fullRow + 0.9f, f, 0f, PartTone.Wall);
-
-            float armFrom = missingY == 0 ? 0.1f : 0.9f;
-            float armTo = missingY == 0 ? 1.1f : 1.9f;
-            s.Box(armColumn + 0.1f, armFrom, armColumn + 0.9f, armTo, Math.Max(2f, f - 1f), 0f, PartTone.Wall);
-
-            // A small tower where the two wings meet.
-            s.Box(armColumn + 0.25f, fullRow + 0.25f, armColumn + 0.75f, fullRow + 0.75f, 1f, f, PartTone.Light);
-        }
-
-        private static void CourtyardBlock(Sketch s)
-        {
-            // A U of three wings around a courtyard that opens towards the front.
-            float f = s.Floors;
-            float armHeight = s.Rng.Next(2) == 0 ? f : Math.Max(2f, f - 1f);
-            float backFrom = s.D - 0.9f;
-
-            s.Box(0.1f, backFrom, s.W - 0.1f, s.D - 0.1f, f, 0f, PartTone.Wall);
-            s.Box(0.1f, 0.1f, 0.9f, backFrom + 0.1f, armHeight, 0f, PartTone.Wall);
-            s.Box(s.W - 0.9f, 0.1f, s.W - 0.1f, backFrom + 0.1f, armHeight, 0f, PartTone.Wall);
-
-            s.Box(s.W * 0.5f - 0.3f, 0.3f, s.W * 0.5f + 0.3f, 0.7f, 0.5f, 0f, PartTone.Light);          // pavilion in the courtyard
-            s.Box(s.W * 0.5f - 0.35f, s.D - 0.7f, s.W * 0.5f + 0.35f, s.D - 0.3f, 0.6f, f, PartTone.Light); // roof unit
-        }
-
-        private static void TerraceTower(Sketch s)
-        {
-            // Three tiers, each set back from the one below, plus an aerial.
-            float f = s.Floors;
-            float lower = f * 0.4f;
-            float middle = f * 0.35f;
-            float upper = f - lower - middle;
-
-            s.Box(0.10f, 0.10f, 1.90f, 1.90f, lower, 0f, PartTone.Wall);
-
+            s.Box(0.10f, 0.22f, 0.90f, 0.88f, f, 0f, PartTone.Wall);
+            s.Pyramid(0.06f, 0.18f, 0.94f, 0.92f, 0.55f, f, PartTone.Light);
+            s.Box(0.28f, 0.08f, 0.72f, 0.22f, 0.45f, 0f, PartTone.Dark);                       // porch
             if (s.Rng.Next(2) == 0)
             {
-                // Tiers set back evenly all round.
-                s.Box(0.35f, 0.35f, 1.65f, 1.65f, middle, lower, PartTone.Wall);
-                s.Box(0.60f, 0.60f, 1.40f, 1.40f, upper, lower + middle, PartTone.Light);
-                s.Cylinder(1.0f, 1.0f, 0.1f, 1.2f, f, PartTone.Dark);
+                s.Box(0.66f, 0.60f, 0.78f, 0.72f, 0.5f, f + 0.2f, PartTone.Dark);              // chimney
+            }
+        }
+
+        private static void Chalet(Sketch s)
+        {
+            // A steep roof over a narrow house, and a deck on the front.
+            float f = s.Floors;
+            bool ridgeAcross = s.Rng.Next(2) == 0;
+            s.Box(0.18f, 0.20f, 0.82f, 0.82f, f, 0f, PartTone.Wall);
+            s.Gable(0.12f, 0.14f, 0.88f, 0.88f, 1.0f, f, ridgeAcross, PartTone.Light);
+            s.Box(0.14f, 0.06f, 0.86f, 0.20f, 0.12f, 0.5f, PartTone.Dark);                    // deck
+        }
+
+        private static void Villa(Sketch s)
+        {
+            // Two storeys under a hipped roof, with a round-ish corner tower on one side.
+            float f = s.Floors;
+            s.Box(0.14f, 0.25f, 0.86f, 0.88f, f, 0f, PartTone.Wall);
+            s.Pyramid(0.10f, 0.21f, 0.90f, 0.92f, 0.6f, f, PartTone.Light);
+            s.Box(0.10f, 0.08f, 0.40f, 0.38f, f + 0.7f, 0f, PartTone.Wall);                    // tower
+            s.Pyramid(0.08f, 0.06f, 0.42f, 0.40f, 0.5f, f + 0.7f, PartTone.Dark);
+        }
+
+        private static void Farmhouse(Sketch s)
+        {
+            // 1x2: the house at the front, a barn and a silo behind it.
+            float f = s.Floors;
+            s.Box(0.16f, 0.10f, 0.84f, 0.86f, f, 0f, PartTone.Wall);
+            s.Gable(0.10f, 0.06f, 0.90f, 0.90f, 0.7f, f, false, PartTone.Light);
+            s.Box(0.38f, 1.10f, 0.90f, 1.90f, 1.1f, 0f, PartTone.Dark);                        // barn
+            s.Gable(0.34f, 1.06f, 0.94f, 1.94f, 0.6f, 1.1f, false, PartTone.Light);
+            s.Cylinder(0.20f, 1.55f, 0.28f, 1.7f, 0f, PartTone.Light);                         // silo
+        }
+
+        private static void FourPlex(Sketch s)
+        {
+            // Two storeys, two homes on each floor, a stair tower at one end.
+            float f = s.Floors;
+            s.Box(0.08f, 0.12f, 1.92f, 0.88f, f, 0f, PartTone.Wall);
+            if (s.Rng.Next(2) == 0)
+            {
+                s.Gable(0.04f, 0.08f, 1.96f, 0.92f, 0.5f, f, true, PartTone.Light);           // pitched roof
             }
             else
             {
-                // Tiers climbing towards the back corner, like a staircase.
-                s.Box(0.55f, 0.55f, 1.90f, 1.90f, middle, lower, PartTone.Wall);
-                s.Box(1.05f, 1.05f, 1.90f, 1.90f, upper, lower + middle, PartTone.Light);
-                s.Cylinder(1.5f, 1.5f, 0.1f, 1.2f, f, PartTone.Dark);
+                s.Box(0.04f, 0.08f, 1.96f, 0.92f, 0.12f, f, PartTone.Light);                  // flat roof with a rim
             }
+
+            s.Box(0.86f, 0.04f, 1.14f, 0.14f, 0.5f, 0f, PartTone.Dark);                       // shared entrance
+            s.Box(1.45f, 0.30f, 1.85f, 0.70f, 0.5f, f + 0.12f, PartTone.Dark);                // stair tower
         }
 
         // ------------------------------------------------------------ commercial

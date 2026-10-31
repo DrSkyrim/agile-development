@@ -33,6 +33,21 @@ namespace UrbanGenesis.Game
         /// <summary>Which way the camera is turned, in degrees. 0 means north is straight up on screen.</summary>
         public float YawDegrees { get { return yaw; } }
 
+        /// <summary>How many screen pixels one metre of ground is wide, where the camera looks. Used for the scale bar.</summary>
+        public float PixelsPerMetre()
+        {
+            if (cam == null)
+            {
+                return 1f;
+            }
+
+            Vector3 a = cam.WorldToScreenPoint(focus);
+            Vector3 b = cam.WorldToScreenPoint(focus + cam.transform.right * 10f);
+            float dx = b.x - a.x;
+            float dy = b.y - a.y;
+            return Mathf.Max(0.01f, Mathf.Sqrt(dx * dx + dy * dy) / 10f);
+        }
+
         /// <summary>Zooms one step in (positive) or out (negative), like one notch of the mouse wheel.</summary>
         public void ZoomStep(int direction)
         {

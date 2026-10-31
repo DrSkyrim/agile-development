@@ -22,6 +22,9 @@ namespace UrbanGenesis.Simulation
         /// <summary>A number the Unity layer uses to vary small details (roof direction, chimneys, ...) of otherwise identical buildings.</summary>
         public int Variant { get; private set; }
 
+        /// <summary>People living here: two to four per home, fixed by the building's variant. Zero if there are no homes.</summary>
+        public int Residents { get { return Template.Homes * (2 + ((Variant % 3) + 3) % 3); } }
+
         public BuildingShape Shape { get { return Template.Shape; } }
 
         /// <summary>Footprint size in lots.</summary>

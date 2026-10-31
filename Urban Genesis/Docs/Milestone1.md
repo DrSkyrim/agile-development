@@ -56,9 +56,11 @@ The HUD follows the Figma mock-up *Urban Genesis UI mock UP* and is built with U
 | Right, camera | North arrow (turns with the camera, click to face north), zoom in / out, recentre |
 | Bottom centre, toolbar | **Roads**, **Zoning**, **Demolish** work. Power, Water, Services, Transit, Parks, Terrain are dimmed until they exist |
 | Strip above the toolbar | Appears with a tool: Straight / Curved for roads, Residential / Commercial / Industrial and Fill for zoning, brush size for zoning and demolish |
+| Bottom left, scale | A bar with a round length in metres that follows the zoom, plus the sizes that matter: 1 lot = 8 m, road = 16 m wide |
+| Next to the cursor | While drawing a road, a tag shows its length in metres and in lots |
 | Bottom bar | Game clock with pause, play, speed (click to cycle 1x to 3x) and fast-forward; Treasury, Population, Happiness, zoning demand (R/C/I), next population milestone |
 
-Placeholders to replace once the simulation has them: weather (fixed 18 C), Treasury and Happiness (shown as a dash). **Population is an estimate** (residential floors x lots x 2). **Demand** bars show how much of the zoned land of that type is still empty. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
+Placeholders to replace once the simulation has them: weather (fixed 18 C), Treasury and Happiness (shown as a dash). **Population** is the sum of the residents of all homes: each home holds two to four people (fixed per building), and the biggest residential building is a two-storey block with four apartments. Dense housing (high-rises) is left for a later milestone. A fully built 400 m road currently holds roughly 300 people, so 10,000 people need roughly 13 km of road. **Demand** bars show how much of the zoned land of that type is still empty. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
 
 ## Rules
 
@@ -83,7 +85,7 @@ road, depth is how many rows away from it:
 
 | Zone | Types (width x depth) |
 | --- | --- |
-| Residential | cottage 1x1, row houses 2x1 / 3x1, apartment block 2x1 / 2x2 / 3x3 / 4x3, L-shaped block 2x2, courtyard block 3x2 / 4x4, terrace tower 2x2 / 3x3 |
+| Residential | cottage 1x1, bungalow 1x1, chalet 1x1, villa 1x1, farmhouse 1x2, semi-detached houses 2x1, terrace of three 3x1, **four-apartment block 2x1 (two storeys)** |
 | Commercial | shop 1x1, office slab 2x1 / 3x2, tower 1x1, podium tower 2x2 / 3x3, mall 3x2 / 4x3 |
 | Industrial | shed 1x1, warehouse 2x1 / 3x1 / 4x2, factory 2x2 / 3x3 / 4x4, silo yard 2x1 |
 

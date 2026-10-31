@@ -19,9 +19,12 @@ namespace UrbanGenesis.Simulation
         /// <summary>Relative chance of being picked. Only compared with other templates of the same zone.</summary>
         public double Weight { get; private set; }
 
+        /// <summary>How many separate homes (houses or apartments) the building holds. Zero for non-residential buildings.</summary>
+        public int Homes { get; private set; }
+
         public int CellCount { get { return Width * Depth; } }
 
-        public BuildingTemplate(BuildingShape shape, ZoneType zone, int width, int depth, int minFloors, int maxFloors, double weight)
+        public BuildingTemplate(BuildingShape shape, ZoneType zone, int width, int depth, int minFloors, int maxFloors, double weight, int homes = 0)
         {
             Shape = shape;
             Zone = zone;
@@ -30,6 +33,7 @@ namespace UrbanGenesis.Simulation
             MinFloors = minFloors;
             MaxFloors = maxFloors;
             Weight = weight;
+            Homes = homes;
         }
     }
 }

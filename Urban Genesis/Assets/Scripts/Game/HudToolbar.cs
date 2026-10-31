@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UIElements;
 using UrbanGenesis.Simulation;
@@ -19,7 +20,6 @@ namespace UrbanGenesis.Game
     public sealed class HudToolbar : MonoBehaviour
     {
         private const float StatsRefreshSeconds = 0.25f;
-        private const float PersonsPerFloorPerLot = 2f;
         private const string IconFolder = "UI/Icons/";
 
         // One game tick is ten minutes on the clock in the status bar.
@@ -79,6 +79,11 @@ namespace UrbanGenesis.Game
         private VisualElement chipFill;
         private readonly VisualElement[] zoneChips = new VisualElement[3];
         private Label brushLabel;
+        private VisualElement scaleBar;
+        private Label scaleLabel;
+        private VisualElement measureTag;
+        private Label measureLabel;
+        private float shownScaleMetres = -1f;
         private readonly List<ToolEntry> toolEntries = new List<ToolEntry>();
 
         private string cityName = "New city";
@@ -210,6 +215,8 @@ namespace UrbanGenesis.Game
             BuildCameraControls();
             BuildToolArea();
             BuildStatusBar();
+            BuildScale();
+            BuildMeasureTag();
 
             built = true;
             Refresh();
@@ -778,6 +785,103 @@ namespace UrbanGenesis.Game
             panel.Add(milestone);
         }
 
+        // The scale: a bar whose length is a round number of metres at the current zoom, plus the sizes that matter
+        // when placing things (a lot is 8 m, a road 16 m wide).
+        private void BuildScale()
+        {
+            VisualElement panel = Panel("Scale", false);
+            Place(panel, 24, null, null, 96);
+            panel.style.alignItems = Align.FlexStart;
+            panel.style.paddingLeft = 12;
+            panel.style.paddingRight = 12;
+            panel.style.paddingTop = 8;
+            panel.style.paddingBottom = 8;
+
+            scaleLabel = Text("", "ug-text--soft", Weight.Medium);
+            scaleLabel.style.fontSize = 11;
+            panel.Add(scaleLabel);
+
+            scaleBar = new VisualElement();
+            scaleBar.style.height = 6;
+            scaleBar.style.width = 80;
+            scaleBar.style.marginTop = 3;
+            scaleBar.style.borderLeftWidth = 2;
+            scaleBar.style.borderRightWidth = 2;
+            scaleBar.style.borderBottomWidth = 2;
+            Color line = new Color32(176, 189, 201, 255);
+            scaleBar.style.borderLeftColor = line;
+            scaleBar.style.borderRightColor = line;
+            scaleBar.style.borderBottomColor = line;
+            scaleBar.pickingMode = PickingMode.Ignore;
+            panel.Add(scaleBar);
+
+            Label sizes = Text("1 lot = " + RoadNetwork.LotSize.ToString("0", CultureInfo.InvariantCulture)
+                + " m  ·  road = " + (RoadNetwork.HalfWidth * 2.0).ToString("0", CultureInfo.InvariantCulture) + " m wide", "ug-text--muted", Weight.Regular);
+            sizes.style.marginTop = 6;
+            panel.Add(sizes);
+        }
+
+        // A small tag that follows the cursor while a road is being drawn and tells how long it is.
+        private void BuildMeasureTag()
+        {
+            measureTag = new VisualElement { name = "Measure" };
+            measureTag.AddToClassList("ug-hint");
+            measureTag.pickingMode = PickingMode.Ignore;
+            measureTag.style.display = DisplayStyle.None;
+            measureLabel = Text("", null, Weight.SemiBold);
+            measureLabel.style.whiteSpace = WhiteSpace.Normal;
+            measureTag.Add(measureLabel);
+            root.Add(measureTag);
+        }
+
+        private void RefreshMeasure()
+        {
+            string text = tools.MeasureText;
+            bool show = !string.IsNullOrEmpty(text) && Mouse.current != null && root.panel != null;
+            SetDisplay(measureTag, show);
+            if (!show)
+            {
+                return;
+            }
+
+            SetText(measureLabel, text);
+            Vector2 mouse = Mouse.current.position.ReadValue();
+            Vector2 p = RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(mouse.x, Screen.height - mouse.y));
+            measureTag.style.left = p.x + 18f;
+            measureTag.style.top = p.y + 22f;
+        }
+
+        private void RefreshScale()
+        {
+            if (rig == null || root.panel == null)
+            {
+                return;
+            }
+
+            // Screen pixels to HUD pixels (the HUD scales with the screen size).
+            Vector2 a = RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(0f, 0f));
+            Vector2 b = RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(1000f, 0f));
+            float panelPerScreen = Mathf.Abs(b.x - a.x) / 1000f;
+            float pixelsPerMetre = rig.PixelsPerMetre() * panelPerScreen;
+
+            float[] steps = { 5f, 10f, 20f, 50f, 100f, 200f, 500f, 1000f };
+            float metres = steps[0];
+            for (int i = 0; i < steps.Length; i++)
+            {
+                if (steps[i] * pixelsPerMetre <= 150f)
+                {
+                    metres = steps[i];
+                }
+            }
+
+            scaleBar.style.width = Mathf.Max(8f, metres * pixelsPerMetre);
+            if (!Mathf.Approximately(metres, shownScaleMetres))
+            {
+                shownScaleMetres = metres;
+                scaleLabel.text = metres.ToString("0", CultureInfo.InvariantCulture) + " m";
+            }
+        }
+
         private VisualElement Metric(string iconName, string label, out Label value, out Label change)
         {
             var metric = new VisualElement();
@@ -911,6 +1015,9 @@ namespace UrbanGenesis.Game
             SetText(advisoryDetail, detail);
             SetDisplay(advisoryDetail, !string.IsNullOrEmpty(detail));
 
+            RefreshMeasure();
+            RefreshScale();
+
             if (Time.unscaledTime - statsUpdatedAt > StatsRefreshSeconds)
             {
                 statsUpdatedAt = Time.unscaledTime;
@@ -925,10 +1032,7 @@ namespace UrbanGenesis.Game
             int population = 0;
             foreach (Building b in sim.Buildings)
             {
-                if (b.Zone == ZoneType.Residential)
-                {
-                    population += Mathf.RoundToInt(b.Floors * b.Width * b.Depth * PersonsPerFloorPerLot);
-                }
+                population += b.Residents;
             }
 
             if (lastPopulation < 0)
