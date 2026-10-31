@@ -59,7 +59,7 @@ namespace UrbanGenesis.Game
             float guiHeight = Screen.height / scale;
 
             float topWidth = Margin * 2f + ToolButtons.Length * ButtonWidth + (ToolButtons.Length - 1) * Gap;
-            topPanel = new Rect(Margin, Margin, topWidth, 88f);
+            topPanel = new Rect(Margin, Margin, topWidth, 122f);
             bottomPanel = new Rect(Margin, guiHeight - 78f - Margin, topWidth + 120f, 78f);
         }
 
@@ -102,8 +102,38 @@ namespace UrbanGenesis.Game
                 }
             }
 
-            // Row 2: speed
-            float speedY = topPanel.y + Margin + ButtonHeight + Gap + 2f;
+            // Row 2: road style and brush size
+            float optionsY = topPanel.y + Margin + ButtonHeight + Gap;
+            bool curved = tools.RoadMode == RoadMode.Curved;
+            GUI.backgroundColor = normal;
+            if (GUI.Button(new Rect(topPanel.x + Margin, optionsY, ButtonWidth * 1.5f, ButtonHeight - 4f),
+                curved ? "Road: Curved (C)" : "Road: Straight (C)"))
+            {
+                tools.SetRoadMode(curved ? RoadMode.Straight : RoadMode.Curved);
+            }
+
+            GUI.backgroundColor = tools.FillMode ? active : normal;
+            if (GUI.Button(new Rect(topPanel.x + Margin + ButtonWidth * 1.5f + Gap, optionsY, ButtonWidth * 0.9f, ButtonHeight - 4f),
+                tools.FillMode ? "Fill: On (F)" : "Fill: Off (F)"))
+            {
+                tools.SetFillMode(!tools.FillMode);
+            }
+
+            GUI.backgroundColor = normal;
+            float brushX = topPanel.x + Margin + ButtonWidth * 2.4f + Gap * 3f;
+            GUI.Label(new Rect(brushX, optionsY, 120f, ButtonHeight - 4f), "Brush " + Mathf.RoundToInt(tools.BrushRadius * 2f) + " m");
+            if (GUI.Button(new Rect(brushX + 100f, optionsY, 30f, ButtonHeight - 4f), "-"))
+            {
+                tools.ChangeBrush(-1);
+            }
+
+            if (GUI.Button(new Rect(brushX + 100f + 30f + Gap, optionsY, 30f, ButtonHeight - 4f), "+"))
+            {
+                tools.ChangeBrush(1);
+            }
+
+            // Row 3: speed
+            float speedY = optionsY + ButtonHeight + Gap - 2f;
             for (int level = 0; level < SpeedLabels.Length; level++)
             {
                 var rect = new Rect(topPanel.x + Margin + level * (68f + Gap), speedY, 68f, ButtonHeight - 4f);
@@ -127,7 +157,7 @@ namespace UrbanGenesis.Game
             if (Time.unscaledTime - statsUpdatedAt > StatsRefreshSeconds)
             {
                 statsUpdatedAt = Time.unscaledTime;
-                statsText = "Roads " + sim.Roads.NodeCount
+                statsText = "Roads " + sim.Roads.SegmentCount
                     + "   Buildings " + sim.BuildingCount
                     + "   (Residential " + sim.CountBuildings(ZoneType.Residential)
                     + ", Commercial " + sim.CountBuildings(ZoneType.Commercial)
@@ -138,7 +168,7 @@ namespace UrbanGenesis.Game
             if (string.IsNullOrEmpty(status))
             {
                 status = tools.CurrentTool == ToolType.None
-                    ? "Pick a tool above (or press 1-5), then click and drag in the city"
+                    ? "Pick a tool above (or press 1-5). Roads: drag (or press C for curved: click start, bend, end)"
                     : ToolController.ToolLabel(tools.CurrentTool) + " tool selected";
             }
 
@@ -147,7 +177,7 @@ namespace UrbanGenesis.Game
             GUI.Label(new Rect(x, bottomPanel.y + 6f, width, 22f), status);
             GUI.Label(new Rect(x, bottomPanel.y + 28f, width, 22f), statsText);
             GUI.Label(new Rect(x, bottomPanel.y + 50f, width, 22f),
-                "WASD move   Q/E or right-drag rotate   middle-drag pan   wheel zoom   Space pause   Esc cancel");
+                "WASD move   Q/E or right-drag rotate   middle-drag pan   wheel zoom   [ ] brush   F fill   Space pause   Esc cancel");
         }
     }
 }

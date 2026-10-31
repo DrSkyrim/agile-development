@@ -17,20 +17,19 @@ namespace UrbanGenesis.Game
 
         /// <summary>
         /// Creates the building as a child of <paramref name="parent"/>. The returned object stands in the middle
-        /// of the building's footprint, turned to face the way the building faces, so its parts can be placed
-        /// in the building's own frame. Scaling it vertically makes the whole building grow from the ground.
+        /// of the building's footprint, turned so that its local X axis runs along the front of the building and its
+        /// local Z axis points to the back, which is how <see cref="BuildingDesigner"/> lays parts out. Scaling it
+        /// vertically makes the whole building grow from the ground.
         /// </summary>
         public GameObject Create(Building building, Transform parent)
         {
             var root = new GameObject(building.Shape + " " + building.Id);
             root.transform.SetParent(parent, false);
 
-            // Rotation 0 faces lower Y (towards -Z in the world); each quarter turn is 90 degrees about the up axis.
-            root.transform.position = new Vector3(
-                (building.Cell.X + building.Width * 0.5f) * CityMetrics.CellSize,
-                0f,
-                (building.Cell.Y + building.Depth * 0.5f) * CityMetrics.CellSize);
-            root.transform.rotation = Quaternion.Euler(0f, 90f * building.Rotation, 0f);
+            // Unity turns local +X to (cos t, 0, -sin t) when rotating t degrees about the up axis, so aim it along the front edge.
+            float yaw = Mathf.Atan2((float)-building.Along.Y, (float)building.Along.X) * Mathf.Rad2Deg;
+            root.transform.position = CityMetrics.ToWorld(building.Center, 0f);
+            root.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
 
             foreach (BuildingPart part in BuildingDesigner.Design(building))
             {

@@ -11,9 +11,9 @@ namespace UrbanGenesis.Game
     /// </summary>
     public sealed class CityGame : MonoBehaviour
     {
-        [Header("City size (cells)")]
-        [SerializeField] private int gridWidth = 64;
-        [SerializeField] private int gridHeight = 64;
+        [Header("City size")]
+        [Tooltip("Side length of the square map, in metres. Roads and lots only exist inside it.")]
+        [SerializeField] private float mapSize = 1024f;
 
         [Header("Simulation")]
         [SerializeField] private int randomSeed = 12345;
@@ -25,7 +25,7 @@ namespace UrbanGenesis.Game
 
         private void Awake()
         {
-            Simulation = new CitySimulation(gridWidth, gridHeight, randomSeed);
+            Simulation = new CitySimulation(mapSize, randomSeed);
             Clock = new TickClock(secondsPerTick, 8);
 
             CityRenderer cityRenderer = CreateChild<CityRenderer>("City Renderer");
@@ -34,7 +34,7 @@ namespace UrbanGenesis.Game
             ToolController tools = CreateChild<ToolController>("Tools");
 
             cityRenderer.Init(Simulation);
-            rig.Init(hud, gridWidth * CityMetrics.CellSize, gridHeight * CityMetrics.CellSize);
+            rig.Init(hud, mapSize * 0.5f);
             tools.Init(Simulation, rig, cityRenderer, hud);
             hud.Init(Simulation, Clock, tools);
 

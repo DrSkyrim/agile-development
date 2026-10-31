@@ -39,12 +39,15 @@ namespace UrbanGenesis.Game
             return material;
         }
 
-        /// <summary>Translucent material that honours vertex colours (used for tool previews and highlights).</summary>
-        public static Material CreateVertexColorOverlay()
+        /// <summary>
+        /// Material that honours vertex colours and alpha (roads, lot tints, tool previews). Things with a lower
+        /// <paramref name="renderQueue"/> are drawn first, so roads (2100) sit under lot tints (2200) and previews (3000).
+        /// </summary>
+        public static Material CreateVertexColorOverlay(int renderQueue)
         {
             Shader shader = FindShader("Sprites/Default", "Universal Render Pipeline/Unlit");
             var material = new Material(shader);
-            material.renderQueue = 3000;
+            material.renderQueue = renderQueue;
             return material;
         }
 
