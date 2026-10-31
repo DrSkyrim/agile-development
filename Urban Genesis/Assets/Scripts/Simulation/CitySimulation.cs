@@ -224,6 +224,9 @@ namespace UrbanGenesis.Simulation
                 ClearRemovedLots(Lots.Refresh(near));
             }
 
+            // Where lots of different roads cover the same ground, only one of them keeps it.
+            Lots.ResolveOverlaps();
+
             Revision++;
         }
 

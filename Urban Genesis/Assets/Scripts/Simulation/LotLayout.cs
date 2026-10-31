@@ -23,7 +23,11 @@ namespace UrbanGenesis.Simulation
         private const double HashCell = 32.0;
 
         private readonly RoadNetwork roads;
+        /// <summary>Lots that overlap those of another road are given up to one of them; the loser is hidden here, not deleted.</summary>
+        public const double LotOverlapTolerance = 1.0;
+
         private readonly Dictionary<LotKey, Lot> lots = new Dictionary<LotKey, Lot>();
+        private readonly Dictionary<LotKey, Lot> hidden = new Dictionary<LotKey, Lot>();
         private readonly Dictionary<long, List<Lot>> hash = new Dictionary<long, List<Lot>>();
 
         public event Action<Lot> LotAdded;
@@ -34,8 +38,16 @@ namespace UrbanGenesis.Simulation
             this.roads = roads;
         }
 
+        /// <summary>Number of usable lots. Lots hidden under another road's lots are not counted.</summary>
         public int Count { get { return lots.Count; } }
+
+        /// <summary>The usable lots. Lots hidden under another road's lots are not included.</summary>
         public IEnumerable<Lot> Lots { get { return lots.Values; } }
+
+        public int HiddenCount { get { return hidden.Count; } }
+
+        /// <summary>Lots that are valid but currently given up to another road's lots.</summary>
+        public IEnumerable<Lot> HiddenLots { get { return hidden.Values; } }
 
         public Lot Get(LotKey key)
         {
@@ -89,6 +101,14 @@ namespace UrbanGenesis.Simulation
                 }
             }
 
+            foreach (Lot lot in hidden.Values)
+            {
+                if (lot.Key.SegmentId == segment.Id)
+                {
+                    existing.Add(lot);
+                }
+            }
+
             for (int i = 0; i < existing.Count; i++)
             {
                 Lot lot = existing[i];
@@ -105,11 +125,15 @@ namespace UrbanGenesis.Simulation
                     Remove(lot);
                     removed.Add(lot);
                 }
-                else
+                else if (lots.ContainsKey(lot.Key))
                 {
                     Unhash(lot);
                     UpdateGeometry(lot, segment, corners);
                     Hash(lot);
+                }
+                else
+                {
+                    UpdateGeometry(lot, segment, corners);
                 }
             }
 
@@ -120,7 +144,7 @@ namespace UrbanGenesis.Simulation
                     for (int row = 0; row < Rows; row++)
                     {
                         var key = new LotKey(segment.Id, side, col, row);
-                        if (lots.ContainsKey(key))
+                        if (lots.ContainsKey(key) || hidden.ContainsKey(key))
                         {
                             continue;
                         }
@@ -154,6 +178,14 @@ namespace UrbanGenesis.Simulation
                 }
             }
 
+            foreach (Lot lot in hidden.Values)
+            {
+                if (lot.Key.SegmentId == segmentId)
+                {
+                    doomed.Add(lot);
+                }
+            }
+
             for (int i = 0; i < doomed.Count; i++)
             {
                 Remove(doomed[i]);
@@ -171,8 +203,14 @@ namespace UrbanGenesis.Simulation
         public void Remap(RoadSegment old, RoadSegment first, RoadSegment second, double splitLength)
         {
             int firstCols = (int)Math.Round(splitLength / RoadNetwork.LotSize);
+            RemapIn(lots, true, old, first, second, firstCols);
+            RemapIn(hidden, false, old, first, second, firstCols);
+        }
+
+        private void RemapIn(Dictionary<LotKey, Lot> store, bool hashed, RoadSegment old, RoadSegment first, RoadSegment second, int firstCols)
+        {
             var moving = new List<Lot>();
-            foreach (Lot lot in lots.Values)
+            foreach (Lot lot in store.Values)
             {
                 if (lot.Key.SegmentId == old.Id)
                 {
@@ -183,16 +221,133 @@ namespace UrbanGenesis.Simulation
             for (int i = 0; i < moving.Count; i++)
             {
                 Lot lot = moving[i];
-                Unhash(lot);
-                lots.Remove(lot.Key);
+                if (hashed)
+                {
+                    Unhash(lot);
+                }
+
+                store.Remove(lot.Key);
 
                 LotKey k = lot.Key;
                 lot.Key = k.Col < firstCols
                     ? new LotKey(first.Id, k.Side, k.Col, k.Row)
                     : new LotKey(second.Id, k.Side, k.Col - firstCols, k.Row);
-                lots[lot.Key] = lot;
-                Hash(lot);
+                store[lot.Key] = lot;
+                if (hashed)
+                {
+                    Hash(lot);
+                }
             }
+        }
+
+        // ---------------------------------------------------------------- overlaps between roads
+
+        /// <summary>
+        /// Makes sure no two lots of different roads cover the same ground. Where they do, one wins: a lot with a building
+        /// on it first, then the lot nearer its road (lower row), then the lot of the older road. The loser is hidden
+        /// (kept, with its zoning, in case the other road is removed later). Returns how many lots changed state.
+        /// </summary>
+        public int ResolveOverlaps()
+        {
+            var all = new List<Lot>(lots.Count + hidden.Count);
+            all.AddRange(lots.Values);
+            all.AddRange(hidden.Values);
+            all.Sort(CompareByPriority);
+
+            var accepted = new Dictionary<long, List<Lot>>();
+            var winners = new HashSet<Lot>();
+
+            foreach (Lot lot in all)
+            {
+                bool blocked = false;
+                if (lot.Building == null)
+                {
+                    for (int cx = CellOf(lot.Bounds.MinX); cx <= CellOf(lot.Bounds.MaxX) && !blocked; cx++)
+                    {
+                        for (int cy = CellOf(lot.Bounds.MinY); cy <= CellOf(lot.Bounds.MaxY) && !blocked; cy++)
+                        {
+                            List<Lot> bucket;
+                            if (!accepted.TryGetValue(HashKey(cx, cy), out bucket))
+                            {
+                                continue;
+                            }
+
+                            for (int i = 0; i < bucket.Count; i++)
+                            {
+                                Lot other = bucket[i];
+                                if (other.Key.SegmentId != lot.Key.SegmentId
+                                    && other.Bounds.Overlaps(lot.Bounds)
+                                    && Geometry.ConvexOverlap(lot.Corners, other.Corners, LotOverlapTolerance))
+                                {
+                                    blocked = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (blocked)
+                {
+                    continue;
+                }
+
+                winners.Add(lot);
+                for (int cx = CellOf(lot.Bounds.MinX); cx <= CellOf(lot.Bounds.MaxX); cx++)
+                {
+                    for (int cy = CellOf(lot.Bounds.MinY); cy <= CellOf(lot.Bounds.MaxY); cy++)
+                    {
+                        List<Lot> bucket;
+                        if (!accepted.TryGetValue(HashKey(cx, cy), out bucket))
+                        {
+                            bucket = new List<Lot>();
+                            accepted[HashKey(cx, cy)] = bucket;
+                        }
+
+                        bucket.Add(lot);
+                    }
+                }
+            }
+
+            int changed = 0;
+            foreach (Lot lot in all)
+            {
+                bool shouldBeActive = winners.Contains(lot);
+                bool isActive = lots.ContainsKey(lot.Key);
+                if (shouldBeActive == isActive)
+                {
+                    continue;
+                }
+
+                changed++;
+                if (shouldBeActive)
+                {
+                    hidden.Remove(lot.Key);
+                    lots[lot.Key] = lot;
+                    Hash(lot);
+                }
+                else
+                {
+                    lots.Remove(lot.Key);
+                    Unhash(lot);
+                    hidden[lot.Key] = lot;
+                }
+            }
+
+            return changed;
+        }
+
+        private static int CompareByPriority(Lot a, Lot b)
+        {
+            int c = (a.Building != null ? 0 : 1).CompareTo(b.Building != null ? 0 : 1);
+            if (c != 0) { return c; }
+            c = a.Key.Row.CompareTo(b.Key.Row);
+            if (c != 0) { return c; }
+            c = a.Key.SegmentId.CompareTo(b.Key.SegmentId);
+            if (c != 0) { return c; }
+            c = a.Key.Side.CompareTo(b.Key.Side);
+            if (c != 0) { return c; }
+            return a.Key.Col.CompareTo(b.Key.Col);
         }
 
         // ---------------------------------------------------------------- queries
@@ -377,8 +532,15 @@ namespace UrbanGenesis.Simulation
 
         private void Remove(Lot lot)
         {
-            lots.Remove(lot.Key);
-            Unhash(lot);
+            if (lots.Remove(lot.Key))
+            {
+                Unhash(lot);
+            }
+            else
+            {
+                hidden.Remove(lot.Key);
+            }
+
             Action<Lot> handler = LotRemoved;
             if (handler != null)
             {

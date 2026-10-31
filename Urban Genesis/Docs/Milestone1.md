@@ -37,6 +37,9 @@
   While a zone or bulldoze tool is active every lot is shown faintly.
 * **Fill (`F`):** with a zone tool, click a lot and the whole side of that road, all four rows, up to the next junction, is zoned in one go. A highlight shows what will be filled.
 * Painting or filling a different zone over a lot removes the building on it.
+* Where two roads' lots would cover the same ground (at junctions and inside bends) each patch of ground belongs to one road: a lot with a
+  building keeps it, otherwise the lot nearer its road wins, otherwise the older road. The losing lot is hidden, not deleted, so its zoning
+  returns if the other road is removed.
 * Bulldoze: drag to clear buildings and zoning under the brush. **Click on a road** to remove it (the stretch between its two
   junctions) together with everything beside it.
 

@@ -61,6 +61,22 @@ namespace UrbanGenesis.Tests
                 }
             }
 
+            // Lots of different roads never cover the same ground (unless both already have buildings, which are checked above).
+            var usable = new List<Lot>(city.Lots.Lots);
+            for (int i = 0; i < usable.Count; i++)
+            {
+                for (int j = i + 1; j < usable.Count; j++)
+                {
+                    Lot x = usable[i];
+                    Lot y = usable[j];
+                    if (x.Key.SegmentId != y.Key.SegmentId && (x.Building == null || y.Building == null) && x.Bounds.Overlaps(y.Bounds))
+                    {
+                        Assert.IsFalse(Geometry.ConvexOverlap(x.Corners, y.Corners, LotLayout.LotOverlapTolerance + 0.1),
+                            x.Key + " and " + y.Key + " overlap");
+                    }
+                }
+            }
+
             // Lots: not under any road, and every building a lot names is real.
             foreach (Lot lot in city.Lots.Lots)
             {
