@@ -14,7 +14,7 @@ namespace UrbanGenesis.Game
     public sealed class CameraRig : MonoBehaviour
     {
         private const float MinDistance = 30f;
-        private const float MaxDistance = 1200f;
+        private const float MaxDistance = 4000f;
         private const float MinPitch = 25f;
         private const float MaxPitch = 85f;
 
@@ -91,9 +91,9 @@ namespace UrbanGenesis.Game
                 cam.gameObject.AddComponent<AudioListener>();
             }
 
-            // The default clip planes are tuned for small scenes; a 1 km city needs longer ones.
+            // The default clip planes are tuned for small scenes; a 4 km map needs longer ones.
             cam.nearClipPlane = 5f;
-            cam.farClipPlane = 6000f;
+            cam.farClipPlane = 12000f;
 
             ApplyToCamera();
         }

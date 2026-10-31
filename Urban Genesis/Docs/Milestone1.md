@@ -29,7 +29,7 @@
 * The preview is blue when the road can be built and red when it cannot; the status line (bottom left) says why.
 * A road can start or end in open ground, on a junction (a white ring shows it), or anywhere along another road. In the
   last case the other road is split there and a T-junction appears. Splits land on 8 m marks along the road.
-* Roads are 16 m wide (two of the old 8 m tiles) and the map is 1 km across.
+* Roads are 16 m wide (two of the old 8 m tiles) and the map is 4 km across (4096 m).
 
 ### Zoning and bulldozing
 
@@ -60,7 +60,7 @@ The HUD follows the Figma mock-up *Urban Genesis UI mock UP* and is built with U
 | Next to the cursor | While drawing a road, a tag shows its length in metres and in lots |
 | Bottom bar | Game clock with pause, play, speed (click to cycle 1x to 3x) and fast-forward; Treasury, Population, Happiness, zoning demand (R/C/I), next population milestone |
 
-Placeholders to replace once the simulation has them: weather (fixed 18 C), Treasury and Happiness (shown as a dash). **Population** is the sum of the residents of all homes: each home holds two to four people (fixed per building), and the biggest residential building is a two-storey block with four apartments. Dense housing (high-rises) is left for a later milestone. A fully built 400 m road currently holds roughly 300 people, so 10,000 people need roughly 13 km of road. **Demand** bars show how much of the zoned land of that type is still empty. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
+Placeholders to replace once the simulation has them: weather (fixed 18 C), Treasury and Happiness (shown as a dash). **Population** is the sum of the residents of all homes: each home holds two to four people (fixed per building), and the biggest residential building is a two-storey block with four apartments. Dense housing (high-rises) is left for a later milestone. A fully built 400 m road currently holds roughly 300 people, so 10,000 people need roughly 13 km of road (the map is 4 km across, so there is plenty of room). **Demand** bars show how much of the zoned land of that type is still empty. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
 
 ## Rules
 

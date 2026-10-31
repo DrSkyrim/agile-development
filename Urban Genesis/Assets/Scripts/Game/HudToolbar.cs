@@ -864,7 +864,7 @@ namespace UrbanGenesis.Game
             float panelPerScreen = Mathf.Abs(b.x - a.x) / 1000f;
             float pixelsPerMetre = rig.PixelsPerMetre() * panelPerScreen;
 
-            float[] steps = { 5f, 10f, 20f, 50f, 100f, 200f, 500f, 1000f };
+            float[] steps = { 5f, 10f, 20f, 50f, 100f, 200f, 500f, 1000f, 2000f };
             float metres = steps[0];
             for (int i = 0; i < steps.Length; i++)
             {

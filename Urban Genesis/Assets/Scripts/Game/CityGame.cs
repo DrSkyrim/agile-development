@@ -13,7 +13,7 @@ namespace UrbanGenesis.Game
     {
         [Header("City size")]
         [Tooltip("Side length of the square map, in metres. Roads and lots only exist inside it.")]
-        [SerializeField] private float mapSize = 1024f;
+        [SerializeField] private float mapSize = 4096f;
 
         [Header("Simulation")]
         [SerializeField] private int randomSeed = 12345;
