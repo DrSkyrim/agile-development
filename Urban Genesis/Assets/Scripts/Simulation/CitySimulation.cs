@@ -125,8 +125,10 @@ namespace UrbanGenesis.Simulation
         // ---------------------------------------------------------------- roads
 
         /// <summary>
-        /// Checks a road before building it: the network's own rules (length, bend, junctions, clearance) plus
-        /// "no buildings in the way". <paramref name="control"/> is null for a straight road. Nothing is changed.
+        /// Checks a road before building it against the network's rules (length, bend, junctions, clearance).
+        /// <paramref name="control"/> is null for a straight road. Nothing is changed. Buildings in the way do not make
+        /// a plan invalid: they are listed in <see cref="RoadPlan.Demolitions"/>, and <see cref="PlaceRoad"/> only
+        /// builds over them if it is told to demolish them.
         /// </summary>
         public RoadPlan PlanRoad(Vec2 start, Vec2? control, Vec2 end)
         {
@@ -136,20 +138,32 @@ namespace UrbanGenesis.Simulation
                 return plan;
             }
 
-            if (BuildingsOnRoad(plan.Curve))
-            {
-                return RoadPlan.Fail("There are buildings in the way. Bulldoze them first.");
-            }
-
+            plan.Demolitions = BuildingsOnRoad(plan.Curve);
             return plan;
         }
 
-        /// <summary>Builds a road from a valid plan. Returns the new segment, or null if the plan was not valid.</summary>
-        public RoadSegment PlaceRoad(RoadPlan plan)
+        /// <summary>
+        /// Builds a road from a valid plan. If buildings are in the way the road is only built when
+        /// <paramref name="demolishBuildings"/> is true, and then they are demolished first. Returns the new segment,
+        /// or null if nothing was built (invalid plan, or buildings in the way and not allowed to demolish them).
+        /// </summary>
+        public RoadSegment PlaceRoad(RoadPlan plan, bool demolishBuildings = false)
         {
-            if (plan == null || !plan.IsValid || BuildingsOnRoad(plan.Curve))
+            if (plan == null || !plan.IsValid)
             {
                 return null;
+            }
+
+            // Look again: the city may have changed since the plan was made.
+            List<Building> inTheWay = BuildingsOnRoad(plan.Curve);
+            if (inTheWay.Count > 0 && !demolishBuildings)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < inTheWay.Count; i++)
+            {
+                RemoveBuilding(inTheWay[i]);
             }
 
             RoadSegment segment = Roads.AddRoad(plan);
@@ -157,8 +171,9 @@ namespace UrbanGenesis.Simulation
             return segment;
         }
 
-        private bool BuildingsOnRoad(RoadCurve curve)
+        private List<Building> BuildingsOnRoad(RoadCurve curve)
         {
+            var found = new List<Building>();
             var probe = new RoadSegment(0, null, null, curve, 1f);
             Aabb box = curve.Bounds.Expanded(RoadNetwork.HalfWidth);
             IList<Vec2[]> surface = probe.Surface;
@@ -174,12 +189,13 @@ namespace UrbanGenesis.Simulation
                 {
                     if (Geometry.ConvexOverlap(b.Footprint, surface[i], BuildingRoadTolerance))
                     {
-                        return true;
+                        found.Add(b);
+                        break;
                     }
                 }
             }
 
-            return false;
+            return found;
         }
 
         private void OnSegmentSplit(RoadSegment old, RoadSegment first, RoadSegment second, double length)

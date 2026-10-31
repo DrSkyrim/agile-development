@@ -28,6 +28,11 @@ namespace UrbanGenesis.Simulation
     /// <summary>The result of checking a road before building it. If valid, hand it to <see cref="RoadNetwork.AddRoad"/>.</summary>
     public sealed class RoadPlan
     {
+        public RoadPlan()
+        {
+            Demolitions = new Building[0];
+        }
+
         public bool IsValid { get; internal set; }
 
         /// <summary>Why the road cannot be built (empty when valid).</summary>
@@ -36,6 +41,12 @@ namespace UrbanGenesis.Simulation
         public RoadCurve Curve { get; internal set; }
         public RoadAnchor Start { get; internal set; }
         public RoadAnchor End { get; internal set; }
+
+        /// <summary>
+        /// Buildings the road would run over. Filled in by <see cref="CitySimulation.PlanRoad"/> (the road network alone
+        /// does not know about buildings). The road can still be built; the buildings must then be demolished.
+        /// </summary>
+        public IList<Building> Demolitions { get; internal set; }
 
         internal static RoadPlan Fail(string error)
         {

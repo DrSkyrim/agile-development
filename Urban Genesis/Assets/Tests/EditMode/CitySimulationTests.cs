@@ -469,7 +469,7 @@ namespace UrbanGenesis.Tests
         // ---------------------------------------------------------------- roads and buildings
 
         [Test]
-        public void ARoadThroughBuildings_IsRefused_UntilTheyAreBulldozed()
+        public void ARoadThroughBuildings_IsRefused_UnlessToldToDemolish_OrTheyAreBulldozedFirst()
         {
             CitySimulation city = CityWithRoad(13);
             city.SpawnChance = 1.0;
@@ -479,9 +479,10 @@ namespace UrbanGenesis.Tests
 
             // A stub road joining the main road from the south runs straight through the buildings in front of it.
             RoadPlan through = city.PlanRoad(new Vec2(0, -120), null, new Vec2(0, 3));
-            Assert.IsFalse(through.IsValid);
-            StringAssert.Contains("buildings", through.Error);
-            Assert.IsNull(city.PlaceRoad(through));
+            Assert.IsTrue(through.IsValid, through.Error);
+            Assert.Greater(through.Demolitions.Count, 0);
+            Assert.IsNull(city.PlaceRoad(through), "must not demolish unless told to");
+            Assert.AreEqual(1, city.Roads.SegmentCount);
 
             for (int i = 0; i < 8; i++)
             {
@@ -490,7 +491,35 @@ namespace UrbanGenesis.Tests
 
             RoadPlan after = city.PlanRoad(new Vec2(0, -120), null, new Vec2(0, 3));
             Assert.IsTrue(after.IsValid, after.Error);
+            Assert.AreEqual(0, after.Demolitions.Count);
             Assert.IsNotNull(city.PlaceRoad(after));
+            CityChecks.AssertAllRulesHold(city);
+        }
+
+        [Test]
+        public void ARoadBuiltWithDemolish_RemovesExactlyTheBuildingsInTheWay()
+        {
+            CitySimulation city = CityWithRoad(23);
+            city.SpawnChance = 1.0;
+            ZoneEverything(city, ZoneType.Residential);
+            Run(city, 300);
+            int before = city.BuildingCount;
+
+            RoadPlan plan = city.PlanRoad(new Vec2(0, -120), null, new Vec2(0, 3));
+            Assert.IsTrue(plan.IsValid, plan.Error);
+            var doomed = new List<Building>(plan.Demolitions);
+            Assert.Greater(doomed.Count, 0);
+
+            RoadSegment built = city.PlaceRoad(plan, true);
+
+            Assert.IsNotNull(built);
+            Assert.AreEqual(before - doomed.Count, city.BuildingCount);
+            foreach (Building b in doomed)
+            {
+                Building found;
+                Assert.IsFalse(city.TryGetBuildingAt(b.Center, out found) && found == b);
+            }
+
             CityChecks.AssertAllRulesHold(city);
         }
 
@@ -632,7 +661,9 @@ namespace UrbanGenesis.Tests
                         RoadPlan plan = city.PlanRoad(p, control, q);
                         if (plan.IsValid)
                         {
-                            Assert.IsNotNull(city.PlaceRoad(plan));
+                            bool demolish = rng.Next(2) == 0;
+                            RoadSegment built = city.PlaceRoad(plan, demolish);
+                            Assert.AreEqual(demolish || plan.Demolitions.Count == 0, built != null);
                         }
                     }
                     else if (what < 6)

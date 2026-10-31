@@ -14,6 +14,7 @@
 | `C` | Road tool: switch between **Straight** and **Curved** |
 | `[` / `]` | Smaller / bigger brush (zone and bulldoze tools) |
 | `F` | Zone tools: toggle **Fill** (click a lot to zone that whole side of the road) |
+| `Shift` | While finishing a road: demolish the buildings in its way |
 | `Esc` or right-click | Cancel the road you are drawing, or drop the tool |
 | `WASD` / arrows (+ `Shift`) | Move the camera |
 | `Q` / `E`, or right-drag | Rotate (right-drag up/down tilts) |
@@ -41,11 +42,13 @@
 
 ## Rules
 
-* Roads never cross each other. They meet at junctions: end one road on the other. (Crossing needs automatic junction
-  creation, which is a later improvement.)
+* **Roads never cross each other. This is a deliberate rule:** roads only meet at T-junctions (or at the end of another road).
+  End one road on the other.
 * Roads need a minimum length (40 m), a bend no tighter than 48 m radius, and at least 30 degrees between roads at a junction.
   Unconnected roads must stay about 15 m apart.
-* A road cannot be built through buildings. Bulldoze them first.
+* **A road built through buildings demolishes them, but only if you say so.** The preview turns orange, the buildings that would go
+  are highlighted, and the status line counts them. Hold **Shift** when you finish the road to demolish them and build it.
+  Without Shift the road is refused and nothing is touched.
 * **Buildings only spawn with a direct connection to a road.** A building stands on a block of lots beside one road with its
   front edge on that road, and growth only ever starts from a lot touching the road. Zoning only the far rows of a strip
   grows nothing.
@@ -114,7 +117,7 @@ using `EffectiveCapacity`. Splitting a road keeps the closure state on both halv
 
 ## Known limits (on purpose, for now)
 
-* Roads cannot cross; you must build a junction. Curves are single quadratic Beziers per road (chain roads for S-bends).
+* Roads cannot cross (by design); you must build a junction. Curves are single quadratic Beziers per road (chain roads for S-bends).
 * One lot is 8 m wide and one floor is 3.5 m. Buildings are stacks of gray boxes, cylinders and roofs until real models arrive.
 * On the inside of a tight bend the inner rows of lots are dropped, because the cells would be squashed.
 * Removing a road does not merge the two halves of a split road back together.

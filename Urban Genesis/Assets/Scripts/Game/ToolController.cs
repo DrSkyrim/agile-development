@@ -20,6 +20,8 @@ namespace UrbanGenesis.Game
     /// Turns mouse input into commands for the simulation. Pick a tool (toolbar or keys 1 to 5):
     ///   Road      Straight: press, drag, release.  Curved (toggle with C): click start, click a point to bend through, click end.
     ///             A road can start or end in open ground, on a junction, or on another road (it joins there).
+    ///             Roads never cross. If buildings are in the way the preview turns orange and the road is only built
+    ///             (demolishing them) if Shift is held when you finish it.
     ///   Zone      Paint with a round brush; only lots beside roads exist, up to four rows deep.
     ///             Fill (toggle with F): click a lot to zone that whole side of the road, all rows, up to the next junction.
     ///   Bulldoze  Paint to clear buildings and zoning; click a road to remove it.
@@ -58,6 +60,7 @@ namespace UrbanGenesis.Game
         private float shownBrush;
         private RoadMode shownMode;
         private bool shownFill;
+        private bool shownShift;
 
         private string liveText = "";
         private string resultText = "";
@@ -316,6 +319,12 @@ namespace UrbanGenesis.Game
             MarkPreviewShown(p);
         }
 
+        private static bool ShiftHeld()
+        {
+            Keyboard keyboard = Keyboard.current;
+            return keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
+        }
+
         private RoadPlan PlanCurrent(Vec2 end)
         {
             if (RoadMode == RoadMode.Curved && roadStage == 2)
@@ -338,15 +347,37 @@ namespace UrbanGenesis.Game
                 return;
             }
 
-            RoadSegment segment = sim.PlaceRoad(plan);
-            ShowResult(segment == null ? "The road could not be built" : "Built a road, " + Mathf.RoundToInt((float)plan.Curve.Length) + " m");
+            int inTheWay = plan.Demolitions.Count;
+            if (inTheWay > 0 && !ShiftHeld())
+            {
+                ShowResult(inTheWay + (inTheWay == 1 ? " building is" : " buildings are") + " in the way. Hold Shift while building to demolish them.");
+                return;
+            }
+
+            RoadSegment segment = sim.PlaceRoad(plan, inTheWay > 0);
+            if (segment == null)
+            {
+                ShowResult("The road could not be built");
+                return;
+            }
+
+            string length = Mathf.RoundToInt((float)plan.Curve.Length) + " m";
+            ShowResult(inTheWay > 0
+                ? "Built a road, " + length + ", and demolished " + inTheWay + (inTheWay == 1 ? " building" : " buildings")
+                : "Built a road, " + length);
         }
 
         private void DrawRoadPlan(RoadPlan plan, Vec2 pointer)
         {
             if (plan.IsValid)
             {
-                cityRenderer.PreviewRibbon(plan.Curve.Sample(4.0), RoadNetwork.HalfWidth, CityPalette.PreviewValid);
+                bool demolishing = plan.Demolitions.Count > 0;
+                cityRenderer.PreviewRibbon(plan.Curve.Sample(4.0), RoadNetwork.HalfWidth, demolishing ? BulldozeHighlight : CityPalette.PreviewValid);
+                foreach (Building b in plan.Demolitions)
+                {
+                    cityRenderer.PreviewQuad(b.Footprint, BulldozeHighlight);
+                }
+
                 DrawAnchor(plan.Start);
                 DrawAnchor(plan.End);
             }
@@ -403,6 +434,14 @@ namespace UrbanGenesis.Game
             }
 
             string text = (RoadMode == RoadMode.Curved ? "Curved road" : "Road") + ": " + Mathf.RoundToInt((float)plan.Curve.Length) + " m";
+            int inTheWay = plan.Demolitions.Count;
+            if (inTheWay > 0)
+            {
+                text += ShiftHeld()
+                    ? "  -  will demolish " + inTheWay + (inTheWay == 1 ? " building" : " buildings")
+                    : "  -  " + inTheWay + (inTheWay == 1 ? " building" : " buildings") + " in the way: hold Shift to demolish";
+            }
+
             if (plan.Start.Kind != AnchorKind.New || plan.End.Kind != AnchorKind.New)
             {
                 text += " (joins the road network)";
@@ -599,6 +638,7 @@ namespace UrbanGenesis.Game
                 && shownStage == roadStage
                 && shownMode == RoadMode
                 && shownFill == FillMode
+                && shownShift == ShiftHeld()
                 && shownRevision == sim.Revision
                 && Mathf.Approximately(shownBrush, BrushRadius)
                 && Vec2.Distance(shownPoint, p) < 0.25;
@@ -612,6 +652,7 @@ namespace UrbanGenesis.Game
             shownStage = roadStage;
             shownMode = RoadMode;
             shownFill = FillMode;
+            shownShift = ShiftHeld();
             shownRevision = sim.Revision;
             shownBrush = BrushRadius;
         }
