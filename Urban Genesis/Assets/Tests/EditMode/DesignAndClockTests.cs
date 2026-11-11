@@ -168,6 +168,41 @@ namespace UrbanGenesis.Tests
     }
 
     [TestFixture]
+    public class ResidentialTests
+    {
+        [Test]
+        public void ResidentialBuildings_AreSmallHomes_WithAtMostFourApartmentsAndTwoFloors()
+        {
+            foreach (BuildingTemplate t in BuildingCatalog.ForZone(ZoneType.Residential))
+            {
+                Assert.IsTrue(t.Homes >= 1 && t.Homes <= 4, t.Shape + " homes " + t.Homes);
+                Assert.IsTrue(t.MaxFloors <= 2, t.Shape + " is taller than two floors");
+                Assert.IsTrue(t.CellCount <= 3, t.Shape + " is too big");
+            }
+        }
+
+        [Test]
+        public void Residents_AreTwoToFourPerHome_AndZeroOutsideResidential()
+        {
+            foreach (BuildingTemplate t in BuildingCatalog.All())
+            {
+                for (int variant = 0; variant < 12; variant++)
+                {
+                    Building b = TestBuildings.Make(t, t.MinFloors, variant);
+                    if (t.Zone == ZoneType.Residential)
+                    {
+                        Assert.IsTrue(b.Residents >= 2 * t.Homes && b.Residents <= 4 * t.Homes, t.Shape + " residents " + b.Residents);
+                    }
+                    else
+                    {
+                        Assert.AreEqual(0, b.Residents);
+                    }
+                }
+            }
+        }
+    }
+
+    [TestFixture]
     public class BuildingDesignerTests
     {
         private const float Tolerance = 0.001f;

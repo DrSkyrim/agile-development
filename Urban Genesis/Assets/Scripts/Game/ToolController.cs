@@ -84,6 +84,12 @@ namespace UrbanGenesis.Game
             get { return Time.unscaledTime < resultUntil ? resultText : liveText; }
         }
 
+        /// <summary>
+        /// Size of the road being drawn, as text for a tag beside the cursor (empty when no road is being drawn).
+        /// First line: length in metres. Second line: the same length in lots, so it can be compared with the buildings.
+        /// </summary>
+        public string MeasureText { get; private set; }
+
         public bool IsBrushTool
         {
             get { return CurrentTool == ToolType.Bulldoze || ZoneForTool(CurrentTool) != ZoneType.None; }
@@ -306,6 +312,7 @@ namespace UrbanGenesis.Game
             if (roadStage == 0)
             {
                 DrawAnchorHint(p);
+                MeasureText = "";
                 liveText = curved ? "Road: click where it starts" : "Road: press where it starts, drag, release where it ends";
             }
             else
@@ -313,6 +320,7 @@ namespace UrbanGenesis.Game
                 RoadPlan plan = PlanCurrent(p);
                 DrawRoadPlan(plan, p);
                 liveText = DescribePlan(plan);
+                MeasureText = DescribeLength(plan, p);
             }
 
             cityRenderer.EndPreview();
@@ -424,6 +432,25 @@ namespace UrbanGenesis.Game
             }
 
             cityRenderer.PreviewDisc(p, 3.0, CityPalette.PreviewHover);
+        }
+
+        private string DescribeLength(RoadPlan plan, Vec2 pointer)
+        {
+            double length;
+            if (plan.IsValid)
+            {
+                length = plan.Curve.Length;
+            }
+            else
+            {
+                Vec2 start = roadStart;
+                RoadCurve raw = RoadMode == RoadMode.Curved && roadStage == 2
+                    ? new RoadCurve(start, RoadNetwork.ControlThrough(start, roadBend, pointer), pointer)
+                    : RoadCurve.Straight(start, pointer);
+                length = raw.Length;
+            }
+
+            return Mathf.RoundToInt((float)length) + " m\n" + (length / RoadNetwork.LotSize).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " lots";
         }
 
         private string DescribePlan(RoadPlan plan)
@@ -659,6 +686,7 @@ namespace UrbanGenesis.Game
 
         private void HidePreview()
         {
+            MeasureText = "";
             if (previewShown)
             {
                 cityRenderer.ClearPreview();

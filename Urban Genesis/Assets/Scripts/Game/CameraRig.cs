@@ -14,7 +14,7 @@ namespace UrbanGenesis.Game
     public sealed class CameraRig : MonoBehaviour
     {
         private const float MinDistance = 30f;
-        private const float MaxDistance = 1200f;
+        private const float MaxDistance = 4000f;
         private const float MinPitch = 25f;
         private const float MaxPitch = 85f;
 
@@ -29,6 +29,42 @@ namespace UrbanGenesis.Game
         private float halfExtent;
 
         public Camera Camera { get { return cam; } }
+
+        /// <summary>Which way the camera is turned, in degrees. 0 means north is straight up on screen.</summary>
+        public float YawDegrees { get { return yaw; } }
+
+        /// <summary>How many screen pixels one metre of ground is wide, where the camera looks. Used for the scale bar.</summary>
+        public float PixelsPerMetre()
+        {
+            if (cam == null)
+            {
+                return 1f;
+            }
+
+            Vector3 a = cam.WorldToScreenPoint(focus);
+            Vector3 b = cam.WorldToScreenPoint(focus + cam.transform.right * 10f);
+            float dx = b.x - a.x;
+            float dy = b.y - a.y;
+            return Mathf.Max(0.01f, Mathf.Sqrt(dx * dx + dy * dy) / 10f);
+        }
+
+        /// <summary>Zooms one step in (positive) or out (negative), like one notch of the mouse wheel.</summary>
+        public void ZoomStep(int direction)
+        {
+            targetDistance = Mathf.Clamp(targetDistance * Mathf.Pow(0.8f, direction), MinDistance, MaxDistance);
+        }
+
+        /// <summary>Turns the camera so north is straight up on screen.</summary>
+        public void FaceNorth()
+        {
+            yaw = 0f;
+        }
+
+        /// <summary>Moves the view back to the middle of the map.</summary>
+        public void Recenter()
+        {
+            focus = Vector3.zero;
+        }
 
         /// <summary>Starts looking at the middle of the map. <paramref name="mapHalfExtent"/> is half the map's side length in metres.</summary>
         public void Init(HudToolbar toolbar, float mapHalfExtent)
@@ -55,9 +91,9 @@ namespace UrbanGenesis.Game
                 cam.gameObject.AddComponent<AudioListener>();
             }
 
-            // The default clip planes are tuned for small scenes; a 1 km city needs longer ones.
+            // The default clip planes are tuned for small scenes; a 4 km map needs longer ones.
             cam.nearClipPlane = 5f;
-            cam.farClipPlane = 6000f;
+            cam.farClipPlane = 12000f;
 
             ApplyToCamera();
         }

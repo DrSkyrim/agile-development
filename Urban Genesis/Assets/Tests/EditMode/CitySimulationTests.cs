@@ -422,7 +422,7 @@ namespace UrbanGenesis.Tests
         {
             CitySimulation city = CityWithRoad(9);
             city.SpawnChance = 1.0;
-            city.BigBuildingPriority = 1.0;
+            city.BigBuildingPriority = 0.85;
             ZoneEverything(city, ZoneType.Residential);
             Run(city, 600);
 
@@ -430,7 +430,7 @@ namespace UrbanGenesis.Tests
             int small = 0;
             foreach (Building b in city.Buildings)
             {
-                if (b.Template.CellCount >= 6) { big++; } else { small++; }
+                if (b.Template.CellCount >= 2) { big++; } else { small++; }
             }
 
             Assert.Greater(big, 0, "no big buildings grew");

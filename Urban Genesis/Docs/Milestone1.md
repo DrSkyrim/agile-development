@@ -29,7 +29,7 @@
 * The preview is blue when the road can be built and red when it cannot; the status line (bottom left) says why.
 * A road can start or end in open ground, on a junction (a white ring shows it), or anywhere along another road. In the
   last case the other road is split there and a T-junction appears. Splits land on 8 m marks along the road.
-* Roads are 16 m wide (two of the old 8 m tiles) and the map is 1 km across.
+* Roads are 16 m wide (two of the old 8 m tiles) and the map is 4 km across (4096 m).
 
 ### Zoning and bulldozing
 
@@ -42,6 +42,25 @@
   returns if the other road is removed.
 * Bulldoze: drag to clear buildings and zoning under the brush. **Click on a road** to remove it (the stretch between its two
   junctions) together with everything beside it.
+
+## The interface
+
+The HUD follows the Figma mock-up *Urban Genesis UI mock UP* and is built with UI Toolkit (`HudToolbar.cs` creates the elements, `Resources/UI/UrbanGenesis.uss` styles them). Icons are the same Lucide icons the mock-up uses.
+
+| Area | What it does |
+| --- | --- |
+| Top left, city card | City name (picked at random from `CityNames.cs` each launch, until maps and saves exist), buildings and roads count |
+| Top right, session bar | Weather, notifications, save, settings, menu (placeholders: they only show a notice) |
+| Top right, advisory card | What the current tool would do or just did, otherwise a hint |
+| Left, city menu | Layers, statistics, policies, map (placeholders) |
+| Right, camera | North arrow (turns with the camera, click to face north), zoom in / out, recentre |
+| Bottom centre, toolbar | **Roads**, **Zoning**, **Demolish** work. Power, Water, Services, Transit, Parks, Terrain are dimmed until they exist |
+| Strip above the toolbar | Appears with a tool: Straight / Curved for roads, Residential / Commercial / Industrial and Fill for zoning, brush size for zoning and demolish |
+| Bottom left, scale | A bar with a round length in metres that follows the zoom, plus the sizes that matter: 1 lot = 8 m, road = 16 m wide |
+| Next to the cursor | While drawing a road, a tag shows its length in metres and in lots |
+| Bottom bar | Game clock with pause, play, speed (click to cycle 1x to 3x) and fast-forward; Treasury, Population, Happiness, zoning demand (R/C/I), next population milestone |
+
+Placeholders to replace once the simulation has them: weather (fixed 18 C), Treasury and Happiness (shown as a dash). **Population** is the sum of the residents of all homes: each home holds two to four people (fixed per building), and the biggest residential building is a two-storey block with four apartments. Dense housing (high-rises) is left for a later milestone. A fully built 400 m road currently holds roughly 300 people, so 10,000 people need roughly 13 km of road (the map is 4 km across, so there is plenty of room). **Demand** bars show how much of the zoned land of that type is still empty. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
 
 ## Rules
 
@@ -66,7 +85,7 @@ road, depth is how many rows away from it:
 
 | Zone | Types (width x depth) |
 | --- | --- |
-| Residential | cottage 1x1, row houses 2x1 / 3x1, apartment block 2x1 / 2x2 / 3x3 / 4x3, L-shaped block 2x2, courtyard block 3x2 / 4x4, terrace tower 2x2 / 3x3 |
+| Residential | cottage 1x1, bungalow 1x1, chalet 1x1, villa 1x1, farmhouse 1x2, semi-detached houses 2x1, terrace of three 3x1, **four-apartment block 2x1 (two storeys)** |
 | Commercial | shop 1x1, office slab 2x1 / 3x2, tower 1x1, podium tower 2x2 / 3x3, mall 3x2 / 4x3 |
 | Industrial | shed 1x1, warehouse 2x1 / 3x1 / 4x2, factory 2x2 / 3x3 / 4x4, silo yard 2x1 |
 
@@ -104,8 +123,11 @@ Assets/Scripts/Game         Unity layer. Draws the model and turns input into co
   CityRenderer              Ground, roads, lot tints, building models, tool preview overlay
   BuildingModelFactory      Builds a building's meshes from its design (the place to plug in Blender models later)
   ToolController            Mouse tools and previews
-  CameraRig, HudToolbar     Camera, and the placeholder toolbar (immediate-mode GUI)
+  CameraRig                 Camera
+  HudToolbar                The HUD, built from code with UI Toolkit (see "The interface")
 
+Assets/Resources/UI         HUD style sheet (UrbanGenesis.uss), icons (white PNGs, tinted by the style sheet) and Inter fonts
+Assets/Editor               Import settings for the HUD icons
 Assets/Tests/EditMode       Unit tests for the Simulation code
 ```
 

@@ -6,13 +6,14 @@ namespace UrbanGenesis.Simulation
     /// </summary>
     public enum BuildingShape
     {
-        // Residential
+        // Residential (small homes; dense housing comes with a later milestone)
         Cottage,          // 1x1, small house with a pitched roof
-        RowHouses,        // 2x1, two terraced houses of different heights
-        ApartmentBlock,   // flat-roofed block on a dark plinth
-        LBlock,           // 2x2, L-shaped block
-        CourtyardBlock,   // 3x2, U-shaped block around a courtyard
-        TerraceTower,     // 2x2, tower with stepped-back tiers
+        Bungalow,         // 1x1, low house with a hipped roof and a porch
+        Chalet,           // 1x1, steep roof and a front deck
+        Villa,            // 1x1, two storeys with a corner tower
+        Farmhouse,        // 1x2, house with a barn and a silo behind
+        RowHouses,        // 2x1 / 3x1, terraced or semi-detached houses
+        FourPlex,         // 2x1, two storeys, four apartments
 
         // Commercial
         Shop,             // 1x1, shop with an awning and a roof sign

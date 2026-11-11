@@ -17,7 +17,7 @@ namespace UrbanGenesis.Simulation
     /// </summary>
     public sealed class CitySimulation
     {
-        public const double DefaultWorldSize = 1024.0;
+        public const double DefaultWorldSize = 4096.0;
 
         /// <summary>A building may stick into a road by this much (metres) because curves bend the straight edges.</summary>
         public const double BuildingRoadTolerance = 0.4;
