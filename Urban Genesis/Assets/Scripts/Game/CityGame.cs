@@ -78,6 +78,12 @@ namespace UrbanGenesis.Game
             pauseMenu = CreateChild<PauseMenu>("Pause Menu");
             pauseMenu.Init(this, tools);
             hud.MenuRequested += pauseMenu.Open;
+            hud.MainMenuRequested += pauseMenu.OpenLeaveConfirm;
+            hud.SaveRequested += () =>
+            {
+                string error = SaveToDisk();
+                hud.Notify(error ?? "Game saved.", 3f);
+            };
 
             if (save == null)
             {

@@ -16,6 +16,7 @@ namespace UrbanGenesis.Game
         private VisualElement scrim;
         private VisualElement card;
         private string status = "";
+        private bool cameFromHud;
 
         public bool IsOpen { get { return game != null && game.MenuOpen; } }
 
@@ -44,8 +45,25 @@ namespace UrbanGenesis.Game
             }
 
             status = "";
+            cameFromHud = false;
             game.MenuOpen = true;
             ShowMain();
+            scrim.style.display = DisplayStyle.Flex;
+        }
+
+        /// <summary>Opens straight on the "back to the main menu?" question.</summary>
+        public void OpenLeaveConfirm()
+        {
+            if (IsOpen)
+            {
+                ShowLeaveConfirm();
+                return;
+            }
+
+            status = "";
+            cameFromHud = true;
+            game.MenuOpen = true;
+            ShowLeaveConfirm();
             scrim.style.display = DisplayStyle.Flex;
         }
 
@@ -119,7 +137,7 @@ namespace UrbanGenesis.Game
                 game.RequestMainMenu();
             }));
             card.Add(MenuUi.Button("Exit without saving", "menu", false, game.RequestMainMenu));
-            card.Add(MenuUi.Button("Back", "play", false, ShowMain));
+            card.Add(MenuUi.Button("Back", "play", false, () => { if (cameFromHud) { Close(); } else { ShowMain(); } }));
         }
 
         private void Save()

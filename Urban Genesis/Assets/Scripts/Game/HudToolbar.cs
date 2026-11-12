@@ -101,6 +101,12 @@ namespace UrbanGenesis.Game
         /// <summary>Raised when the player clicks the city name panel (opens the pause menu).</summary>
         public event Action MenuRequested;
 
+        /// <summary>Raised by the save button in the clock panel.</summary>
+        public event Action SaveRequested;
+
+        /// <summary>Raised by the menu button in the clock panel (asks to go back to the main menu).</summary>
+        public event Action MainMenuRequested;
+
         public void Init(CitySimulation simulation, TickClock tickClock, ToolController toolController, CameraRig cameraRig, string name)
         {
             cityName = name;
@@ -441,9 +447,9 @@ namespace UrbanGenesis.Game
             panel.Add(divider);
 
             panel.Add(IconButton("bell", false, () => Notify("Notifications are not available yet.")));
-            panel.Add(IconButton("save", false, () => Notify("Saving is not available yet.")));
+            panel.Add(IconButton("save", false, () => { Action requested = SaveRequested; if (requested != null) { requested(); } }));
             panel.Add(IconButton("settings-2", false, () => Notify("Settings are not available yet.")));
-            panel.Add(IconButton("menu", false, () => Notify("The main menu is not available yet.")));
+            panel.Add(IconButton("menu", false, () => { Action requested = MainMenuRequested; if (requested != null) { requested(); } }));
         }
 
         private void BuildAdvisory()
