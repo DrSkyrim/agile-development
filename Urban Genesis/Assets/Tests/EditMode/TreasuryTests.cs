@@ -61,7 +61,7 @@ namespace UrbanGenesis.Tests
             for (int i = 0; i < 100; i++) { city.Step(); }
             Assert.IsTrue(city.BuildingCount > 0);
             // Only upkeep (and no income yet) moves the money, never a building or a zone.
-            Assert.AreEqual(after - city.Treasury.WeeklyUpkeep * 100.0 / GameTime.TicksPerWeek, city.Treasury.Balance, 0.01);
+            Assert.AreEqual(after, city.Treasury.Balance, 0.01, "no day has ended yet");
         }
 
         [Test]
@@ -77,7 +77,7 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
-        public void RoadsCostUpkeep_EverySingleTick()
+        public void RoadsCostUpkeep()
         {
             var city = new CitySimulation(1);
             city.Treasury.Enable(10000.0);
@@ -87,6 +87,22 @@ namespace UrbanGenesis.Tests
             Assert.AreEqual(upkeep, city.Treasury.WeeklyUpkeep, 0.5);
             for (int i = 0; i < GameTime.TicksPerWeek; i++) { city.Step(); }
             Assert.AreEqual(start - city.Treasury.WeeklyUpkeep, city.Treasury.Balance, 1.0, "one week of upkeep");
+        }
+
+        [Test]
+        public void MoneyMovesOnlyAtTheEndOfEachDay()
+        {
+            var city = new CitySimulation(1);
+            city.Treasury.Enable(10000.0);
+            city.PlaceRoad(city.PlanRoad(A, null, B));
+            double start = city.Treasury.Balance;
+            int changes = 0;
+            city.Treasury.Changed += () => changes++;
+            for (int i = 0; i < GameTime.TicksPerDay - 1; i++) { city.Step(); }
+            Assert.AreEqual(start, city.Treasury.Balance, 0.0001, "mid-day");
+            city.Step();
+            Assert.AreEqual(start - city.Treasury.WeeklyUpkeep / 7.0, city.Treasury.Balance, 0.01, "end of day");
+            Assert.AreEqual(1, changes);
         }
 
         [Test]

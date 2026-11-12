@@ -10,7 +10,7 @@ namespace UrbanGenesis.Simulation
     /// Income is tax on the economy that works: each employed worker and each shopper served pays a little each week,
     /// so a city without jobs and shops earns nothing.
     /// Money is off until <see cref="Enable"/> is called, so tests and tools can build without a budget.
-    /// Money moves a little every tick; <see cref="WeeklyIncome"/> and <see cref="WeeklyUpkeep"/> are the current rates per game week.
+    /// Income and upkeep are settled once at the end of each game day; <see cref="WeeklyIncome"/> and <see cref="WeeklyUpkeep"/> are the current rates per game week.
     /// </summary>
     public sealed class CityTreasury
     {
@@ -114,12 +114,22 @@ namespace UrbanGenesis.Simulation
             WeeklyUpkeep = upkeep;
         }
 
-        /// <summary>One tick of income and upkeep.</summary>
+        private int ticksIntoDay;
+
+        /// <summary>Counts a tick. At the end of each game day the day's income and upkeep are settled in one go.</summary>
         internal void Tick()
         {
-            if (IsEnabled)
+            if (!IsEnabled)
             {
-                Balance += WeeklyNet / GameTime.TicksPerWeek;
+                return;
+            }
+
+            ticksIntoDay++;
+            if (ticksIntoDay >= GameTime.TicksPerDay)
+            {
+                ticksIntoDay = 0;
+                Balance += WeeklyNet / 7.0;
+                RaiseChanged();
             }
         }
 
