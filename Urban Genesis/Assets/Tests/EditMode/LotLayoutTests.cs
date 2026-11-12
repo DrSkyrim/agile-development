@@ -9,7 +9,9 @@ namespace UrbanGenesis.Tests
     {
         private static CitySimulation NewCity()
         {
-            return new CitySimulation(1);
+            var city = new CitySimulation(1);
+            city.Economy.DemandDrivesGrowth = false;
+            return city;
         }
 
         private static RoadSegment Road(CitySimulation city, Vec2 a, Vec2 b)

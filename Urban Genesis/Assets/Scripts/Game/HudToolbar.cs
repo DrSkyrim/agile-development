@@ -990,6 +990,7 @@ namespace UrbanGenesis.Game
             string detail;
             bool hasMessage = Time.unscaledTime < messageUntil;
             string toolStatus = tools.StatusText;
+            string advice = sim.Economy.Advice;
             if (hasMessage)
             {
                 title = message;
@@ -1002,14 +1003,26 @@ namespace UrbanGenesis.Game
             }
             else if (tools.CurrentTool == ToolType.None)
             {
-                title = sim.Roads.SegmentCount == 0 ? "Start by laying a road" : "Your city is running smoothly";
-                detail = "Pick a tool below, or press 1–5. Space pauses.";
+                if (!string.IsNullOrEmpty(advice))
+                {
+                    title = advice;
+                    detail = "The demand bars at the bottom show what the city wants.";
+                }
+                else
+                {
+                    title = sim.Roads.SegmentCount == 0 ? "Start by laying a road" : "Your city is running smoothly";
+                    detail = "Pick a tool below, or press 1–5. Space pauses.";
+                }
             }
             else
             {
                 title = ToolController.ToolLabel(tools.CurrentTool) + " tool selected";
-                detail = "Esc or right-click drops the tool.";
+                detail = !string.IsNullOrEmpty(advice) ? advice : "Esc or right-click drops the tool.";
             }
+
+            bool warn = !string.IsNullOrEmpty(advice) && !hasMessage && string.IsNullOrEmpty(toolStatus);
+            SetOn(advisoryPanel, "ug-advisory--warn", warn);
+            SetOn(advisoryPanel, "ug-advisory--ok", !warn);
 
             SetText(advisoryTitle, title);
             SetText(advisoryDetail, detail);
@@ -1050,27 +1063,22 @@ namespace UrbanGenesis.Game
             SetText(populationValue, population.ToString("N0", CultureInfo.InvariantCulture));
             SetText(populationChange, populationTrend > 0 ? "+" + populationTrend.ToString("0", CultureInfo.InvariantCulture) : "");
 
-            int[] zoned = new int[3];
-            int[] free = new int[3];
-            foreach (Lot lot in sim.Lots.Lots)
-            {
-                if (lot.Zone == ZoneType.None)
-                {
-                    continue;
-                }
-
-                int index = (int)lot.Zone - 1;
-                zoned[index]++;
-                if (lot.IsFree)
-                {
-                    free[index]++;
-                }
-            }
-
+            // Demand comes from the economy: jobs, goods and shops between the zones (see CityEconomy).
+            CityEconomy economy = sim.Economy;
+            double[] demand = { economy.ResidentialDemand, economy.CommercialDemand, economy.IndustrialDemand };
             for (int i = 0; i < 3; i++)
             {
-                float level = zoned[i] == 0 ? 0f : (float)free[i] / zoned[i];
-                demandFill[i].style.height = new StyleLength(new Length(Mathf.Max(level, zoned[i] == 0 ? 0f : 0.08f) * 100f, LengthUnit.Percent));
+                demandFill[i].style.height = new StyleLength(new Length(Mathf.Clamp01((float)demand[i]) * 100f, LengthUnit.Percent));
+            }
+
+            EconomySnapshot snapshot = economy.Snapshot;
+            if (snapshot.Residents > 0.0)
+            {
+                SetText(happinessValue, Mathf.RoundToInt((float)snapshot.Happiness * 100f) + "%");
+            }
+            else
+            {
+                SetText(happinessValue, "—");
             }
 
             int target = Milestones[Milestones.Length - 1];

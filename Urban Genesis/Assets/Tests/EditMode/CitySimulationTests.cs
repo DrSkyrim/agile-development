@@ -127,6 +127,7 @@ namespace UrbanGenesis.Tests
         private static CitySimulation CityWithRoad(int seed)
         {
             var city = new CitySimulation(seed);
+            city.Economy.DemandDrivesGrowth = false;
             Assert.IsNotNull(city.PlaceRoad(city.PlanRoad(West, null, East)));
             return city;
         }
@@ -442,6 +443,7 @@ namespace UrbanGenesis.Tests
         public void Growth_FollowsACurvedRoad_AndKeepsTheRules()
         {
             var city = new CitySimulation(10);
+            city.Economy.DemandDrivesGrowth = false;
             Vec2 a = new Vec2(-180, -40);
             Vec2 b = new Vec2(180, -40);
             RoadPlan plan = city.PlanRoad(a, RoadNetwork.ControlThrough(a, new Vec2(0, 90), b), b);
@@ -664,6 +666,7 @@ namespace UrbanGenesis.Tests
             {
                 var rng = new Random(seed * 101);
                 var city = new CitySimulation(seed);
+                city.Economy.DemandDrivesGrowth = false;
                 city.SpawnChance = 0.9;
 
                 for (int op = 0; op < 140; op++)

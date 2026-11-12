@@ -42,6 +42,9 @@ namespace UrbanGenesis.Simulation
         public RoadNetwork Roads { get; private set; }
         public LotLayout Lots { get; private set; }
 
+        /// <summary>Supply, demand and trips: what the city wants and what drives growth.</summary>
+        public CityEconomy Economy { get; private set; }
+
         /// <summary>Number of simulation ticks run so far.</summary>
         public int TickCount { get; private set; }
 
@@ -75,6 +78,7 @@ namespace UrbanGenesis.Simulation
             double half = worldSize * 0.5;
             Roads = new RoadNetwork(new Aabb(-half, -half, half, half));
             Lots = new LotLayout(Roads);
+            Economy = new CityEconomy(this);
             rng = new Random(seed);
             SpawnChance = 0.5;
             GrowthAttemptsPerZonePerTick = 2;
@@ -86,6 +90,13 @@ namespace UrbanGenesis.Simulation
         }
 
         public int BuildingCount { get { return buildings.Count; } }
+
+        /// <summary>The building with this id, or null.</summary>
+        public Building GetBuilding(int id)
+        {
+            Building b;
+            return buildings.TryGetValue(id, out b) ? b : null;
+        }
         public IEnumerable<Building> Buildings { get { return buildings.Values; } }
 
         public int CountBuildings(ZoneType zone)
@@ -373,6 +384,11 @@ namespace UrbanGenesis.Simulation
         {
             TickCount++;
 
+            if ((TickCount - 1) % Math.Max(1, Economy.UpdateIntervalTicks) == 0)
+            {
+                Economy.Update();
+            }
+
             residentialCandidates.Clear();
             commercialCandidates.Clear();
             industrialCandidates.Clear();
@@ -402,7 +418,13 @@ namespace UrbanGenesis.Simulation
         {
             for (int attempt = 0; attempt < GrowthAttemptsPerZonePerTick && candidates.Count > 0; attempt++)
             {
-                if (rng.NextDouble() >= SpawnChance)
+                double chance = SpawnChance;
+                if (Economy.DemandDrivesGrowth)
+                {
+                    chance *= Economy.DemandFor(zone);
+                }
+
+                if (rng.NextDouble() >= chance)
                 {
                     continue;
                 }
