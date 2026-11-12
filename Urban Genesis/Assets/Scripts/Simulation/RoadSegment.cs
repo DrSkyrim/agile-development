@@ -20,6 +20,14 @@ namespace UrbanGenesis.Simulation
         public RoadNode A { get; private set; }
         public RoadNode B { get; private set; }
         public RoadCurve Curve { get; private set; }
+        public RoadType Type { get; private set; }
+
+        /// <summary>True for the highway that links the city to the outside world. It cannot be bulldozed and costs nothing.</summary>
+        public bool IsOutsideConnection { get; internal set; }
+
+        public double Width { get { return RoadSpecs.Width(Type); } }
+        public double HalfWidth { get { return RoadSpecs.HalfWidth(Type); } }
+        public bool HasLots { get { return RoadSpecs.HasLots(Type); } }
 
         /// <summary>How much traffic the segment carries when fully open (abstract units).</summary>
         public float BaseCapacity { get; set; }
@@ -35,8 +43,9 @@ namespace UrbanGenesis.Simulation
         public bool IsClosed { get { return openFraction <= 0f; } }
         public double Length { get { return Curve.Length; } }
 
-        public RoadSegment(int id, RoadNode a, RoadNode b, RoadCurve curve, float baseCapacity)
+        public RoadSegment(int id, RoadNode a, RoadNode b, RoadCurve curve, float baseCapacity, RoadType type = RoadType.Street)
         {
+            Type = type;
             Id = id;
             A = a;
             B = b;
@@ -70,7 +79,7 @@ namespace UrbanGenesis.Simulation
         {
             var result = new List<Vec2[]>();
             List<Vec2> centre = Curve.Sample(SurfaceSpacing);
-            double half = RoadNetwork.HalfWidth;
+            double half = HalfWidth;
             int pieces = centre.Count - 1;
 
             // Using the same sample positions as Sample() so the pieces share corners exactly.

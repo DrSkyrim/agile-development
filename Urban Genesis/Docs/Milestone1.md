@@ -195,3 +195,9 @@ using `EffectiveCapacity`. Splitting a road keeps the closure state on both halv
 * Shadows are short-ranged because URP's default shadow distance is 50 m. Raise it in the URP asset when we polish visuals.
 * Shaders are looked up by name, which is fine in the Editor. Before making a standalone build, make sure the URP
   Unlit/Lit shaders (and `Sprites/Default`) are included in the build.
+
+## Highways and the outside connection
+
+- **Highway** is a second road type (press **H** or use the Street/Highway chips under the Road tool). It is 24 m wide (a street is 16 m), has no lots, so nothing is built beside it, costs $45/m with $1.5/m/week upkeep, and counts as twice as fast when the economy works out routes. It needs at least 100 m of length and gentle bends (radius 150 m).
+- A highway only joins other roads at its **ends**, and a street cannot join a highway in the middle: connect streets to the end of the highway.
+- **Outside connection:** every launch, a highway appears at a random point on the map's edge and runs to a random spot 250–450 m from the middle. It is free, has no upkeep and cannot be bulldozed. The camera starts looking at its inner end. Later it will carry trips to and from outside the city (import, export, commuters).

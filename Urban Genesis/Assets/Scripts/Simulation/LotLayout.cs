@@ -59,7 +59,7 @@ namespace UrbanGenesis.Simulation
         /// <summary>How many full columns of lots fit along a segment.</summary>
         public static int Cols(RoadSegment segment)
         {
-            return (int)Math.Floor((segment.Length + 0.05) / RoadNetwork.LotSize);
+            return segment.HasLots ? (int)Math.Floor((segment.Length + 0.05) / RoadNetwork.LotSize) : 0;
         }
 
         /// <summary>The four corners of a lot, anticlockwise. Side 0 is left of the road's direction, side 1 is right.</summary>
@@ -68,8 +68,8 @@ namespace UrbanGenesis.Simulation
             double s0 = col * RoadNetwork.LotSize;
             double s1 = s0 + RoadNetwork.LotSize;
             double sign = side == 0 ? 1.0 : -1.0;
-            double o0 = sign * (RoadNetwork.HalfWidth + row * RoadNetwork.LotSize);
-            double o1 = sign * (RoadNetwork.HalfWidth + (row + 1) * RoadNetwork.LotSize);
+            double o0 = sign * (segment.HalfWidth + row * RoadNetwork.LotSize);
+            double o1 = sign * (segment.HalfWidth + (row + 1) * RoadNetwork.LotSize);
 
             RoadCurve c = segment.Curve;
             Vec2 a = c.OffsetPointAtLength(s0, o0);
@@ -479,7 +479,7 @@ namespace UrbanGenesis.Simulation
         private bool OverlapsOtherRoads(RoadSegment own, Vec2[] corners)
         {
             Aabb box = Aabb.Of(corners);
-            foreach (RoadSegment other in roads.SegmentsNear(box, RoadNetwork.HalfWidth))
+            foreach (RoadSegment other in roads.SegmentsNear(box, RoadSpecs.MaxHalfWidth))
             {
                 if (other.Id == own.Id)
                 {

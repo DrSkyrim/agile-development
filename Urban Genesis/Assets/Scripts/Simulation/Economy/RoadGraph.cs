@@ -13,7 +13,7 @@ namespace UrbanGenesis.Simulation
         double Cost(RoadSegment segment);
     }
 
-    /// <summary>Length divided by the open fraction: a closed road cannot be used, a half-open one counts double.</summary>
+    /// <summary>Length divided by speed and open fraction: a closed road cannot be used, a half-open one counts double, a highway counts half.</summary>
     public sealed class FreeFlowRoadCost : IRoadCost
     {
         public const double MinOpenFraction = 0.2;
@@ -25,7 +25,7 @@ namespace UrbanGenesis.Simulation
                 return double.PositiveInfinity;
             }
 
-            return segment.Length / Math.Max(MinOpenFraction, segment.OpenFraction);
+            return segment.Length / (Math.Max(MinOpenFraction, segment.OpenFraction) * RoadSpecs.SpeedFactor(segment.Type));
         }
     }
 

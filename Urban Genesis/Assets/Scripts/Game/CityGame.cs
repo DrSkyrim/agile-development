@@ -47,6 +47,15 @@ namespace UrbanGenesis.Game
             tools.Init(Simulation, rig, cityRenderer, hud);
             hud.Init(Simulation, Clock, tools, rig, CityName);
 
+            // Until there is terrain, a highway to the outside world appears at a random place on every launch.
+            CitySimulation.OutsideConnection connection = Simulation.CreateOutsideConnection(new System.Random());
+            if (connection != null)
+            {
+                Vec2 meet = connection.CityNode.Position;
+                rig.FocusOn((float)meet.X, (float)meet.Y);
+                hud.Notify("A highway from the outside world reaches your city. Build roads out from its end.", 8f);
+            }
+
             EnsureLight();
         }
 

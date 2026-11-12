@@ -4,8 +4,8 @@ namespace UrbanGenesis.Simulation
 {
     /// <summary>
     /// The city's money. Zoning and buildings are free; only roads cost money:
-    ///  * building a road costs <see cref="BuildCostPerMetre"/> per metre (taken when it is placed),
-    ///  * every road costs <see cref="UpkeepPerMetrePerWeek"/> per metre every week,
+    ///  * building a road costs <see cref="BuildCostPerMetre"/> per metre for a street, <see cref="HighwayBuildCostPerMetre"/> for a highway (taken when it is placed),
+    ///  * every road costs upkeep per metre every week (the outside connection, built by the state, is free),
     ///  * bulldozing a road gives back <see cref="RefundShare"/> of its build cost.
     /// Income is tax on the economy that works: each employed worker and each shopper served pays a little each week,
     /// so a city without jobs and shops earns nothing.
@@ -25,6 +25,8 @@ namespace UrbanGenesis.Simulation
 
         public double BuildCostPerMetre = 15.0;
         public double UpkeepPerMetrePerWeek = 0.5;
+        public double HighwayBuildCostPerMetre = 45.0;
+        public double HighwayUpkeepPerMetrePerWeek = 1.5;
         public double RefundShare = 0.5;
         public double TaxPerEmployedWorkerPerWeek = 12.0;
         public double TaxPerShopperServedPerWeek = 2.0;
@@ -55,9 +57,19 @@ namespace UrbanGenesis.Simulation
         }
 
         /// <summary>What a road of this length costs (zero while money is off).</summary>
-        public double RoadCost(double lengthMetres)
+        public double RoadCost(double lengthMetres, RoadType type = RoadType.Street)
         {
-            return IsEnabled ? lengthMetres * BuildCostPerMetre : 0.0;
+            return IsEnabled ? lengthMetres * BuildCostPerMetreOf(type) : 0.0;
+        }
+
+        public double BuildCostPerMetreOf(RoadType type)
+        {
+            return type == RoadType.Highway ? HighwayBuildCostPerMetre : BuildCostPerMetre;
+        }
+
+        public double UpkeepPerMetreOf(RoadType type)
+        {
+            return type == RoadType.Highway ? HighwayUpkeepPerMetrePerWeek : UpkeepPerMetrePerWeek;
         }
 
         public bool CanAfford(double cost)
@@ -74,11 +86,12 @@ namespace UrbanGenesis.Simulation
             }
         }
 
-        internal void RefundRoad(double lengthMetres)
+        /// <summary>Gives back part of what a bulldozed road cost. The outside connection was free, so it refunds nothing.</summary>
+        internal void RefundRoad(RoadSegment segment)
         {
-            if (IsEnabled)
+            if (IsEnabled && !segment.IsOutsideConnection)
             {
-                Balance += lengthMetres * BuildCostPerMetre * RefundShare;
+                Balance += RoadCost(segment.Length, segment.Type) * RefundShare;
                 RaiseChanged();
             }
         }
@@ -89,13 +102,16 @@ namespace UrbanGenesis.Simulation
             EconomySnapshot s = sim.Economy.Snapshot;
             WeeklyIncome = s.Employed * TaxPerEmployedWorkerPerWeek + s.ShopServed * TaxPerShopperServedPerWeek;
 
-            double roadMetres = 0.0;
+            double upkeep = 0.0;
             foreach (RoadSegment segment in sim.Roads.Segments)
             {
-                roadMetres += segment.Length;
+                if (!segment.IsOutsideConnection)
+                {
+                    upkeep += segment.Length * UpkeepPerMetreOf(segment.Type);
+                }
             }
 
-            WeeklyUpkeep = roadMetres * UpkeepPerMetrePerWeek;
+            WeeklyUpkeep = upkeep;
         }
 
         /// <summary>One tick of income and upkeep.</summary>

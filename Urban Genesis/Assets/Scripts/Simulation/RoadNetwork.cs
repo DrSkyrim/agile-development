@@ -39,6 +39,7 @@ namespace UrbanGenesis.Simulation
         public string Error { get; internal set; }
 
         public RoadCurve Curve { get; internal set; }
+        public RoadType Type { get; internal set; }
         public RoadAnchor Start { get; internal set; }
         public RoadAnchor End { get; internal set; }
 
@@ -222,12 +223,12 @@ namespace UrbanGenesis.Simulation
         /// Checks a road and works out how its ends join the network. <paramref name="control"/> is the curve's
         /// control point (null for a straight road). Nothing is changed.
         /// </summary>
-        public RoadPlan Plan(Vec2 start, Vec2? control, Vec2 end)
+        public RoadPlan Plan(Vec2 start, Vec2? control, Vec2 end, RoadType type = RoadType.Street)
         {
             RoadAnchor a;
             RoadAnchor b;
             string error;
-            if (!ResolveAnchor(start, out a, out error) || !ResolveAnchor(end, out b, out error))
+            if (!ResolveAnchor(start, type, out a, out error) || !ResolveAnchor(end, type, out b, out error))
             {
                 return RoadPlan.Fail(error);
             }
@@ -235,14 +236,14 @@ namespace UrbanGenesis.Simulation
             Vec2 control2 = control.HasValue ? control.Value : Vec2.Lerp(a.Position, b.Position, 0.5);
             var curve = new RoadCurve(a.Position, control2, b.Position);
 
-            if (curve.Length < MinRoadLength)
+            if (curve.Length < RoadSpecs.MinLength(type))
             {
-                return RoadPlan.Fail("Too short: roads must be at least " + (int)MinRoadLength + " m long.");
+                return RoadPlan.Fail("Too short: a " + RoadSpecs.Name(type).ToLowerInvariant() + " must be at least " + (int)RoadSpecs.MinLength(type) + " m long.");
             }
 
-            if (curve.MinRadius() < MinCurveRadius)
+            if (curve.MinRadius() < RoadSpecs.MinRadius(type))
             {
-                return RoadPlan.Fail("Too sharp a bend: the tightest curve is " + (int)MinCurveRadius + " m radius.");
+                return RoadPlan.Fail("Too sharp a bend: the tightest curve for a " + RoadSpecs.Name(type).ToLowerInvariant() + " is " + (int)RoadSpecs.MinRadius(type) + " m radius.");
             }
 
             if (SameJunction(a, b))
@@ -266,13 +267,13 @@ namespace UrbanGenesis.Simulation
                 return RoadPlan.Fail(angleError);
             }
 
-            string clearanceError = CheckClearance(curve, samples, a, b);
+            string clearanceError = CheckClearance(curve, samples, a, b, type);
             if (clearanceError != null)
             {
                 return RoadPlan.Fail(clearanceError);
             }
 
-            return new RoadPlan { IsValid = true, Error = string.Empty, Curve = curve, Start = a, End = b };
+            return new RoadPlan { IsValid = true, Error = string.Empty, Curve = curve, Type = type, Start = a, End = b };
         }
 
         private static bool SameJunction(RoadAnchor a, RoadAnchor b)
@@ -285,7 +286,7 @@ namespace UrbanGenesis.Simulation
             return false;
         }
 
-        private bool ResolveAnchor(Vec2 p, out RoadAnchor anchor, out string error)
+        private bool ResolveAnchor(Vec2 p, RoadType type, out RoadAnchor anchor, out string error)
         {
             error = null;
             anchor = new RoadAnchor { Kind = AnchorKind.New, Position = p };
@@ -301,6 +302,14 @@ namespace UrbanGenesis.Simulation
             RoadSegment segment = FindSegmentNear(p, SegmentJoinRadius, out length);
             if (segment != null)
             {
+                if (type == RoadType.Highway || !RoadSpecs.AllowsJunctionsAlong(segment.Type))
+                {
+                    error = type == RoadType.Highway
+                        ? "A highway only connects at junctions or in open ground, not in the middle of a road."
+                        : "Roads cannot join a highway in the middle: connect to the end of the highway.";
+                    return false;
+                }
+
                 double snapped = Math.Round(length / LotSize) * LotSize;
                 if (snapped < MinPieceLength || snapped > segment.Length - MinPieceLength)
                 {
@@ -359,9 +368,9 @@ namespace UrbanGenesis.Simulation
             return null;
         }
 
-        private string CheckClearance(RoadCurve curve, List<Vec2> samples, RoadAnchor a, RoadAnchor b)
+        private string CheckClearance(RoadCurve curve, List<Vec2> samples, RoadAnchor a, RoadAnchor b, RoadType type)
         {
-            foreach (RoadSegment other in SegmentsNear(curve.Bounds, RoadWidth))
+            foreach (RoadSegment other in SegmentsNear(curve.Bounds, RoadSpecs.MaxWidth))
             {
                 bool nearA = Touches(a, other);
                 bool nearB = Touches(b, other);
@@ -375,7 +384,7 @@ namespace UrbanGenesis.Simulation
                         continue;
                     }
 
-                    if (other.Curve.DistanceTo(p) < MinClearance)
+                    if (other.Curve.DistanceTo(p) < (RoadSpecs.Width(type) + other.Width) * 0.45)
                     {
                         return "Too close to, or crossing, another road. Roads can only meet at a junction: end this road on the other one.";
                     }
@@ -431,7 +440,7 @@ namespace UrbanGenesis.Simulation
                 endNode = ResolveNode(end);
             }
 
-            var segment = new RoadSegment(nextSegmentId++, startNode, endNode, plan.Curve, DefaultCapacity);
+            var segment = new RoadSegment(nextSegmentId++, startNode, endNode, plan.Curve, RoadSpecs.BaseCapacity(plan.Type), plan.Type);
             segments[segment.Id] = segment;
             startNode.Attach(segment);
             endNode.Attach(segment);
@@ -474,8 +483,10 @@ namespace UrbanGenesis.Simulation
             old.A.Detach(old);
             old.B.Detach(old);
 
-            var first = new RoadSegment(nextSegmentId++, old.A, middle, firstCurve, old.BaseCapacity);
-            var second = new RoadSegment(nextSegmentId++, middle, old.B, secondCurve, old.BaseCapacity);
+            var first = new RoadSegment(nextSegmentId++, old.A, middle, firstCurve, old.BaseCapacity, old.Type);
+            var second = new RoadSegment(nextSegmentId++, middle, old.B, secondCurve, old.BaseCapacity, old.Type);
+            first.IsOutsideConnection = old.IsOutsideConnection;
+            second.IsOutsideConnection = old.IsOutsideConnection;
             first.OpenFraction = old.OpenFraction;
             second.OpenFraction = old.OpenFraction;
 

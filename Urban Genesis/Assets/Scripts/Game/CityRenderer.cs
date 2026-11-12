@@ -177,7 +177,7 @@ namespace UrbanGenesis.Game
             {
                 foreach (Vec2[] quad in segment.Surface)
                 {
-                    builder.Quad(quad[0], quad[1], quad[2], quad[3], RoadHeight, CityPalette.Road);
+                    builder.Quad(quad[0], quad[1], quad[2], quad[3], RoadHeight, segment.Type == RoadType.Highway ? CityPalette.Highway : CityPalette.Road);
                 }
             }
 
@@ -186,7 +186,15 @@ namespace UrbanGenesis.Game
             {
                 if (node.Degree >= 2)
                 {
-                    builder.Disc(node.Position, RoadNetwork.HalfWidth, 20, RoadHeight, CityPalette.Road);
+                    double widest = 0.0;
+                    bool onlyHighways = true;
+                    for (int i = 0; i < node.Segments.Count; i++)
+                    {
+                        widest = System.Math.Max(widest, node.Segments[i].HalfWidth);
+                        onlyHighways &= node.Segments[i].Type == RoadType.Highway;
+                    }
+
+                    builder.Disc(node.Position, widest, 20, RoadHeight, onlyHighways ? CityPalette.Highway : CityPalette.Road);
                 }
             }
 
@@ -203,7 +211,8 @@ namespace UrbanGenesis.Game
         {
             int pieces = segment.Surface.Count;
             double length = segment.Length;
-            double half = RoadNetwork.HalfWidth;
+            double half = segment.HalfWidth;
+            bool highway = segment.Type == RoadType.Highway;
             const double edgeWidth = 0.35;
             const double dashHalf = 0.18;
 
@@ -230,7 +239,19 @@ namespace UrbanGenesis.Game
                         RoadLineHeight, CityPalette.RoadEdge);
                 }
 
-                if (i % 2 == 0)
+                if (highway)
+                {
+                    // A solid double line down the middle.
+                    foreach (double side in new[] { 1.0, -1.0 })
+                    {
+                        double near = side * 0.35, far = side * 0.7;
+                        builder.Quad(
+                            c.OffsetPointAtLength(s0, near), c.OffsetPointAtLength(s1, near),
+                            c.OffsetPointAtLength(s1, far), c.OffsetPointAtLength(s0, far),
+                            RoadLineHeight, CityPalette.RoadCentre);
+                    }
+                }
+                else if (i % 2 == 0)
                 {
                     builder.Quad(
                         c.OffsetPointAtLength(s0, -dashHalf),

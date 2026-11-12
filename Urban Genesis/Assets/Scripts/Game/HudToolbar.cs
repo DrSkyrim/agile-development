@@ -76,6 +76,8 @@ namespace UrbanGenesis.Game
         private VisualElement brushOptions;
         private VisualElement chipStraight;
         private VisualElement chipCurved;
+        private VisualElement chipStreet;
+        private VisualElement chipHighway;
         private VisualElement chipFill;
         private readonly VisualElement[] zoneChips = new VisualElement[3];
         private Label brushLabel;
@@ -365,10 +367,11 @@ namespace UrbanGenesis.Game
             element.EnableInClassList(onClass, on);
         }
 
-        private void Notify(string text)
+        /// <summary>Shows a message in the advisory panel for a few seconds.</summary>
+        public void Notify(string text, float seconds = 3f)
         {
             message = text;
-            messageUntil = Time.unscaledTime + 3f;
+            messageUntil = Time.unscaledTime + seconds;
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -561,6 +564,16 @@ namespace UrbanGenesis.Game
             chipCurved = Chip("Curved", () => tools.SetRoadMode(RoadMode.Curved), null);
             roadOptions.Add(chipStraight);
             roadOptions.Add(chipCurved);
+            var typeDivider = new VisualElement();
+            typeDivider.AddToClassList("ug-divider");
+            typeDivider.AddToClassList("ug-divider--v");
+            typeDivider.style.marginLeft = 6;
+            typeDivider.style.marginRight = 6;
+            roadOptions.Add(typeDivider);
+            chipStreet = Chip("Street", () => tools.SetRoadType(RoadType.Street), null);
+            chipHighway = Chip("Highway", () => tools.SetRoadType(RoadType.Highway), null);
+            roadOptions.Add(chipStreet);
+            roadOptions.Add(chipHighway);
             optionsPanel.Add(roadOptions);
 
             zoneOptions = new VisualElement();
@@ -816,7 +829,7 @@ namespace UrbanGenesis.Game
             panel.Add(scaleBar);
 
             Label sizes = Text("1 lot = " + RoadNetwork.LotSize.ToString("0", CultureInfo.InvariantCulture)
-                + " m  ·  road = " + (RoadNetwork.HalfWidth * 2.0).ToString("0", CultureInfo.InvariantCulture) + " m wide", "ug-text--muted", Weight.Regular);
+                + " m  ·  street " + RoadSpecs.Width(RoadType.Street).ToString("0", CultureInfo.InvariantCulture) + " m, highway " + RoadSpecs.Width(RoadType.Highway).ToString("0", CultureInfo.InvariantCulture) + " m wide", "ug-text--muted", Weight.Regular);
             sizes.style.marginTop = 6;
             panel.Add(sizes);
         }
@@ -962,6 +975,8 @@ namespace UrbanGenesis.Game
             {
                 SetOn(chipStraight, "ug-chip--on", tools.RoadMode == RoadMode.Straight);
                 SetOn(chipCurved, "ug-chip--on", tools.RoadMode == RoadMode.Curved);
+                SetOn(chipStreet, "ug-chip--on", tools.RoadType == RoadType.Street);
+                SetOn(chipHighway, "ug-chip--on", tools.RoadType == RoadType.Highway);
             }
 
             if (zone)

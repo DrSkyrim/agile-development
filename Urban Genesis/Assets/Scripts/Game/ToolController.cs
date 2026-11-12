@@ -69,6 +69,9 @@ namespace UrbanGenesis.Game
         public ToolType CurrentTool { get; private set; }
         public RoadMode RoadMode { get; private set; }
 
+        /// <summary>Street or highway: what the road tool builds next.</summary>
+        public RoadType RoadType { get; private set; }
+
         /// <summary>When on, the zone tools fill a whole side of a road with one click instead of painting with the brush.</summary>
         public bool FillMode { get; private set; }
 
@@ -118,6 +121,13 @@ namespace UrbanGenesis.Game
         {
             CancelRoad();
             RoadMode = mode;
+            HidePreview();
+        }
+
+        public void SetRoadType(RoadType type)
+        {
+            CancelRoad();
+            RoadType = type;
             HidePreview();
         }
 
@@ -217,6 +227,11 @@ namespace UrbanGenesis.Game
             if (keyboard.cKey.wasPressedThisFrame)
             {
                 SetRoadMode(RoadMode == RoadMode.Straight ? RoadMode.Curved : RoadMode.Straight);
+            }
+
+            if (keyboard.hKey.wasPressedThisFrame)
+            {
+                SetRoadType(RoadType == RoadType.Street ? RoadType.Highway : RoadType.Street);
             }
 
             if (keyboard.fKey.wasPressedThisFrame)
@@ -337,10 +352,10 @@ namespace UrbanGenesis.Game
         {
             if (RoadMode == RoadMode.Curved && roadStage == 2)
             {
-                return sim.PlanRoad(roadStart, RoadNetwork.ControlThrough(roadStart, roadBend, end), end);
+                return sim.PlanRoad(roadStart, RoadNetwork.ControlThrough(roadStart, roadBend, end), end, RoadType);
             }
 
-            return sim.PlanRoad(roadStart, null, end);
+            return sim.PlanRoad(roadStart, null, end, RoadType);
         }
 
         private void BuildRoad(Vec2 end)
@@ -380,7 +395,7 @@ namespace UrbanGenesis.Game
             if (plan.IsValid)
             {
                 bool demolishing = plan.Demolitions.Count > 0;
-                cityRenderer.PreviewRibbon(plan.Curve.Sample(4.0), RoadNetwork.HalfWidth, demolishing ? BulldozeHighlight : CityPalette.PreviewValid);
+                cityRenderer.PreviewRibbon(plan.Curve.Sample(4.0), RoadSpecs.HalfWidth(RoadType), demolishing ? BulldozeHighlight : CityPalette.PreviewValid);
                 foreach (Building b in plan.Demolitions)
                 {
                     cityRenderer.PreviewQuad(b.Footprint, BulldozeHighlight);
@@ -395,7 +410,7 @@ namespace UrbanGenesis.Game
                 RoadCurve raw = RoadMode == RoadMode.Curved && roadStage == 2
                     ? new RoadCurve(start, RoadNetwork.ControlThrough(start, roadBend, pointer), pointer)
                     : RoadCurve.Straight(start, pointer);
-                cityRenderer.PreviewRibbon(raw.Sample(4.0), RoadNetwork.HalfWidth, CityPalette.PreviewInvalid);
+                cityRenderer.PreviewRibbon(raw.Sample(4.0), RoadSpecs.HalfWidth(RoadType), CityPalette.PreviewInvalid);
             }
 
             if (RoadMode == RoadMode.Curved && roadStage == 2)
@@ -450,10 +465,14 @@ namespace UrbanGenesis.Game
                 length = raw.Length;
             }
 
-            string text = Mathf.RoundToInt((float)length) + " m\n" + (length / RoadNetwork.LotSize).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " lots";
+            string text = Mathf.RoundToInt((float)length) + " m";
+            if (RoadSpecs.HasLots(RoadType))
+            {
+                text += "\n" + (length / RoadNetwork.LotSize).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " lots";
+            }
             if (sim.Treasury.IsEnabled)
             {
-                text += "\n" + CitySimulation.FormatMoney(sim.Treasury.RoadCost(length));
+                text += "\n" + CitySimulation.FormatMoney(sim.Treasury.RoadCost(length, RoadType));
             }
 
             return text;
@@ -466,7 +485,7 @@ namespace UrbanGenesis.Game
                 return plan.Error;
             }
 
-            string text = (RoadMode == RoadMode.Curved ? "Curved road" : "Road") + ": " + Mathf.RoundToInt((float)plan.Curve.Length) + " m";
+            string text = (RoadMode == RoadMode.Curved ? "Curved " : "") + (RoadType == RoadType.Highway ? "highway" : "road") + ": " + Mathf.RoundToInt((float)plan.Curve.Length) + " m";
             int inTheWay = plan.Demolitions.Count;
             if (inTheWay > 0)
             {
@@ -571,10 +590,14 @@ namespace UrbanGenesis.Game
             if (bulldoze)
             {
                 double length;
-                RoadSegment road = sim.Roads.FindSegmentNear(p, RoadNetwork.HalfWidth, out length);
-                if (road != null)
+                RoadSegment road = sim.Roads.FindSegmentNear(p, RoadSpecs.MaxHalfWidth, out length);
+                if (road != null && road.IsOutsideConnection)
                 {
-                    cityRenderer.PreviewRibbon(road.Curve.Sample(4.0), RoadNetwork.HalfWidth, BulldozeHighlight);
+                    liveText = "The highway to the outside world cannot be removed";
+                }
+                else if (road != null)
+                {
+                    cityRenderer.PreviewRibbon(road.Curve.Sample(4.0), road.HalfWidth, BulldozeHighlight);
                     liveText = "Bulldoze: click to remove this road (and everything beside it)";
                 }
                 else

@@ -60,6 +60,12 @@ namespace UrbanGenesis.Game
             yaw = 0f;
         }
 
+        /// <summary>Looks at this spot on the map (x, z in metres).</summary>
+        public void FocusOn(float x, float z)
+        {
+            focus = new Vector3(x, 0f, z);
+        }
+
         /// <summary>Moves the view back to the middle of the map.</summary>
         public void Recenter()
         {

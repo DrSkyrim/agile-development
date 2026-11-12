@@ -145,16 +145,16 @@ namespace UrbanGenesis.Simulation
         /// a plan invalid: they are listed in <see cref="RoadPlan.Demolitions"/>, and <see cref="PlaceRoad"/> only
         /// builds over them if it is told to demolish them.
         /// </summary>
-        public RoadPlan PlanRoad(Vec2 start, Vec2? control, Vec2 end)
+        public RoadPlan PlanRoad(Vec2 start, Vec2? control, Vec2 end, RoadType type = RoadType.Street)
         {
-            RoadPlan plan = Roads.Plan(start, control, end);
+            RoadPlan plan = Roads.Plan(start, control, end, type);
             if (!plan.IsValid)
             {
                 return plan;
             }
 
-            plan.Demolitions = BuildingsOnRoad(plan.Curve);
-            plan.Cost = Treasury.RoadCost(plan.Curve.Length);
+            plan.Demolitions = BuildingsOnRoad(plan.Curve, plan.Type);
+            plan.Cost = Treasury.RoadCost(plan.Curve.Length, plan.Type);
             if (!Treasury.CanAfford(plan.Cost))
             {
                 plan.IsValid = false;
@@ -169,6 +169,77 @@ namespace UrbanGenesis.Simulation
         /// <paramref name="demolishBuildings"/> is true, and then they are demolished first. Returns the new segment,
         /// or null if nothing was built (invalid plan, or buildings in the way and not allowed to demolish them).
         /// </summary>
+        /// <summary>Where the highway to the outside world enters the map (at <see cref="EdgeNode"/>) and where it meets the city (<see cref="CityNode"/>).</summary>
+        public sealed class OutsideConnection
+        {
+            public RoadSegment Segment { get; internal set; }
+            public RoadNode EdgeNode { get { return Segment.A; } }
+            public RoadNode CityNode { get { return Segment.B; } }
+        }
+
+        private readonly List<OutsideConnection> outsideConnections = new List<OutsideConnection>();
+
+        /// <summary>The highways that link the city to the outside world. They are free, cannot be bulldozed, and carry the trips in from outside later.</summary>
+        public IList<OutsideConnection> OutsideConnections { get { return outsideConnections; } }
+
+        /// <summary>
+        /// Builds a highway from a random spot on the map's edge to a random spot a few hundred metres from the middle,
+        /// where the player can connect streets to its end. Until there are maps with terrain, this stands in for the road
+        /// that links the city to the world. It costs nothing, has no upkeep and cannot be bulldozed.
+        /// Returns null if no valid route was found (it tries many).
+        /// </summary>
+        public OutsideConnection CreateOutsideConnection(Random random)
+        {
+            double half = Roads.WorldBounds.MaxX;
+            double edgeInset = RoadNetwork.LotSize * 5.0 + 20.0;
+            double reach = half - edgeInset;
+
+            for (int attempt = 0; attempt < 80; attempt++)
+            {
+                double along = (random.NextDouble() * 2.0 - 1.0) * half * 0.6;
+                Vec2 edge;
+                switch (random.Next(4))
+                {
+                    case 0: edge = new Vec2(along, -reach); break;
+                    case 1: edge = new Vec2(along, reach); break;
+                    case 2: edge = new Vec2(-reach, along); break;
+                    default: edge = new Vec2(reach, along); break;
+                }
+
+                double angle = random.NextDouble() * Math.PI * 2.0;
+                double distance = 250.0 + random.NextDouble() * 200.0;
+                Vec2 end = new Vec2(Math.Cos(angle) * distance, Math.Sin(angle) * distance);
+
+                // A gentle bend, so it does not look ruled with a ruler.
+                double length = Vec2.Distance(edge, end);
+                Vec2 direction = (end - edge) * (1.0 / length);
+                Vec2 normal = new Vec2(-direction.Y, direction.X);
+                double sag = (random.NextDouble() * 2.0 - 1.0) * length * 0.08;
+                Vec2 control = (edge + end) * 0.5 + normal * (2.0 * sag);
+
+                RoadPlan plan = Roads.Plan(edge, control, end, RoadType.Highway);
+                if (!plan.IsValid)
+                {
+                    continue;
+                }
+
+                RoadSegment segment = Roads.AddRoad(plan);
+                if (segment == null)
+                {
+                    continue;
+                }
+
+                segment.IsOutsideConnection = true;
+                var connection = new OutsideConnection { Segment = segment };
+                outsideConnections.Add(connection);
+                Treasury.Recompute();
+                Revision++;
+                return connection;
+            }
+
+            return null;
+        }
+
         public RoadSegment PlaceRoad(RoadPlan plan, bool demolishBuildings = false)
         {
             if (plan == null || !plan.IsValid)
@@ -177,7 +248,7 @@ namespace UrbanGenesis.Simulation
             }
 
             // Look again: the city may have changed since the plan was made.
-            List<Building> inTheWay = BuildingsOnRoad(plan.Curve);
+            List<Building> inTheWay = BuildingsOnRoad(plan.Curve, plan.Type);
             if (inTheWay.Count > 0 && !demolishBuildings)
             {
                 return null;
@@ -188,7 +259,7 @@ namespace UrbanGenesis.Simulation
                 RemoveBuilding(inTheWay[i]);
             }
 
-            double cost = Treasury.RoadCost(plan.Curve.Length);
+            double cost = Treasury.RoadCost(plan.Curve.Length, plan.Type);
             if (!Treasury.CanAfford(cost))
             {
                 return null;
@@ -205,11 +276,11 @@ namespace UrbanGenesis.Simulation
             return segment;
         }
 
-        private List<Building> BuildingsOnRoad(RoadCurve curve)
+        private List<Building> BuildingsOnRoad(RoadCurve curve, RoadType type)
         {
             var found = new List<Building>();
-            var probe = new RoadSegment(0, null, null, curve, 1f);
-            Aabb box = curve.Bounds.Expanded(RoadNetwork.HalfWidth);
+            var probe = new RoadSegment(0, null, null, curve, 1f, type);
+            Aabb box = curve.Bounds.Expanded(probe.HalfWidth);
             IList<Vec2[]> surface = probe.Surface;
 
             foreach (Building b in buildings.Values)
@@ -351,11 +422,20 @@ namespace UrbanGenesis.Simulation
             if (includeRoad)
             {
                 double length;
-                RoadSegment segment = Roads.FindSegmentNear(center, RoadNetwork.HalfWidth, out length);
-                double removedLength = segment != null ? segment.Length : 0.0;
+                RoadSegment segment = Roads.FindSegmentNear(center, RoadSpecs.MaxHalfWidth, out length);
+                if (segment != null && (segment.IsOutsideConnection))
+                {
+                    segment = null;
+                }
+
+                if (segment != null && segment.Curve.DistanceTo(center) > segment.HalfWidth)
+                {
+                    segment = null;
+                }
+
                 if (segment != null && Roads.RemoveSegment(segment))
                 {
-                    Treasury.RefundRoad(removedLength);
+                    Treasury.RefundRoad(segment);
                     Treasury.Recompute();
                     changed++;
                 }
