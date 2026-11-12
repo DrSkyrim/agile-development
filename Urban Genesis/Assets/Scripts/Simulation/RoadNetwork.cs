@@ -448,6 +448,36 @@ namespace UrbanGenesis.Simulation
             return segment;
         }
 
+        // ---------------------------------------------------------------- loading a saved network
+
+        internal int NextNodeId { get { return nextNodeId; } set { nextNodeId = Math.Max(nextNodeId, value); } }
+        internal int NextSegmentId { get { return nextSegmentId; } set { nextSegmentId = Math.Max(nextSegmentId, value); } }
+
+        /// <summary>Recreates a saved junction with its saved id. No checks: the data came from a valid network.</summary>
+        internal RoadNode RestoreNode(int id, Vec2 position)
+        {
+            var node = new RoadNode(id, position);
+            nodes[id] = node;
+            nextNodeId = Math.Max(nextNodeId, id + 1);
+            return node;
+        }
+
+        /// <summary>Recreates a saved segment (its nodes must already exist) with its saved id.</summary>
+        internal RoadSegment RestoreSegment(int id, int nodeA, int nodeB, RoadCurve curve, RoadType type, float openFraction, bool outsideConnection)
+        {
+            RoadNode a = nodes[nodeA];
+            RoadNode b = nodes[nodeB];
+            var segment = new RoadSegment(id, a, b, curve, RoadSpecs.BaseCapacity(type), type);
+            segment.OpenFraction = openFraction;
+            segment.IsOutsideConnection = outsideConnection;
+            segments[id] = segment;
+            nextSegmentId = Math.Max(nextSegmentId, id + 1);
+            a.Attach(segment);
+            b.Attach(segment);
+            Raise(SegmentAdded, segment);
+            return segment;
+        }
+
         private RoadNode ResolveNode(RoadAnchor anchor)
         {
             switch (anchor.Kind)

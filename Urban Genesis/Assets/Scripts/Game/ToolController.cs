@@ -69,6 +69,12 @@ namespace UrbanGenesis.Game
         public ToolType CurrentTool { get; private set; }
         public RoadMode RoadMode { get; private set; }
 
+        /// <summary>While true (a menu is open) the tools ignore the keyboard and mouse.</summary>
+        public bool InputBlocked { get; set; }
+
+        /// <summary>The frame in which Esc was used to cancel something here, so the pause menu does not also open.</summary>
+        public int EscapeUsedFrame { get; private set; } = -1;
+
         /// <summary>Street or highway: what the road tool builds next.</summary>
         public RoadType RoadType { get; private set; }
 
@@ -161,7 +167,7 @@ namespace UrbanGenesis.Game
         {
             Keyboard keyboard = Keyboard.current;
             Mouse mouse = Mouse.current;
-            if (sim == null || rig == null || rig.Camera == null || keyboard == null || mouse == null)
+            if (sim == null || rig == null || rig.Camera == null || keyboard == null || mouse == null || InputBlocked)
             {
                 return;
             }
@@ -170,6 +176,11 @@ namespace UrbanGenesis.Game
 
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
+                if (roadBusy || painting || CurrentTool != ToolType.None)
+                {
+                    EscapeUsedFrame = Time.frameCount;
+                }
+
                 if (roadBusy || painting)
                 {
                     CancelRoad();

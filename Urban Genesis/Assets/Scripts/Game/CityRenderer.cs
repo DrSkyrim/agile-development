@@ -63,6 +63,13 @@ namespace UrbanGenesis.Game
             sim.Roads.SegmentSplit += OnRoadSplit;
             sim.BuildingSpawned += OnBuildingSpawned;
             sim.BuildingRemoved += OnBuildingRemoved;
+
+            // A loaded city already has buildings: show them without the rise-up animation.
+            foreach (Building building in sim.Buildings)
+            {
+                GameObject model = modelFactory.Create(building, buildingRoot);
+                buildingObjects[building.Id] = model;
+            }
         }
 
         private void OnDestroy()

@@ -15,7 +15,7 @@ namespace UrbanGenesis.Simulation
     ///    touch the road, so every building has a direct connection to a road.
     ///  * Every lot a building stands on is zoned for the building's type, and buildings never overlap each other or a road.
     /// </summary>
-    public sealed class CitySimulation
+    public sealed partial class CitySimulation
     {
         public const double DefaultWorldSize = 4096.0;
 
@@ -774,8 +774,12 @@ namespace UrbanGenesis.Simulation
         {
             int floors = rng.Next(template.MinFloors, template.MaxFloors + 1);
             int variant = rng.Next();
+            AddBuilding(new Building(nextBuildingId++, template, floors, variant, center, back, lots));
+        }
 
-            var building = new Building(nextBuildingId++, template, floors, variant, center, back, lots);
+        private void AddBuilding(Building building)
+        {
+            IList<Lot> lots = building.Lots;
             buildings[building.Id] = building;
             for (int i = 0; i < lots.Count; i++)
             {

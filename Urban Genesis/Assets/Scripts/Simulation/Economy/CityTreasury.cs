@@ -21,7 +21,7 @@ namespace UrbanGenesis.Simulation
         public bool IsEnabled { get; private set; }
 
         /// <summary>Money in the bank. Can go below zero when upkeep is more than income.</summary>
-        public double Balance { get; private set; }
+        public double Balance { get; internal set; }
 
         public double BuildCostPerMetre = 15.0;
         public double UpkeepPerMetrePerWeek = 0.5;
@@ -115,6 +115,7 @@ namespace UrbanGenesis.Simulation
         }
 
         private int ticksIntoDay;
+        internal int TicksIntoDay { get { return ticksIntoDay; } set { ticksIntoDay = value; } }
 
         /// <summary>Counts a tick. At the end of each game day the day's income and upkeep are settled in one go.</summary>
         internal void Tick()

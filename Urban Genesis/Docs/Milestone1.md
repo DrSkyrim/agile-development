@@ -201,3 +201,12 @@ using `EffectiveCapacity`. Splitting a road keeps the closure state on both halv
 - **Highway** is a second road type (press **H** or use the Street/Highway chips under the Road tool). It is 24 m wide (a street is 16 m), has no lots, so nothing is built beside it, costs $45/m with $1.5/m/week upkeep, and counts as twice as fast when the economy works out routes. It needs at least 100 m of length and gentle bends (radius 150 m).
 - A highway only joins other roads at its **ends**, and a street cannot join a highway in the middle: connect streets to the end of the highway.
 - **Outside connection:** every launch, a highway appears at a random point on the map's edge and runs to a random spot 250–450 m from the middle. It is free, has no upkeep and cannot be bulldozed. The camera starts looking at its inner end. Later it will carry trips to and from outside the city (import, export, commuters).
+
+## Main menu and saving
+
+- Pressing Play shows the **main menu** (title, Continue, New city, Quit), styled like the HUD. *Continue* is greyed out until a save exists and shows the saved city's name, residents and save time.
+- In a city, press **Esc** (when no tool is active) or **click the city name** to open the pause menu: *Resume*, *Save game*, *Main menu*. The simulation stops while it is open. *Main menu* asks whether to save first.
+- There is **one save slot**, a JSON file called `urban-genesis-save.json` in Unity's per-user data folder (`Application.persistentDataPath`; the Editor's console prints nothing, but on Windows it is under `AppData/LocalLow/<company>/<product>`).
+- A save holds the roads (with closures and the outside connection), zones, buildings, money, game time, the camera and the game speed. The economy is recalculated on load, so it is not stored.
+- Code: `CitySimulation.Capture()` / `CitySimulation.Restore()` (plain data in `CitySnapshot`), `SaveGame` / `SaveStore` for the file, `GameFlow` for menu ↔ city, `PauseMenu`, `MainMenu`, `MenuUi`.
+- Lots are saved by where their centre is, not by their internal keys, so changing how lots are numbered will not break saves. Anything that no longer fits on load is dropped, and the game says how many items.

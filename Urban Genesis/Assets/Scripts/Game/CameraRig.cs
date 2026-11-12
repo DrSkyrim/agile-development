@@ -28,6 +28,9 @@ namespace UrbanGenesis.Game
         private float targetDistance = 260f;
         private float halfExtent;
 
+        /// <summary>While true (a menu is open) the camera ignores the keyboard and mouse.</summary>
+        public bool InputBlocked { get; set; }
+
         public Camera Camera { get { return cam; } }
 
         /// <summary>Which way the camera is turned, in degrees. 0 means north is straight up on screen.</summary>
@@ -58,6 +61,25 @@ namespace UrbanGenesis.Game
         public void FaceNorth()
         {
             yaw = 0f;
+        }
+
+        /// <summary>Remembers where the camera is, for saving.</summary>
+        public void CaptureView(SaveGame save)
+        {
+            save.CameraX = focus.x;
+            save.CameraZ = focus.z;
+            save.CameraYaw = yaw;
+            save.CameraDistance = targetDistance;
+        }
+
+        /// <summary>Puts the camera back where <see cref="CaptureView"/> found it.</summary>
+        public void RestoreView(SaveGame save)
+        {
+            focus = new Vector3(save.CameraX, 0f, save.CameraZ);
+            yaw = save.CameraYaw;
+            targetDistance = Mathf.Clamp(save.CameraDistance, MinDistance, MaxDistance);
+            distance = targetDistance;
+            ApplyToCamera();
         }
 
         /// <summary>Looks at this spot on the map (x, z in metres).</summary>
@@ -108,7 +130,7 @@ namespace UrbanGenesis.Game
         {
             Keyboard keyboard = Keyboard.current;
             Mouse mouse = Mouse.current;
-            if (cam == null || keyboard == null || mouse == null)
+            if (cam == null || keyboard == null || mouse == null || InputBlocked)
             {
                 return;
             }

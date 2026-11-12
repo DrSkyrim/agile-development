@@ -152,3 +152,58 @@
     border-radius: 6px;
     padding: 4px 8px;
 }
+
+/* Main menu and pause menu */
+.ug-menu-bg {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background-color: rgb(20, 27, 35);
+    align-items: center;
+    justify-content: center;
+}
+.ug-menu-scrim {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background-color: rgba(10, 14, 20, 0.62);
+    align-items: center;
+    justify-content: center;
+}
+.ug-menu-card {
+    width: 360px;
+    padding: 26px;
+    flex-direction: column;
+    align-items: stretch;
+    background-color: rgba(32, 42, 53, 0.98);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+}
+.ug-menu-card .ug-text--title { margin-bottom: 4px; }
+.ug-menu-title { font-size: 64px; color: rgb(241, 245, 249); }
+.ug-menu-title--accent { color: rgb(113, 183, 255); }
+.ug-menu-tagline { font-size: 14px; color: rgb(129, 145, 162); margin-top: 6px; margin-bottom: 44px; letter-spacing: 3px; }
+.ug-menu-rule { width: 56px; height: 3px; border-radius: 2px; background-color: rgb(113, 183, 255); margin-bottom: 18px; }
+.ug-menu-btn {
+    height: 48px;
+    margin-bottom: 10px;
+    padding-left: 16px;
+    padding-right: 16px;
+    border-radius: 8px;
+    flex-direction: row;
+    align-items: center;
+    background-color: rgb(48, 61, 75);
+}
+.ug-menu-btn .ug-text { font-size: 14px; color: rgb(241, 245, 249); margin-left: 12px; }
+.ug-menu-btn .ug-icon { -unity-background-image-tint-color: rgb(176, 189, 201); }
+.ug-menu-btn:hover { background-color: rgb(58, 74, 92); }
+.ug-menu-btn:active { background-color: rgb(52, 77, 104); }
+.ug-menu-btn--primary { background-color: rgb(52, 77, 104); }
+.ug-menu-btn--primary:hover { background-color: rgb(62, 90, 122); }
+.ug-menu-btn--primary .ug-text { color: rgb(113, 183, 255); }
+.ug-menu-btn--primary .ug-icon { -unity-background-image-tint-color: rgb(113, 183, 255); }
+.ug-menu-btn--disabled { background-color: rgba(48, 61, 75, 0.5); }
+.ug-menu-btn--disabled:hover { background-color: rgba(48, 61, 75, 0.5); }
+.ug-menu-btn--disabled .ug-text { color: rgb(93, 106, 120); }
+.ug-menu-btn--disabled .ug-icon { -unity-background-image-tint-color: rgb(93, 106, 120); }
+.ug-menu-note { font-size: 11px; color: rgb(129, 145, 162); margin-top: 6px; white-space: normal; }
+.ug-menu-footer { position: absolute; left: 24px; bottom: 20px; }

@@ -98,6 +98,9 @@ namespace UrbanGenesis.Game
         private string message = "";
         private float messageUntil;
 
+        /// <summary>Raised when the player clicks the city name panel (opens the pause menu).</summary>
+        public event Action MenuRequested;
+
         public void Init(CitySimulation simulation, TickClock tickClock, ToolController toolController, CameraRig cameraRig, string name)
         {
             cityName = name;
@@ -382,6 +385,7 @@ namespace UrbanGenesis.Game
             VisualElement panel = Panel("City identity", true);
             Place(panel, 24, 24, null, null);
             Size(panel, 258, 64);
+            panel.RegisterCallback<ClickEvent>(e => { Action requested = MenuRequested; if (requested != null) { requested(); } });
             panel.style.paddingLeft = 14;
             panel.style.paddingRight = 14;
 
