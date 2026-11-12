@@ -30,6 +30,7 @@
 .ug-text--soft { color: rgb(176, 189, 201); }
 .ug-text--good { color: rgb(128, 207, 172); }
 .ug-text--accent { color: rgb(113, 183, 255); }
+.ug-text--bad { color: rgb(232, 128, 128); }
 .ug-text--warn { color: rgb(207, 189, 124); }
 
 /* Icons: the PNGs are white; -unity-background-image-tint-color colours them. */

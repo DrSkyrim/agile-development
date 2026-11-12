@@ -45,6 +45,9 @@ namespace UrbanGenesis.Simulation
         /// <summary>Supply, demand and trips: what the city wants and what drives growth.</summary>
         public CityEconomy Economy { get; private set; }
 
+        /// <summary>Money: roads cost, working people pay taxes. Off until enabled.</summary>
+        public CityTreasury Treasury { get; private set; }
+
         /// <summary>Number of simulation ticks run so far.</summary>
         public int TickCount { get; private set; }
 
@@ -79,6 +82,7 @@ namespace UrbanGenesis.Simulation
             Roads = new RoadNetwork(new Aabb(-half, -half, half, half));
             Lots = new LotLayout(Roads);
             Economy = new CityEconomy(this);
+            Treasury = new CityTreasury(this);
             rng = new Random(seed);
             SpawnChance = 0.5;
             GrowthAttemptsPerZonePerTick = 2;
@@ -150,6 +154,13 @@ namespace UrbanGenesis.Simulation
             }
 
             plan.Demolitions = BuildingsOnRoad(plan.Curve);
+            plan.Cost = Treasury.RoadCost(plan.Curve.Length);
+            if (!Treasury.CanAfford(plan.Cost))
+            {
+                plan.IsValid = false;
+                plan.Error = "Not enough money: this road costs " + FormatMoney(plan.Cost) + ", you have " + FormatMoney(Treasury.Balance) + ".";
+            }
+
             return plan;
         }
 
@@ -177,7 +188,19 @@ namespace UrbanGenesis.Simulation
                 RemoveBuilding(inTheWay[i]);
             }
 
+            double cost = Treasury.RoadCost(plan.Curve.Length);
+            if (!Treasury.CanAfford(cost))
+            {
+                return null;
+            }
+
             RoadSegment segment = Roads.AddRoad(plan);
+            if (segment != null)
+            {
+                Treasury.Charge(cost);
+                Treasury.Recompute();
+            }
+
             Revision++;
             return segment;
         }
@@ -329,8 +352,11 @@ namespace UrbanGenesis.Simulation
             {
                 double length;
                 RoadSegment segment = Roads.FindSegmentNear(center, RoadNetwork.HalfWidth, out length);
+                double removedLength = segment != null ? segment.Length : 0.0;
                 if (segment != null && Roads.RemoveSegment(segment))
                 {
+                    Treasury.RefundRoad(removedLength);
+                    Treasury.Recompute();
                     changed++;
                 }
             }
@@ -379,6 +405,12 @@ namespace UrbanGenesis.Simulation
 
         // ---------------------------------------------------------------- simulation
 
+        /// <summary>Formats an amount of money like $1,234.</summary>
+        public static string FormatMoney(double amount)
+        {
+            return (amount < 0 ? "-$" : "$") + Math.Abs(Math.Round(amount)).ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         /// <summary>Advances the city by one tick.</summary>
         public void Step()
         {
@@ -388,6 +420,8 @@ namespace UrbanGenesis.Simulation
             {
                 Economy.Update();
             }
+
+            Treasury.Tick();
 
             residentialCandidates.Clear();
             commercialCandidates.Clear();

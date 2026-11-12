@@ -24,7 +24,6 @@ namespace UrbanGenesis.Game
 
         // One game tick is ten minutes on the clock in the status bar.
         private static readonly DateTime StartDate = new DateTime(2026, 5, 14, 9, 0, 0);
-        private const double GameMinutesPerTick = 10.0;
 
         private static readonly int[] Milestones = { 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000 };
 
@@ -60,6 +59,7 @@ namespace UrbanGenesis.Game
         private VisualElement playButton;
         private Label cityDetail;
         private Label treasuryValue;
+        private Label treasuryChange;
         private Label populationValue;
         private Label populationChange;
         private Label happinessValue;
@@ -100,6 +100,7 @@ namespace UrbanGenesis.Game
         {
             cityName = name;
             sim = simulation;
+            sim.Treasury.Changed += () => statsUpdatedAt = -100f;
             clock = tickClock;
             tools = toolController;
             rig = cameraRig;
@@ -710,7 +711,6 @@ namespace UrbanGenesis.Game
 
             panel.Add(Divider(true));
 
-            Label treasuryChange;
             Label happinessChange;
             VisualElement treasury = Metric("wallet", "Treasury", out treasuryValue, out treasuryChange);
             treasuryValue.text = "—";
@@ -929,7 +929,7 @@ namespace UrbanGenesis.Game
             }
 
             // Clock
-            DateTime now = StartDate.AddMinutes(sim.TickCount * GameMinutesPerTick);
+            DateTime now = StartDate.AddMinutes(sim.TickCount * GameTime.MinutesPerTick);
             SetText(dateLabel, now.ToString("d MMM yyyy", CultureInfo.InvariantCulture));
             SetText(timeLabel, now.ToString("HH:mm", CultureInfo.InvariantCulture));
             SetText(speedLabel, (clock.IsPaused ? Mathf.Max(1, lastRunningSpeed) : clock.SpeedLevel) + "×");
@@ -1040,6 +1040,17 @@ namespace UrbanGenesis.Game
 
         private void RefreshStats()
         {
+            CityTreasury treasury = sim.Treasury;
+            if (treasury.IsEnabled)
+            {
+                SetText(treasuryValue, CitySimulation.FormatMoney(treasury.Balance));
+                double net = treasury.WeeklyNet;
+                SetText(treasuryChange, (net >= 0 ? "+" : "-") + CitySimulation.FormatMoney(Math.Abs(net)) + " / wk");
+                treasuryChange.EnableInClassList("ug-text--good", net >= 0);
+                treasuryChange.EnableInClassList("ug-text--bad", net < 0);
+                treasuryValue.EnableInClassList("ug-text--bad", treasury.Balance < 0);
+            }
+
             // City numbers. There is no economy yet: population is an estimate from the residential buildings,
             // and demand is how much of the zoned land is still empty.
             int population = 0;

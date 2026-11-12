@@ -296,6 +296,7 @@ namespace UrbanGenesis.Simulation
             Revision++;
             UpdateDemand();
             Advice = ChooseAdvice();
+            sim.Treasury.Recompute();
 
             Action updated = Updated;
             if (updated != null)

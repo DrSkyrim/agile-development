@@ -15,6 +15,10 @@ namespace UrbanGenesis.Game
         [Tooltip("Side length of the square map, in metres. Roads and lots only exist inside it.")]
         [SerializeField] private float mapSize = 4096f;
 
+        [Header("Money")]
+        [Tooltip("Money at the start. Zones and buildings are free; roads cost money (see CityTreasury).")]
+        [SerializeField] private float startingFunds = 50000f;
+
         [Header("Simulation")]
         [SerializeField] private int randomSeed = 12345;
         [Tooltip("Real seconds per simulation tick at 1x speed.")]
@@ -30,6 +34,7 @@ namespace UrbanGenesis.Game
         {
             CityName = CityNames.PickRandom();
             Simulation = new CitySimulation(mapSize, randomSeed);
+            Simulation.Treasury.Enable(startingFunds);
             Clock = new TickClock(secondsPerTick, 8);
 
             CityRenderer cityRenderer = CreateChild<CityRenderer>("City Renderer");

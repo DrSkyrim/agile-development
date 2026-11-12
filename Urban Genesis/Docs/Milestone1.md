@@ -60,7 +60,7 @@ The HUD follows the Figma mock-up *Urban Genesis UI mock UP* and is built with U
 | Next to the cursor | While drawing a road, a tag shows its length in metres and in lots |
 | Bottom bar | Game clock with pause, play, speed (click to cycle 1x to 3x) and fast-forward; Treasury, Population, Happiness, zoning demand (R/C/I), next population milestone |
 
-Placeholders to replace once the simulation has them: weather (fixed 18 C), Treasury and Happiness (shown as a dash). **Population** is the sum of the residents of all homes: each home holds two to four people (fixed per building), and the biggest residential building is a two-storey block with four apartments. Dense housing (high-rises) is left for a later milestone. A fully built 400 m road currently holds roughly 300 people, so 10,000 people need roughly 13 km of road (the map is 4 km across, so there is plenty of room). **Demand** bars show what the economy wants (see "Economy and demand"). **Happiness** comes from jobs and shops: half employment, half shopping. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
+Placeholders to replace once the simulation has them: weather (fixed 18 C). **Population** is the sum of the residents of all homes: each home holds two to four people (fixed per building), and the biggest residential building is a two-storey block with four apartments. Dense housing (high-rises) is left for a later milestone. A fully built 400 m road currently holds roughly 300 people, so 10,000 people need roughly 13 km of road (the map is 4 km across, so there is plenty of room). **Demand** bars show what the economy wants (see "Economy and demand"). **Happiness** comes from jobs and shops: half employment, half shopping. The clock advances 10 minutes per simulation tick. The number keys, `C`, `F`, `[` `]`, Space and Esc still work as before.
 
 ## Economy and demand
 
@@ -92,6 +92,20 @@ All the numbers (jobs, service and goods per building type, distances, base dema
 **Made for traffic.** The matches are kept as `CityEconomy.Flows`: trips of a kind (work, goods, shopping) from one road segment to another with a volume and a distance.
 Traffic will route exactly these trips over the roads, and report congestion by changing `RoadGraph.Cost` (an `IRoadCost`), so jams and closures change who can reach what
 without touching the economy code. Each building's own numbers (staffing, goods received, shoppers served) are in `CityEconomy.StatusOf(building)`.
+
+## Money
+
+Zoning and buildings are free. **Only roads cost money** (`CityTreasury.cs`, all numbers are public fields to tune):
+
+* Building a road costs **$15 per metre**, taken when it is placed. A 300 m road is $4,500. You start with **$50,000** (set in the `CityGame` component).
+  While drawing, the tag next to the cursor shows the price; a road you cannot afford is refused (red preview, the advisory card says what it costs and what you have).
+* Every road costs **$0.50 per metre per game week** in upkeep.
+* Bulldozing a road refunds **half** of its build cost.
+* Income is tax: each **employed worker pays $12 a week** and each **shopper served $2**. So a city without jobs and shops earns nothing, and the weekly figure
+  beside Treasury in the status bar (income minus upkeep) tells you whether the economy works. Money can go below zero; you just cannot build roads then.
+* A game week is 1,008 ticks (a tick is 10 game minutes). Money moves every tick, purchases and refunds immediately.
+
+Money is off in the pure simulation until `Treasury.Enable(funds)` is called, so tests and tools can build freely; the game enables it at start.
 
 ## Rules
 
@@ -177,7 +191,7 @@ using `EffectiveCapacity`. Splitting a road keeps the closure state on both halv
 * One lot is 8 m wide and one floor is 3.5 m. Buildings are stacks of gray boxes, cylinders and roofs until real models arrive.
 * On the inside of a tight bend the inner rows of lots are dropped, because the cells would be squashed.
 * Removing a road does not merge the two halves of a split road back together.
-* There is no money yet (Treasury is a placeholder). Residents move in the moment a home is built, and nothing is ever abandoned.
+* There is no budget screen, loans or taxes you can set yet. Residents move in the moment a home is built, and nothing is ever abandoned.
 * Shadows are short-ranged because URP's default shadow distance is 50 m. Raise it in the URP asset when we polish visuals.
 * Shaders are looked up by name, which is fine in the Editor. Before making a standalone build, make sure the URP
   Unlit/Lit shaders (and `Sprites/Default`) are included in the build.

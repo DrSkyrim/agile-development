@@ -48,6 +48,9 @@ namespace UrbanGenesis.Simulation
         /// </summary>
         public IList<Building> Demolitions { get; internal set; }
 
+        /// <summary>What building the road costs (zero while money is off). Filled in by <see cref="CitySimulation.PlanRoad"/>.</summary>
+        public double Cost { get; internal set; }
+
         internal static RoadPlan Fail(string error)
         {
             return new RoadPlan { IsValid = false, Error = error };

@@ -450,7 +450,13 @@ namespace UrbanGenesis.Game
                 length = raw.Length;
             }
 
-            return Mathf.RoundToInt((float)length) + " m\n" + (length / RoadNetwork.LotSize).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " lots";
+            string text = Mathf.RoundToInt((float)length) + " m\n" + (length / RoadNetwork.LotSize).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " lots";
+            if (sim.Treasury.IsEnabled)
+            {
+                text += "\n" + CitySimulation.FormatMoney(sim.Treasury.RoadCost(length));
+            }
+
+            return text;
         }
 
         private string DescribePlan(RoadPlan plan)
