@@ -13,6 +13,9 @@ namespace UrbanGenesis.Game
         {
             Shader shader = FindShader("Universal Render Pipeline/Unlit", "Unlit/Texture", "Sprites/Default");
             var material = new Material(shader);
+            // Opaque ground must draw BEFORE the roads (queue 2100). If this had fallen back to a sprite shader (queue 3000)
+            // it would paint over them, so the queue is pinned.
+            material.renderQueue = 2000;
             material.mainTexture = texture;
             material.color = Color.white;
             return material;
@@ -58,6 +61,11 @@ namespace UrbanGenesis.Game
                 Shader shader = Shader.Find(name);
                 if (shader != null)
                 {
+                    if (name != names[0])
+                    {
+                        Debug.LogWarning("Shader '" + names[0] + "' was not found (stripped from the build?). Using '" + name + "' instead.");
+                    }
+
                     return shader;
                 }
             }
