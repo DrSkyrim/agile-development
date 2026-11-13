@@ -163,5 +163,44 @@ namespace UrbanGenesis.Tests
             city.Roads.RemoveSegment(Arm(after, 1, 0));
             Assert.AreEqual(0, after.BlockedTurns.Count, "the rule for a removed road is dropped");
         }
+
+        [Test]
+        public void AOneWayHighwayCanBranchOffAHighwayAnywhere_ButNothingElseCan()
+        {
+            var city = new CitySimulation(1);
+            RoadSegment highway = city.PlaceRoad(city.PlanRoad(new Vec2(-400, 0), null, new Vec2(400, 0), RoadType.Highway));
+            Assert.IsNotNull(highway);
+
+            Assert.IsFalse(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.Street).IsValid, "a street cannot join");
+            Assert.IsFalse(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.Highway).IsValid, "a highway cannot join");
+
+            RoadPlan exit = city.PlanRoad(new Vec2(0, 0), null, new Vec2(250, 250), RoadType.OneWayHighway);
+            Assert.IsTrue(exit.IsValid, exit.Error);
+            Assert.IsNotNull(city.PlaceRoad(exit));
+            Assert.AreEqual(3, city.Roads.SegmentCount, "the highway was split in two, plus the ramp");
+
+            RoadNode junction = city.Roads.FindIntersectionNear(new Vec2(0, 0), 10);
+            Assert.IsNotNull(junction);
+            Assert.IsFalse(junction.CanHaveTrafficLights, "a free-flowing highway junction has no lights");
+            Assert.IsFalse(junction.HasTrafficLight);
+            Assert.IsFalse(city.SetTrafficLights(junction, true));
+        }
+
+        [Test]
+        public void ARampCanAlsoMergeBackOntoAHighway()
+        {
+            var city = new CitySimulation(1);
+            city.PlaceRoad(city.PlanRoad(new Vec2(-400, 0), null, new Vec2(400, 0), RoadType.Highway));
+            RoadPlan entry = city.PlanRoad(new Vec2(200, 300), null, new Vec2(120, 0), RoadType.OneWayHighway);
+            Assert.IsTrue(entry.IsValid, entry.Error);
+        }
+
+        [Test]
+        public void ARampCannotJoinTheMiddleOfAStreet()
+        {
+            var city = new CitySimulation(1);
+            city.PlaceRoad(city.PlanRoad(new Vec2(-300, 0), null, new Vec2(300, 0)));
+            Assert.IsFalse(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.OneWayHighway).IsValid);
+        }
     }
 }

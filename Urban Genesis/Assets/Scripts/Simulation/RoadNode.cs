@@ -22,7 +22,32 @@ namespace UrbanGenesis.Simulation
         public bool TrafficLightsOff { get; internal set; }
 
         /// <summary>Traffic lights stand here: it is an intersection and they have not been switched off.</summary>
-        public bool HasTrafficLight { get { return IsIntersection && !TrafficLightsOff; } }
+        public bool HasTrafficLight { get { return CanHaveTrafficLights && !TrafficLightsOff; } }
+
+        /// <summary>
+        /// Whether lights make sense here: an intersection where at least one road has buildings beside it.
+        /// A junction made only of highways and ramps is free-flowing and never has lights.
+        /// </summary>
+        public bool CanHaveTrafficLights
+        {
+            get
+            {
+                if (!IsIntersection)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < segments.Count; i++)
+                {
+                    if (segments[i].HasLots)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
 
         public RoadNode(int id, Vec2 position)
         {

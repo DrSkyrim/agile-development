@@ -122,6 +122,26 @@ namespace UrbanGenesis.Simulation
             return HasLots(type);
         }
 
+        /// <summary>The two-way highways (not the one-way kind, which is used for ramps).</summary>
+        public static bool IsHighway(RoadType type)
+        {
+            return type == RoadType.Highway || type == RoadType.TwoLaneHighway;
+        }
+
+        /// <summary>
+        /// Whether a road of type <paramref name="joining"/> may end in the middle of an existing road of type <paramref name="host"/>.
+        /// Streets and avenues take anything that allows junctions; highways take only one-way highways, which act as their ramps (turn-offs).
+        /// </summary>
+        public static bool CanJoinMidway(RoadType joining, RoadType host)
+        {
+            if (AllowsJunctionsAlong(joining) && AllowsJunctionsAlong(host))
+            {
+                return true;
+            }
+
+            return joining == RoadType.OneWayHighway && IsHighway(host);
+        }
+
         /// <summary>How fast traffic moves compared with a street. Used by route costs.</summary>
         public static double SpeedFactor(RoadType type)
         {

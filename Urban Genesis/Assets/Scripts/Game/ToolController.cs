@@ -308,6 +308,12 @@ namespace UrbanGenesis.Game
                 return;
             }
 
+            if (!SelectedJunction.CanHaveTrafficLights)
+            {
+                ShowResult("Highway ramps flow freely: no traffic lights here");
+                return;
+            }
+
             bool turnOn = SelectedJunction.TrafficLightsOff;
             sim.SetTrafficLights(SelectedJunction, turnOn);
             ShowResult(turnOn ? "Traffic lights switched on" : "Traffic lights switched off");

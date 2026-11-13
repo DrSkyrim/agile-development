@@ -1022,7 +1022,7 @@ namespace UrbanGenesis.Game
             if (junction)
             {
                 RoadNode picked = tools.SelectedJunction;
-                SetDisplay(lightsChip, picked != null);
+                SetDisplay(lightsChip, picked != null && picked.CanHaveTrafficLights);
                 SetDisplay(resetLanesChip, picked != null && picked.BlockedTurns.Count > 0);
                 if (picked == null)
                 {
@@ -1030,7 +1030,7 @@ namespace UrbanGenesis.Game
                 }
                 else
                 {
-                    SetText(junctionLabel, (picked.Degree == 4 ? "4-way" : picked.Degree == 3 ? "3-way" : picked.Degree + "-way") + " intersection");
+                    SetText(junctionLabel, (picked.Degree == 4 ? "4-way" : picked.Degree == 3 ? "3-way" : picked.Degree + "-way") + (picked.CanHaveTrafficLights ? " intersection" : " highway junction"));
                     SetText(lightsChipLabel, picked.HasTrafficLight ? "Traffic lights: on" : "Traffic lights: off");
                     SetOn(lightsChip, "ug-chip--on", picked.HasTrafficLight);
                 }

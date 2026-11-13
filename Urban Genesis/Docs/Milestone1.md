@@ -232,3 +232,7 @@ In the Junctions tool, select an intersection and small white dots appear on eac
 - Every lane must keep at least one exit, and U-turns and turns the road directions do not allow (into a one-way road that leads in) are not offered.
 - Rules follow the road when it is split by a new junction, are dropped when a road is removed, and are saved.
 - Like traffic lights, the rules are not used by the route calculation yet: they are stored for the traffic feature (`RoadNode.IsTurnAllowed`).
+
+### Highway turn-offs (ramps)
+
+A **one-way highway** can start or end anywhere along a Highway 1+1 or Highway 2+2: the highway splits there and the one-way road becomes an exit or an entrance, depending on which way you draw it. Nothing else can join a highway mid-way (streets and other highways still connect at ends only). Because a wide road takes a while to get clear of, a ramp needs to leave at roughly 30° or more. Junctions made only of highways and ramps flow freely and have no traffic lights, but the lane-connection tool works there.

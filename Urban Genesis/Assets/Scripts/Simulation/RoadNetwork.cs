@@ -302,11 +302,18 @@ namespace UrbanGenesis.Simulation
             RoadSegment segment = FindSegmentNear(p, SegmentJoinRadius, out length);
             if (segment != null)
             {
-                if (!RoadSpecs.AllowsJunctionsAlong(type) || !RoadSpecs.AllowsJunctionsAlong(segment.Type))
+                if (!RoadSpecs.CanJoinMidway(type, segment.Type))
                 {
-                    error = !RoadSpecs.AllowsJunctionsAlong(type)
-                        ? "A " + RoadSpecs.Name(type).ToLowerInvariant() + " only connects at junctions or in open ground, not in the middle of a road."
-                        : "Roads cannot join a " + RoadSpecs.Name(segment.Type).ToLowerInvariant() + " in the middle: connect to the end of it.";
+                    if (!RoadSpecs.AllowsJunctionsAlong(type))
+                    {
+                        error = type == RoadType.OneWayHighway
+                            ? "A one-way highway can branch off a highway, but elsewhere it connects only at junctions or in open ground."
+                            : "A " + RoadSpecs.Name(type).ToLowerInvariant() + " only connects at junctions or in open ground, not in the middle of a road.";
+                    }
+                    else
+                    {
+                        error = "Roads cannot join a " + RoadSpecs.Name(segment.Type).ToLowerInvariant() + " in the middle: connect to its end, or use a one-way highway as a turn-off.";
+                    }
                     return false;
                 }
 
@@ -375,11 +382,14 @@ namespace UrbanGenesis.Simulation
                 bool nearA = Touches(a, other);
                 bool nearB = Touches(b, other);
 
+                // A wide road takes longer to get clear of: scale the zone around the junction with its width (a street is the baseline).
+                double zone = JunctionZone * Math.Max(1.0, other.Width / RoadSpecs.Width(RoadType.Street));
+
                 for (int i = 0; i < samples.Count; i++)
                 {
                     Vec2 p = samples[i];
-                    if ((nearA && Vec2.Distance(p, a.Position) < JunctionZone) ||
-                        (nearB && Vec2.Distance(p, b.Position) < JunctionZone))
+                    if ((nearA && Vec2.Distance(p, a.Position) < zone) ||
+                        (nearB && Vec2.Distance(p, b.Position) < zone))
                     {
                         continue;
                     }

@@ -183,7 +183,7 @@ namespace UrbanGenesis.Simulation
         /// <summary>Switches the traffic lights at an intersection on or off. Does nothing (and returns false) if it is not an intersection.</summary>
         public bool SetTrafficLights(RoadNode node, bool on)
         {
-            if (node == null || !node.IsIntersection || node.TrafficLightsOff == !on)
+            if (node == null || !node.CanHaveTrafficLights || node.TrafficLightsOff == !on)
             {
                 return false;
             }
