@@ -142,5 +142,28 @@ namespace UrbanGenesis.Tests
             Assert.IsTrue(types.Contains(RoadType.Avenue));
             Assert.IsTrue(types.Contains(RoadType.OneWayHighway));
         }
+
+        private static int GrowBesideRoad(RoadType type, ZoneType zone)
+        {
+            var city = new CitySimulation(3);
+            city.SpawnChance = 1.0;
+            city.Economy.DemandDrivesGrowth = false;
+            city.PlaceRoad(city.PlanRoad(new Vec2(-250, -200), null, new Vec2(250, 200), type));
+            city.PaintZone(new Vec2(0, 0), 500, zone);
+            for (int i = 0; i < 600; i++) { city.Step(); }
+            return city.BuildingCount;
+        }
+
+        [Test]
+        public void BuildingsGrowBesideAvenuesJustAsOnStreets()
+        {
+            foreach (ZoneType zone in new[] { ZoneType.Residential, ZoneType.Commercial, ZoneType.Industrial })
+            {
+                int onStreet = GrowBesideRoad(RoadType.Street, zone);
+                int onAvenue = GrowBesideRoad(RoadType.Avenue, zone);
+                Assert.Greater(onStreet, 10, zone + " on a street");
+                Assert.GreaterOrEqual(onAvenue, onStreet * 0.7, zone + " on an avenue: " + onAvenue + " vs " + onStreet);
+            }
+        }
     }
 }

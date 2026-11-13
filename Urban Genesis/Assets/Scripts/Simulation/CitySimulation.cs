@@ -406,7 +406,7 @@ namespace UrbanGenesis.Simulation
         /// <summary>Re-checks the lots of every road near the segment, since roads cover (or uncover) each other's land.</summary>
         private void RefreshAround(RoadSegment segment)
         {
-            double margin = LotLayout.Rows * RoadNetwork.LotSize + RoadNetwork.RoadWidth;
+            double margin = LotLayout.Rows * RoadNetwork.LotSize + RoadSpecs.MaxWidth;
             foreach (RoadSegment near in Roads.SegmentsNear(segment.Curve.Bounds, margin))
             {
                 ClearRemovedLots(Lots.Refresh(near));
@@ -776,7 +776,7 @@ namespace UrbanGenesis.Simulation
             double sMid = (firstCol + template.Width * 0.5) * RoadNetwork.LotSize;
 
             back = segment.Curve.NormalAtLength(sMid) * (side == 0 ? 1.0 : -1.0);
-            center = segment.Curve.PointAtLength(sMid) + back * (RoadNetwork.HalfWidth + depthM * 0.5);
+            center = segment.Curve.PointAtLength(sMid) + back * (segment.HalfWidth + depthM * 0.5);
 
             // Straight edges cut across bends, so measure the real gap between the front edge and the road and close it.
             Vec2[] footprint = Building.MakeFootprint(center, back, widthM, depthM);
@@ -788,7 +788,7 @@ namespace UrbanGenesis.Simulation
                 nearest = Math.Min(nearest, segment.Curve.DistanceTo(p));
             }
 
-            double shift = RoadNetwork.HalfWidth - nearest;
+            double shift = segment.HalfWidth - nearest;
             if (Math.Abs(shift) > RoadContactTolerance)
             {
                 return false;
@@ -812,7 +812,7 @@ namespace UrbanGenesis.Simulation
         private bool OverlapsRoad(Vec2[] footprint)
         {
             Aabb box = Aabb.Of(footprint);
-            foreach (RoadSegment segment in Roads.SegmentsNear(box, 0.0))
+            foreach (RoadSegment segment in Roads.SegmentsNear(box, RoadSpecs.MaxHalfWidth))
             {
                 IList<Vec2[]> surface = segment.Surface;
                 for (int i = 0; i < surface.Count; i++)

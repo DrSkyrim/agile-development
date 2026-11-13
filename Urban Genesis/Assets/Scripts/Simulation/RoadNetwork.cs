@@ -215,7 +215,8 @@ namespace UrbanGenesis.Simulation
         public bool IsOnRoad(Vec2 p)
         {
             double length;
-            return FindSegmentNear(p, HalfWidth, out length) != null;
+            RoadSegment segment = FindSegmentNear(p, RoadSpecs.MaxHalfWidth, out length);
+            return segment != null && segment.Curve.DistanceTo(p) <= segment.HalfWidth;
         }
 
         // ---------------------------------------------------------------- planning
