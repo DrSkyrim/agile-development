@@ -177,6 +177,28 @@ namespace UrbanGenesis.Simulation
             public RoadNode CityNode { get { return Segment.B; } }
         }
 
+        /// <summary>Raised when traffic lights are switched on or off at an intersection.</summary>
+        public event Action<RoadNode> TrafficLightsChanged;
+
+        /// <summary>Switches the traffic lights at an intersection on or off. Does nothing (and returns false) if it is not an intersection.</summary>
+        public bool SetTrafficLights(RoadNode node, bool on)
+        {
+            if (node == null || !node.IsIntersection || node.TrafficLightsOff == !on)
+            {
+                return false;
+            }
+
+            node.TrafficLightsOff = !on;
+            Revision++;
+            Action<RoadNode> changed = TrafficLightsChanged;
+            if (changed != null)
+            {
+                changed(node);
+            }
+
+            return true;
+        }
+
         private readonly List<OutsideConnection> outsideConnections = new List<OutsideConnection>();
 
         /// <summary>The highways that link the city to the outside world. They are free, cannot be bulldozed, and carry the trips in from outside later.</summary>

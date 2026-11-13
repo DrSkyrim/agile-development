@@ -115,6 +115,11 @@ namespace UrbanGenesis.Game
 
         public void SetTool(ToolType tool)
         {
+            if (tool != ToolType.Junction)
+            {
+                SelectedJunction = null;
+            }
+
             CancelRoad();
             painting = false;
             CurrentTool = tool;
@@ -159,6 +164,7 @@ namespace UrbanGenesis.Game
                 case ToolType.ZoneCommercial: return "Commercial";
                 case ToolType.ZoneIndustrial: return "Industrial";
                 case ToolType.Bulldoze: return "Bulldoze";
+                case ToolType.Junction: return "Junctions";
                 default: return "None";
             }
         }
@@ -221,6 +227,10 @@ namespace UrbanGenesis.Game
             {
                 UpdateRoad(mouse, onMap, ground);
             }
+            else if (CurrentTool == ToolType.Junction)
+            {
+                UpdateJunction(mouse, onMap, ground);
+            }
             else
             {
                 UpdateBrush(mouse, onMap, ground);
@@ -240,9 +250,18 @@ namespace UrbanGenesis.Game
                 SetRoadMode(RoadMode == RoadMode.Straight ? RoadMode.Curved : RoadMode.Straight);
             }
 
+            if (keyboard.digit6Key.wasPressedThisFrame || keyboard.jKey.wasPressedThisFrame) { SetTool(ToolType.Junction); }
+
             if (keyboard.hKey.wasPressedThisFrame)
             {
-                SetRoadType(RoadType == RoadType.Street ? RoadType.Highway : RoadType.Street);
+                // Cycle through the road types.
+                int next = (System.Array.IndexOf(RoadSpecs.All, RoadType) + 1) % RoadSpecs.All.Length;
+                SetRoadType(RoadSpecs.All[next]);
+            }
+
+            if (keyboard.tKey.wasPressedThisFrame && CurrentTool == ToolType.Junction)
+            {
+                ToggleSelectedLights();
             }
 
             if (keyboard.fKey.wasPressedThisFrame)
@@ -270,6 +289,72 @@ namespace UrbanGenesis.Game
 
             ground = Vec2.Zero;
             return false;
+        }
+
+        // ------------------------------------------------------------ junctions
+
+        private const double JunctionPickRadius = 26.0;
+        private static readonly Color JunctionHover = new Color(1f, 1f, 1f, 0.45f);
+        private static readonly Color JunctionSelected = new Color(0.44f, 0.72f, 1f, 0.9f);
+
+        /// <summary>The intersection picked with the Junctions tool (null if none).</summary>
+        public RoadNode SelectedJunction { get; private set; }
+
+        /// <summary>Switches the selected intersection's traffic lights on or off.</summary>
+        public void ToggleSelectedLights()
+        {
+            if (SelectedJunction == null || !SelectedJunction.IsIntersection)
+            {
+                return;
+            }
+
+            bool turnOn = SelectedJunction.TrafficLightsOff;
+            sim.SetTrafficLights(SelectedJunction, turnOn);
+            ShowResult(turnOn ? "Traffic lights switched on" : "Traffic lights switched off");
+        }
+
+        private void UpdateJunction(Mouse mouse, bool onMap, Vec2 p)
+        {
+            if (SelectedJunction != null && !SelectedJunction.IsIntersection)
+            {
+                SelectedJunction = null; // a road was bulldozed and it is no longer an intersection
+            }
+
+            RoadNode hover = onMap ? sim.Roads.FindIntersectionNear(p, JunctionPickRadius) : null;
+            if (onMap && mouse.leftButton.wasPressedThisFrame)
+            {
+                SelectedJunction = hover;
+            }
+
+            cityRenderer.BeginPreview();
+            if (hover != null && hover != SelectedJunction)
+            {
+                cityRenderer.PreviewRing(hover.Position, JunctionRadius(hover) + 3.0, 1.5, JunctionHover);
+            }
+
+            if (SelectedJunction != null)
+            {
+                cityRenderer.PreviewRing(SelectedJunction.Position, JunctionRadius(SelectedJunction) + 3.0, 2.2, JunctionSelected);
+            }
+
+            cityRenderer.EndPreview();
+            previewShown = true;
+            shownTool = ToolType.None; // so the cached-preview check never treats this as an up-to-date road/brush preview
+
+            liveText = SelectedJunction != null
+                ? "Junction selected: press T or use the button to switch its lights"
+                : "Junctions: click an intersection to select it";
+        }
+
+        private static double JunctionRadius(RoadNode node)
+        {
+            double widest = 0.0;
+            for (int i = 0; i < node.Segments.Count; i++)
+            {
+                widest = System.Math.Max(widest, node.Segments[i].HalfWidth);
+            }
+
+            return widest;
         }
 
         // ------------------------------------------------------------ roads
@@ -496,7 +581,7 @@ namespace UrbanGenesis.Game
                 return plan.Error;
             }
 
-            string text = (RoadMode == RoadMode.Curved ? "Curved " : "") + (RoadType == RoadType.Highway ? "highway" : "road") + ": " + Mathf.RoundToInt((float)plan.Curve.Length) + " m";
+            string text = (RoadMode == RoadMode.Curved ? "Curved " + RoadSpecs.Name(RoadType).ToLowerInvariant() : RoadSpecs.Name(RoadType)) + " (" + RoadSpecs.LaneLabel(RoadType) + "): " + Mathf.RoundToInt((float)plan.Curve.Length) + " m";
             int inTheWay = plan.Demolitions.Count;
             if (inTheWay > 0)
             {

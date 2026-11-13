@@ -21,6 +21,16 @@ namespace UrbanGenesis.Game
             return material;
         }
 
+        /// <summary>Flat unlit colour (used for the glowing part of traffic lights).</summary>
+        public static Material CreateUnlitColor(Color color)
+        {
+            Shader shader = FindShader("Universal Render Pipeline/Unlit", "Unlit/Color", "Sprites/Default");
+            var material = new Material(shader);
+            material.renderQueue = 2000;
+            material.color = color;
+            return material;
+        }
+
         /// <summary>Lit gray material for building cubes.</summary>
         public static Material CreateLitGray(float brightness)
         {

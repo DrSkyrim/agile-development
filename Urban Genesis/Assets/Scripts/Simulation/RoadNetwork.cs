@@ -302,11 +302,11 @@ namespace UrbanGenesis.Simulation
             RoadSegment segment = FindSegmentNear(p, SegmentJoinRadius, out length);
             if (segment != null)
             {
-                if (type == RoadType.Highway || !RoadSpecs.AllowsJunctionsAlong(segment.Type))
+                if (!RoadSpecs.AllowsJunctionsAlong(type) || !RoadSpecs.AllowsJunctionsAlong(segment.Type))
                 {
-                    error = type == RoadType.Highway
-                        ? "A highway only connects at junctions or in open ground, not in the middle of a road."
-                        : "Roads cannot join a highway in the middle: connect to the end of the highway.";
+                    error = !RoadSpecs.AllowsJunctionsAlong(type)
+                        ? "A " + RoadSpecs.Name(type).ToLowerInvariant() + " only connects at junctions or in open ground, not in the middle of a road."
+                        : "Roads cannot join a " + RoadSpecs.Name(segment.Type).ToLowerInvariant() + " in the middle: connect to the end of it.";
                     return false;
                 }
 
@@ -446,6 +446,29 @@ namespace UrbanGenesis.Simulation
             endNode.Attach(segment);
             Raise(SegmentAdded, segment);
             return segment;
+        }
+
+        /// <summary>The nearest intersection (a junction of three or more roads) within <paramref name="radius"/> metres, or null.</summary>
+        public RoadNode FindIntersectionNear(Vec2 p, double radius)
+        {
+            RoadNode best = null;
+            double bestDistance = radius;
+            foreach (RoadNode node in nodes.Values)
+            {
+                if (node.Degree < 3)
+                {
+                    continue;
+                }
+
+                double d = Vec2.Distance(node.Position, p);
+                if (d <= bestDistance)
+                {
+                    bestDistance = d;
+                    best = node;
+                }
+            }
+
+            return best;
         }
 
         // ---------------------------------------------------------------- loading a saved network

@@ -16,7 +16,7 @@ namespace UrbanGenesis.Tests
             RoadSegment road = city.PlaceRoad(city.PlanRoad(A, null, B, RoadType.Highway));
             Assert.IsNotNull(road);
             Assert.AreEqual(RoadType.Highway, road.Type);
-            Assert.AreEqual(24.0, road.Width, 0.001);
+            Assert.AreEqual(28.0, road.Width, 0.001);
             Assert.IsFalse(road.HasLots);
             Assert.AreEqual(0, LotLayout.Cols(road));
         }

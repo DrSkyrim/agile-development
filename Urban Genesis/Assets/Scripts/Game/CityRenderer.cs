@@ -29,6 +29,22 @@ namespace UrbanGenesis.Game
         private Mesh roadMesh;
         private bool roadsDirty = true;
 
+        // Traffic lights (cosmetic: they cycle on their own, the simulation does not use their phase)
+        private Transform lightRoot;
+        private bool lightsDirty = true;
+        private readonly List<LightHead> lightHeads = new List<LightHead>();
+        private Material lightRed, lightAmber, lightGreen, lightOff, poleMaterial;
+        private const float GreenSeconds = 6f, AmberSeconds = 1f;
+
+        private sealed class LightHead
+        {
+            public MeshRenderer Renderer;
+            public int Phase;
+            public int Phases;
+            public float Offset;
+            public int Shown = -1;
+        }
+
         // Lots
         private Mesh lotMesh;
         private bool showLotGrid;
@@ -61,6 +77,7 @@ namespace UrbanGenesis.Game
             sim.Roads.SegmentAdded += OnRoadsChanged;
             sim.Roads.SegmentRemoved += OnRoadsChanged;
             sim.Roads.SegmentSplit += OnRoadSplit;
+            sim.TrafficLightsChanged += OnLightsChanged;
             sim.BuildingSpawned += OnBuildingSpawned;
             sim.BuildingRemoved += OnBuildingRemoved;
 
@@ -79,6 +96,7 @@ namespace UrbanGenesis.Game
                 sim.Roads.SegmentAdded -= OnRoadsChanged;
                 sim.Roads.SegmentRemoved -= OnRoadsChanged;
                 sim.Roads.SegmentSplit -= OnRoadSplit;
+                sim.TrafficLightsChanged -= OnLightsChanged;
                 sim.BuildingSpawned -= OnBuildingSpawned;
                 sim.BuildingRemoved -= OnBuildingRemoved;
             }
@@ -92,6 +110,14 @@ namespace UrbanGenesis.Game
                 roadsDirty = false;
             }
 
+            if (lightsDirty)
+            {
+                RebuildLights();
+                lightsDirty = false;
+            }
+
+            AnimateLights();
+
             if (lotGridChanged || lotsDrawnForRevision != sim.Revision)
             {
                 RebuildLots();
@@ -100,8 +126,123 @@ namespace UrbanGenesis.Game
             }
         }
 
-        private void OnRoadsChanged(RoadSegment segment) { roadsDirty = true; }
-        private void OnRoadSplit(RoadSegment old, RoadSegment first, RoadSegment second, double length) { roadsDirty = true; }
+        private void OnRoadsChanged(RoadSegment segment) { roadsDirty = true; lightsDirty = true; }
+        private void OnRoadSplit(RoadSegment old, RoadSegment first, RoadSegment second, double length) { roadsDirty = true; lightsDirty = true; }
+        private void OnLightsChanged(RoadNode node) { lightsDirty = true; }
+
+        // ------------------------------------------------------------ traffic lights
+
+        private void RebuildLights()
+        {
+            if (lightRoot == null)
+            {
+                lightRoot = new GameObject("Traffic Lights").transform;
+                lightRoot.SetParent(transform, false);
+                lightRed = MaterialFactory.CreateUnlitColor(new Color(0.95f, 0.18f, 0.15f));
+                lightAmber = MaterialFactory.CreateUnlitColor(new Color(1.00f, 0.72f, 0.10f));
+                lightGreen = MaterialFactory.CreateUnlitColor(new Color(0.20f, 0.90f, 0.40f));
+                lightOff = MaterialFactory.CreateUnlitColor(new Color(0.10f, 0.10f, 0.12f));
+                poleMaterial = MaterialFactory.CreateLitGray(0.18f);
+            }
+
+            for (int i = lightRoot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(lightRoot.GetChild(i).gameObject);
+            }
+
+            lightHeads.Clear();
+
+            foreach (RoadNode node in sim.Roads.Nodes)
+            {
+                if (!node.HasTrafficLight)
+                {
+                    continue;
+                }
+
+                // Arms in order around the junction, so opposite arms of a four-way share a phase.
+                var arms = new List<RoadSegment>(node.Segments);
+                var directions = new Dictionary<RoadSegment, Vec2>();
+                foreach (RoadSegment seg in arms)
+                {
+                    Vec2 away = seg.A == node ? seg.Curve.TangentAtLength(0.0) : seg.Curve.TangentAtLength(seg.Length) * -1.0;
+                    directions[seg] = away;
+                }
+
+                arms.Sort((x, y) => System.Math.Atan2(directions[x].Y, directions[x].X).CompareTo(System.Math.Atan2(directions[y].Y, directions[y].X)));
+
+                double radius = 0.0;
+                foreach (RoadSegment seg in arms) { radius = System.Math.Max(radius, seg.HalfWidth); }
+
+                int phases = arms.Count % 2 == 0 ? 2 : arms.Count;
+                float offset = node.Id * 1.7f;
+                for (int i = 0; i < arms.Count; i++)
+                {
+                    RoadSegment seg = arms[i];
+                    if (RoadSpecs.IsOneWay(seg.Type) && seg.A == node)
+                    {
+                        continue; // traffic only leaves the junction along this road, nothing waits here
+                    }
+
+                    Vec2 away = directions[seg];
+                    Vec2 right = new Vec2(-away.Y, away.X); // right-hand side for a driver heading toward the junction
+                    Vec2 spot = node.Position + away * (radius + 3.0) + right * (seg.HalfWidth + 1.0);
+                    LightHead head = BuildLight(spot);
+                    head.Phase = i % phases;
+                    head.Phases = phases;
+                    head.Offset = offset;
+                    lightHeads.Add(head);
+                }
+            }
+        }
+
+        private LightHead BuildLight(Vec2 spot)
+        {
+            Vector3 ground = CityMetrics.ToWorld(spot, 0f);
+
+            GameObject pole = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(pole.GetComponent<Collider>());
+            pole.name = "Pole";
+            pole.transform.SetParent(lightRoot, false);
+            pole.transform.position = ground + new Vector3(0f, 2.75f, 0f);
+            pole.transform.localScale = new Vector3(0.35f, 5.5f, 0.35f);
+            pole.GetComponent<MeshRenderer>().sharedMaterial = poleMaterial;
+
+            GameObject head = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(head.GetComponent<Collider>());
+            head.name = "Signal";
+            head.transform.SetParent(lightRoot, false);
+            head.transform.position = ground + new Vector3(0f, 5.9f, 0f);
+            head.transform.localScale = new Vector3(1.1f, 1.1f, 1.1f);
+            MeshRenderer headRenderer = head.GetComponent<MeshRenderer>();
+            headRenderer.sharedMaterial = lightOff;
+
+            return new LightHead { Renderer = headRenderer };
+        }
+
+        private void AnimateLights()
+        {
+            if (lightHeads.Count == 0)
+            {
+                return;
+            }
+
+            float phaseLength = GreenSeconds + AmberSeconds;
+            foreach (LightHead head in lightHeads)
+            {
+                float t = Mathf.Repeat(Time.time + head.Offset, phaseLength * head.Phases);
+                int current = Mathf.FloorToInt(t / phaseLength);
+                float within = t - current * phaseLength;
+                int state; // 0 red, 1 green, 2 amber
+                if (current != head.Phase) { state = 0; }
+                else { state = within < GreenSeconds ? 1 : 2; }
+
+                if (state != head.Shown)
+                {
+                    head.Shown = state;
+                    head.Renderer.sharedMaterial = state == 1 ? lightGreen : state == 2 ? lightAmber : lightRed;
+                }
+            }
+        }
 
         // ------------------------------------------------------------ ground
 
@@ -184,7 +325,7 @@ namespace UrbanGenesis.Game
             {
                 foreach (Vec2[] quad in segment.Surface)
                 {
-                    builder.Quad(quad[0], quad[1], quad[2], quad[3], RoadHeight, segment.Type == RoadType.Highway ? CityPalette.Highway : CityPalette.Road);
+                    builder.Quad(quad[0], quad[1], quad[2], quad[3], RoadHeight, RoadColor(segment.Type));
                 }
             }
 
@@ -194,14 +335,17 @@ namespace UrbanGenesis.Game
                 if (node.Degree >= 2)
                 {
                     double widest = 0.0;
-                    bool onlyHighways = true;
+                    RoadSegment widestSegment = node.Segments[0];
                     for (int i = 0; i < node.Segments.Count; i++)
                     {
                         widest = System.Math.Max(widest, node.Segments[i].HalfWidth);
-                        onlyHighways &= node.Segments[i].Type == RoadType.Highway;
+                        if (node.Segments[i].HalfWidth > widestSegment.HalfWidth)
+                        {
+                            widestSegment = node.Segments[i];
+                        }
                     }
 
-                    builder.Disc(node.Position, widest, 20, RoadHeight, onlyHighways ? CityPalette.Highway : CityPalette.Road);
+                    builder.Disc(node.Position, widest, 20, RoadHeight, RoadColor(widestSegment.Type));
                 }
             }
 
@@ -219,9 +363,7 @@ namespace UrbanGenesis.Game
             int pieces = segment.Surface.Count;
             double length = segment.Length;
             double half = segment.HalfWidth;
-            bool highway = segment.Type == RoadType.Highway;
             const double edgeWidth = 0.35;
-            const double dashHalf = 0.18;
 
             for (int i = 0; i < pieces; i++)
             {
@@ -246,27 +388,80 @@ namespace UrbanGenesis.Game
                         RoadLineHeight, CityPalette.RoadEdge);
                 }
 
-                if (highway)
-                {
-                    // A solid double line down the middle.
-                    foreach (double side in new[] { 1.0, -1.0 })
+                AddCentreMarkings(segment, c, s0, s1, i);
+            }
+        }
+
+        private static Color32 RoadColor(RoadType type)
+        {
+            switch (type)
+            {
+                case RoadType.Avenue: return CityPalette.Avenue;
+                case RoadType.Highway:
+                case RoadType.OneWayHighway: return CityPalette.Highway;
+                default: return CityPalette.Road;
+            }
+        }
+
+        private void AddStrip(RoadCurve c, double s0, double s1, double near, double far, Color32 color)
+        {
+            builder.Quad(
+                c.OffsetPointAtLength(s0, near), c.OffsetPointAtLength(s1, near),
+                c.OffsetPointAtLength(s1, far), c.OffsetPointAtLength(s0, far),
+                RoadLineHeight, color);
+        }
+
+        /// <summary>Lane lines and centre markings for one piece of a road, by road type.</summary>
+        private void AddCentreMarkings(RoadSegment segment, RoadCurve c, double s0, double s1, int index)
+        {
+            const double dashHalf = 0.18;
+            double half = segment.HalfWidth;
+            bool dash = index % 2 == 0;
+
+            switch (segment.Type)
+            {
+                case RoadType.Street:
+                    if (dash) { AddStrip(c, s0, s1, -dashHalf, dashHalf, CityPalette.RoadCentre); }
+                    break;
+
+                case RoadType.Avenue:
+                    // Solid double yellow centre, dashed lane lines between the two lanes on each side.
+                    AddStrip(c, s0, s1, 0.25, 0.6, CityPalette.RoadCentre);
+                    AddStrip(c, s0, s1, -0.6, -0.25, CityPalette.RoadCentre);
+                    if (dash)
                     {
-                        double near = side * 0.35, far = side * 0.7;
-                        builder.Quad(
-                            c.OffsetPointAtLength(s0, near), c.OffsetPointAtLength(s1, near),
-                            c.OffsetPointAtLength(s1, far), c.OffsetPointAtLength(s0, far),
-                            RoadLineHeight, CityPalette.RoadCentre);
+                        double lane = half * 0.5;
+                        AddStrip(c, s0, s1, lane - dashHalf, lane + dashHalf, CityPalette.RoadEdge);
+                        AddStrip(c, s0, s1, -lane - dashHalf, -lane + dashHalf, CityPalette.RoadEdge);
                     }
-                }
-                else if (i % 2 == 0)
-                {
-                    builder.Quad(
-                        c.OffsetPointAtLength(s0, -dashHalf),
-                        c.OffsetPointAtLength(s1, -dashHalf),
-                        c.OffsetPointAtLength(s1, dashHalf),
-                        c.OffsetPointAtLength(s0, dashHalf),
-                        RoadLineHeight, CityPalette.RoadCentre);
-                }
+                    break;
+
+                case RoadType.Highway:
+                    // A raised-looking median (wide dark strip with yellow edges) and dashed lane lines.
+                    AddStrip(c, s0, s1, -1.1, 1.1, CityPalette.Median);
+                    AddStrip(c, s0, s1, 1.1, 1.4, CityPalette.RoadCentre);
+                    AddStrip(c, s0, s1, -1.4, -1.1, CityPalette.RoadCentre);
+                    if (dash)
+                    {
+                        double lane = 1.4 + (half - 1.4) * 0.5;
+                        AddStrip(c, s0, s1, lane - dashHalf, lane + dashHalf, CityPalette.RoadEdge);
+                        AddStrip(c, s0, s1, -lane - dashHalf, -lane + dashHalf, CityPalette.RoadEdge);
+                    }
+                    break;
+
+                case RoadType.OneWayHighway:
+                    // A chevron every few pieces pointing the way traffic flows (from end A to end B).
+                    if (index % 4 == 1)
+                    {
+                        double mid = (s0 + s1) * 0.5;
+                        double len = 5.0;
+                        Vec2 tip = c.PointAtLength(System.Math.Min(c.Length, mid + len));
+                        Vec2 left = c.OffsetPointAtLength(System.Math.Max(0.0, mid - len), 2.0);
+                        Vec2 right = c.OffsetPointAtLength(System.Math.Max(0.0, mid - len), -2.0);
+                        Vec2 notch = c.PointAtLength(System.Math.Max(0.0, mid - len * 0.4));
+                        builder.Quad(tip, left, notch, right, RoadLineHeight, CityPalette.RoadCentre);
+                    }
+                    break;
             }
         }
 

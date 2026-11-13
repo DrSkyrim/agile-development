@@ -10,6 +10,8 @@ namespace UrbanGenesis.Game
         public static readonly Color32 Ground = new Color32(140, 152, 128, 255);
         public static readonly Color32 GroundLine = new Color32(129, 141, 118, 255);
         public static readonly Color32 Road = new Color32(52, 52, 58, 255);
+        public static readonly Color32 Median = new Color32(34, 36, 44, 255);
+        public static readonly Color32 Avenue = new Color32(56, 59, 70, 255);
         public static readonly Color32 Highway = new Color32(40, 42, 52, 255);
         public static readonly Color32 RoadEdge = new Color32(176, 176, 186, 255);
         public static readonly Color32 RoadCentre = new Color32(226, 196, 84, 255);

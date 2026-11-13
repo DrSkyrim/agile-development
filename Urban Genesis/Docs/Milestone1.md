@@ -198,7 +198,7 @@ using `EffectiveCapacity`. Splitting a road keeps the closure state on both halv
 
 ## Highways and the outside connection
 
-- **Highway** is a second road type (press **H** or use the Street/Highway chips under the Road tool). It is 24 m wide (a street is 16 m), has no lots, so nothing is built beside it, costs $45/m with $1.5/m/week upkeep, and counts as twice as fast when the economy works out routes. It needs at least 100 m of length and gentle bends (radius 150 m).
+- **Highway** is a road type (2+2 lanes, 28 m wide with a median). Press **H** to cycle road types or use the chips under the Road tool. It has no lots, so nothing is built beside it, costs $45/m with $1.5/m/week upkeep, and counts as twice as fast when the economy works out routes. It needs at least 100 m of length and gentle bends (radius 150 m).
 - A highway only joins other roads at its **ends**, and a street cannot join a highway in the middle: connect streets to the end of the highway.
 - **Outside connection:** every launch, a highway appears at a random point on the map's edge and runs to a random spot 250–450 m from the middle. It is free, has no upkeep and cannot be bulldozed. The camera starts looking at its inner end. Later it will carry trips to and from outside the city (import, export, commuters).
 
@@ -210,3 +210,16 @@ using `EffectiveCapacity`. Splitting a road keeps the closure state on both halv
 - A save holds the roads (with closures and the outside connection), zones, buildings, money, game time, the camera and the game speed. The economy is recalculated on load, so it is not stored.
 - Code: `CitySimulation.Capture()` / `CitySimulation.Restore()` (plain data in `CitySnapshot`), `SaveGame` / `SaveStore` for the file, `GameFlow` for menu ↔ city, `PauseMenu`, `MainMenu`, `MenuUi`.
 - Lots are saved by where their centre is, not by their internal keys, so changing how lots are numbered will not break saves. Anything that no longer fits on load is dropped, and the game says how many items.
+
+## Road types, junctions and traffic lights
+
+| Type | Lanes | Width | Buildings | Joins | Cost / upkeep | Speed |
+|---|---|---|---|---|---|---|
+| Street | 1+1 | 16 m | yes | anywhere | $15/m, $0.5/m/wk | 1.0 |
+| Avenue | 2+2 | 22 m | yes | anywhere | $30/m, $0.9/m/wk | 1.4 |
+| Highway | 2+2 | 28 m | no | ends only | $45/m, $1.5/m/wk | 2.0 |
+| One-way highway | 1, one way | 12 m | no | ends only | $30/m, $1.0/m/wk | 2.0 |
+
+- A one-way highway carries traffic from where you started drawing to where you finished (chevrons show the direction). The route calculation does **not** use the direction yet; that comes with the traffic feature.
+- **Traffic lights** stand at every intersection (3 or more roads meet, so T-junctions and four-way crossings). They cycle on their own, but the simulation does not use them yet: they exist so the traffic feature can decide how junctions behave.
+- **Junctions tool** (toolbar, or **J** / **6**): click an intersection to select it, then press **T** or the "Traffic lights" button to switch its lights off or on. The choice is saved.

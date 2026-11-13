@@ -76,8 +76,11 @@ namespace UrbanGenesis.Game
         private VisualElement brushOptions;
         private VisualElement chipStraight;
         private VisualElement chipCurved;
-        private VisualElement chipStreet;
-        private VisualElement chipHighway;
+        private readonly VisualElement[] typeChips = new VisualElement[RoadSpecs.All.Length];
+        private VisualElement junctionOptions;
+        private Label junctionLabel;
+        private VisualElement lightsChip;
+        private Label lightsChipLabel;
         private VisualElement chipFill;
         private readonly VisualElement[] zoneChips = new VisualElement[3];
         private Label brushLabel;
@@ -580,11 +583,28 @@ namespace UrbanGenesis.Game
             typeDivider.style.marginLeft = 6;
             typeDivider.style.marginRight = 6;
             roadOptions.Add(typeDivider);
-            chipStreet = Chip("Street", () => tools.SetRoadType(RoadType.Street), null);
-            chipHighway = Chip("Highway", () => tools.SetRoadType(RoadType.Highway), null);
-            roadOptions.Add(chipStreet);
-            roadOptions.Add(chipHighway);
+            for (int i = 0; i < RoadSpecs.All.Length; i++)
+            {
+                RoadType type = RoadSpecs.All[i];
+                string label = type == RoadType.OneWayHighway ? "One-way highway" : RoadSpecs.Name(type) + " " + RoadSpecs.LaneLabel(type);
+                typeChips[i] = Chip(label, () => tools.SetRoadType(type), null);
+                roadOptions.Add(typeChips[i]);
+            }
+
             optionsPanel.Add(roadOptions);
+
+            junctionOptions = new VisualElement();
+            junctionOptions.style.flexDirection = FlexDirection.Row;
+            junctionOptions.style.alignItems = Align.Center;
+            junctionLabel = Text("Click an intersection", "ug-text--soft", Weight.Regular);
+            junctionLabel.style.fontSize = 11;
+            junctionLabel.style.marginLeft = 8;
+            junctionLabel.style.marginRight = 10;
+            junctionOptions.Add(junctionLabel);
+            lightsChip = Chip("Traffic lights: on", () => tools.ToggleSelectedLights(), null);
+            lightsChipLabel = (Label)lightsChip.ElementAt(0);
+            junctionOptions.Add(lightsChip);
+            optionsPanel.Add(junctionOptions);
 
             zoneOptions = new VisualElement();
             zoneOptions.style.flexDirection = FlexDirection.Row;
@@ -636,6 +656,9 @@ namespace UrbanGenesis.Game
             AddTool(bar, "route", "Roads", true,
                 () => tools.CurrentTool == ToolType.Road,
                 () => tools.SetTool(tools.CurrentTool == ToolType.Road ? ToolType.None : ToolType.Road));
+            AddTool(bar, "locate-fixed", "Junctions", true,
+                () => tools.CurrentTool == ToolType.Junction,
+                () => tools.SetTool(tools.CurrentTool == ToolType.Junction ? ToolType.None : ToolType.Junction));
             AddTool(bar, "grid-2x2", "Zoning", true,
                 () => tools.IsZoneTool,
                 () => tools.SetTool(tools.IsZoneTool ? ToolType.None : lastZoneTool));
@@ -839,7 +862,7 @@ namespace UrbanGenesis.Game
             panel.Add(scaleBar);
 
             Label sizes = Text("1 lot = " + RoadNetwork.LotSize.ToString("0", CultureInfo.InvariantCulture)
-                + " m  ·  street " + RoadSpecs.Width(RoadType.Street).ToString("0", CultureInfo.InvariantCulture) + " m, highway " + RoadSpecs.Width(RoadType.Highway).ToString("0", CultureInfo.InvariantCulture) + " m wide", "ug-text--muted", Weight.Regular);
+                + " m  ·  " + RoadSpecs.Name(tools.RoadType).ToLowerInvariant() + " " + RoadSpecs.Width(tools.RoadType).ToString("0", CultureInfo.InvariantCulture) + " m wide", "ug-text--muted", Weight.Regular);
             sizes.style.marginTop = 6;
             panel.Add(sizes);
         }
@@ -977,16 +1000,36 @@ namespace UrbanGenesis.Game
             bool road = tools.CurrentTool == ToolType.Road;
             bool zone = tools.IsZoneTool;
             bool brush = tools.IsBrushTool;
-            SetDisplay(optionsPanel, road || brush);
+            bool junction = tools.CurrentTool == ToolType.Junction;
+            SetDisplay(optionsPanel, road || brush || junction);
             SetDisplay(roadOptions, road);
+            SetDisplay(junctionOptions, junction);
             SetDisplay(zoneOptions, zone);
             SetDisplay(brushOptions, brush);
             if (road)
             {
                 SetOn(chipStraight, "ug-chip--on", tools.RoadMode == RoadMode.Straight);
                 SetOn(chipCurved, "ug-chip--on", tools.RoadMode == RoadMode.Curved);
-                SetOn(chipStreet, "ug-chip--on", tools.RoadType == RoadType.Street);
-                SetOn(chipHighway, "ug-chip--on", tools.RoadType == RoadType.Highway);
+                for (int i = 0; i < typeChips.Length; i++)
+                {
+                    SetOn(typeChips[i], "ug-chip--on", tools.RoadType == RoadSpecs.All[i]);
+                }
+            }
+
+            if (junction)
+            {
+                RoadNode picked = tools.SelectedJunction;
+                SetDisplay(lightsChip, picked != null);
+                if (picked == null)
+                {
+                    SetText(junctionLabel, "Click an intersection to select it");
+                }
+                else
+                {
+                    SetText(junctionLabel, (picked.Degree == 4 ? "4-way" : picked.Degree == 3 ? "3-way" : picked.Degree + "-way") + " intersection");
+                    SetText(lightsChipLabel, picked.HasTrafficLight ? "Traffic lights: on" : "Traffic lights: off");
+                    SetOn(lightsChip, "ug-chip--on", picked.HasTrafficLight);
+                }
             }
 
             if (zone)
@@ -1036,7 +1079,7 @@ namespace UrbanGenesis.Game
                 else
                 {
                     title = sim.Roads.SegmentCount == 0 ? "Start by laying a road" : "Your city is running smoothly";
-                    detail = "Pick a tool below, or press 1–5. Space pauses.";
+                    detail = "Pick a tool below, or press 1–6. Space pauses.";
                 }
             }
             else

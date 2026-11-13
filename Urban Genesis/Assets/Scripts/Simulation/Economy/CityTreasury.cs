@@ -25,6 +25,10 @@ namespace UrbanGenesis.Simulation
 
         public double BuildCostPerMetre = 15.0;
         public double UpkeepPerMetrePerWeek = 0.5;
+        public double AvenueBuildCostPerMetre = 30.0;
+        public double AvenueUpkeepPerMetrePerWeek = 0.9;
+        public double OneWayHighwayBuildCostPerMetre = 30.0;
+        public double OneWayHighwayUpkeepPerMetrePerWeek = 1.0;
         public double HighwayBuildCostPerMetre = 45.0;
         public double HighwayUpkeepPerMetrePerWeek = 1.5;
         public double RefundShare = 0.5;
@@ -64,12 +68,24 @@ namespace UrbanGenesis.Simulation
 
         public double BuildCostPerMetreOf(RoadType type)
         {
-            return type == RoadType.Highway ? HighwayBuildCostPerMetre : BuildCostPerMetre;
+            switch (type)
+            {
+                case RoadType.Avenue: return AvenueBuildCostPerMetre;
+                case RoadType.Highway: return HighwayBuildCostPerMetre;
+                case RoadType.OneWayHighway: return OneWayHighwayBuildCostPerMetre;
+                default: return BuildCostPerMetre;
+            }
         }
 
         public double UpkeepPerMetreOf(RoadType type)
         {
-            return type == RoadType.Highway ? HighwayUpkeepPerMetrePerWeek : UpkeepPerMetrePerWeek;
+            switch (type)
+            {
+                case RoadType.Avenue: return AvenueUpkeepPerMetrePerWeek;
+                case RoadType.Highway: return HighwayUpkeepPerMetrePerWeek;
+                case RoadType.OneWayHighway: return OneWayHighwayUpkeepPerMetrePerWeek;
+                default: return UpkeepPerMetrePerWeek;
+            }
         }
 
         public bool CanAfford(double cost)

@@ -15,6 +15,15 @@ namespace UrbanGenesis.Simulation
 
         public int Degree { get { return segments.Count; } }
 
+        /// <summary>Three or more roads meet here (a T-junction, a four-way crossing, ...).</summary>
+        public bool IsIntersection { get { return segments.Count >= 3; } }
+
+        /// <summary>The player has switched the traffic lights off here. They are on by default.</summary>
+        public bool TrafficLightsOff { get; internal set; }
+
+        /// <summary>Traffic lights stand here: it is an intersection and they have not been switched off.</summary>
+        public bool HasTrafficLight { get { return IsIntersection && !TrafficLightsOff; } }
+
         public RoadNode(int id, Vec2 position)
         {
             Id = id;

@@ -28,7 +28,7 @@ namespace UrbanGenesis.Simulation
 
             foreach (RoadNode node in Roads.Nodes)
             {
-                s.Nodes.Add(new CitySnapshot.NodeData { Id = node.Id, X = node.Position.X, Y = node.Position.Y });
+                s.Nodes.Add(new CitySnapshot.NodeData { Id = node.Id, X = node.Position.X, Y = node.Position.Y, LightsOff = node.TrafficLightsOff });
             }
 
             foreach (RoadSegment seg in Roads.Segments)
@@ -107,7 +107,7 @@ namespace UrbanGenesis.Simulation
             // Roads first: their lots appear as each segment is added.
             foreach (CitySnapshot.NodeData n in s.Nodes)
             {
-                city.Roads.RestoreNode(n.Id, new Vec2(n.X, n.Y));
+                city.Roads.RestoreNode(n.Id, new Vec2(n.X, n.Y)).TrafficLightsOff = n.LightsOff;
             }
 
             var segments = new List<CitySnapshot.SegmentData>(s.Segments);

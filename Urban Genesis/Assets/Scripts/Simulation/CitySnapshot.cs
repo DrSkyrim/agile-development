@@ -42,6 +42,7 @@ namespace UrbanGenesis.Simulation
             public int Id;
             public double X;
             public double Y;
+            public bool LightsOff;
         }
 
         [Serializable]
