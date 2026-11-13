@@ -398,6 +398,7 @@ namespace UrbanGenesis.Game
             {
                 case RoadType.Avenue: return CityPalette.Avenue;
                 case RoadType.Highway:
+                case RoadType.TwoLaneHighway:
                 case RoadType.OneWayHighway: return CityPalette.Highway;
                 default: return CityPalette.Road;
             }
@@ -434,6 +435,11 @@ namespace UrbanGenesis.Game
                         AddStrip(c, s0, s1, lane - dashHalf, lane + dashHalf, CityPalette.RoadEdge);
                         AddStrip(c, s0, s1, -lane - dashHalf, -lane + dashHalf, CityPalette.RoadEdge);
                     }
+                    break;
+
+                case RoadType.TwoLaneHighway:
+                    AddStrip(c, s0, s1, 0.15, 0.5, CityPalette.RoadCentre);
+                    AddStrip(c, s0, s1, -0.5, -0.15, CityPalette.RoadCentre);
                     break;
 
                 case RoadType.Highway:

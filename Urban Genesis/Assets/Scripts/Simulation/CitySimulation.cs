@@ -199,6 +199,67 @@ namespace UrbanGenesis.Simulation
             return true;
         }
 
+        /// <summary>Raised when lane connections change at an intersection.</summary>
+        public event Action<RoadNode> LaneConnectionsChanged;
+
+        /// <summary>
+        /// Allows or forbids one lane of <paramref name="from"/> to continue into <paramref name="to"/> at an intersection.
+        /// Returns false with a reason in <paramref name="error"/> if that is not possible (for example it would leave the lane with no exit).
+        /// </summary>
+        public bool SetLaneTurn(RoadNode node, RoadSegment from, int lane, RoadSegment to, bool allowed, out string error)
+        {
+            error = null;
+            if (node == null || from == null || to == null || !node.IsIntersection)
+            {
+                error = "Lane connections can only be set at intersections.";
+                return false;
+            }
+
+            if (!node.IsTurnPossible(from, to) || lane < 0 || lane >= node.ArrivingLanes(from))
+            {
+                error = "Traffic cannot make that turn.";
+                return false;
+            }
+
+            if (node.IsTurnAllowed(from, lane, to) == allowed)
+            {
+                return true;
+            }
+
+            if (!allowed && node.CountExits(from, lane) <= 1)
+            {
+                error = "Every lane needs at least one exit.";
+                return false;
+            }
+
+            node.SetTurn(from.Id, lane, to.Id, allowed);
+            Revision++;
+            Action<RoadNode> changed = LaneConnectionsChanged;
+            if (changed != null)
+            {
+                changed(node);
+            }
+
+            return true;
+        }
+
+        /// <summary>Lets every lane go everywhere again at this intersection.</summary>
+        public void ResetLaneTurns(RoadNode node)
+        {
+            if (node == null || node.BlockedTurns.Count == 0)
+            {
+                return;
+            }
+
+            node.ClearTurns();
+            Revision++;
+            Action<RoadNode> changed = LaneConnectionsChanged;
+            if (changed != null)
+            {
+                changed(node);
+            }
+        }
+
         private readonly List<OutsideConnection> outsideConnections = new List<OutsideConnection>();
 
         /// <summary>The highways that link the city to the outside world. They are free, cannot be bulldozed, and carry the trips in from outside later.</summary>

@@ -217,9 +217,18 @@ using `EffectiveCapacity`. Splitting a road keeps the closure state on both halv
 |---|---|---|---|---|---|---|
 | Street | 1+1 | 16 m | yes | anywhere | $15/m, $0.5/m/wk | 1.0 |
 | Avenue | 2+2 | 22 m | yes | anywhere | $30/m, $0.9/m/wk | 1.4 |
-| Highway | 2+2 | 28 m | no | ends only | $45/m, $1.5/m/wk | 2.0 |
+| Highway 1+1 | 1+1 | 20 m | no | ends only | $35/m, $1.2/m/wk | 1.8 |
+| Highway 2+2 | 2+2 | 28 m | no | ends only | $45/m, $1.5/m/wk | 2.0 |
 | One-way highway | 1, one way | 12 m | no | ends only | $30/m, $1.0/m/wk | 2.0 |
 
 - A one-way highway carries traffic from where you started drawing to where you finished (chevrons show the direction). The route calculation does **not** use the direction yet; that comes with the traffic feature.
 - **Traffic lights** stand at every intersection (3 or more roads meet, so T-junctions and four-way crossings). They cycle on their own, but the simulation does not use them yet: they exist so the traffic feature can decide how junctions behave.
 - **Junctions tool** (toolbar, or **J** / **6**): click an intersection to select it, then press **T** or the "Traffic lights" button to switch its lights off or on. The choice is saved.
+
+### Lane connections
+
+In the Junctions tool, select an intersection and small white dots appear on each lane that arrives there (lane 1 is the one beside the kerb, on the driver's right). Click a dot to pick that lane; a green or red marker then shows on every road it could continue into. Click a marker to allow (green) or block (red) that turn. "Reset lanes" in the options strip allows everything again.
+
+- Every lane must keep at least one exit, and U-turns and turns the road directions do not allow (into a one-way road that leads in) are not offered.
+- Rules follow the road when it is split by a new junction, are dropped when a road is removed, and are saved.
+- Like traffic lights, the rules are not used by the route calculation yet: they are stored for the traffic feature (`RoadNode.IsTurnAllowed`).

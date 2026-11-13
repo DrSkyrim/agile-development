@@ -545,6 +545,8 @@ namespace UrbanGenesis.Simulation
 
             segments[first.Id] = first;
             segments[second.Id] = second;
+            old.A.ReplaceSegmentInTurns(old.Id, first.Id);
+            old.B.ReplaceSegmentInTurns(old.Id, second.Id);
             old.A.Attach(first);
             middle.Attach(first);
             middle.Attach(second);
@@ -566,6 +568,8 @@ namespace UrbanGenesis.Simulation
             segments.Remove(segment.Id);
             segment.A.Detach(segment);
             segment.B.Detach(segment);
+            segment.A.ForgetSegmentInTurns(segment.Id);
+            segment.B.ForgetSegmentInTurns(segment.Id);
             if (segment.A.Degree == 0)
             {
                 nodes.Remove(segment.A.Id);

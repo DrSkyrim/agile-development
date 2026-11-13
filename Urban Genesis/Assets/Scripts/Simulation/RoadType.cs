@@ -13,13 +13,16 @@ namespace UrbanGenesis.Simulation
         Avenue = 2,
 
         /// <summary>A fast road with a single lane in one direction only (from where you started drawing to where you ended). No buildings, connects only at its ends.</summary>
-        OneWayHighway = 3
+        OneWayHighway = 3,
+
+        /// <summary>A smaller highway: one lane each way (1+1), 20 m wide, a solid double centre line. No buildings, connects only at its ends.</summary>
+        TwoLaneHighway = 4
     }
 
     /// <summary>The numbers and rules that differ between road types.</summary>
     public static class RoadSpecs
     {
-        public static readonly RoadType[] All = { RoadType.Street, RoadType.Avenue, RoadType.Highway, RoadType.OneWayHighway };
+        public static readonly RoadType[] All = { RoadType.Street, RoadType.Avenue, RoadType.TwoLaneHighway, RoadType.Highway, RoadType.OneWayHighway };
 
         /// <summary>The widest road, for searching around roads without knowing their type.</summary>
         public const double MaxWidth = 28.0;
@@ -30,7 +33,8 @@ namespace UrbanGenesis.Simulation
             switch (type)
             {
                 case RoadType.Avenue: return "Avenue";
-                case RoadType.Highway: return "Highway";
+                case RoadType.Highway:
+                case RoadType.TwoLaneHighway: return "Highway";
                 case RoadType.OneWayHighway: return "One-way highway";
                 default: return "Street";
             }
@@ -66,8 +70,39 @@ namespace UrbanGenesis.Simulation
                 case RoadType.Avenue: return 22.0;
                 case RoadType.Highway: return 28.0;
                 case RoadType.OneWayHighway: return 12.0;
+                case RoadType.TwoLaneHighway: return 20.0;
                 default: return 16.0;
             }
+        }
+
+        /// <summary>Half the width of the strip down the middle (median or double line) that separates the two directions.</summary>
+        public static double MedianHalfWidth(RoadType type)
+        {
+            switch (type)
+            {
+                case RoadType.Highway: return 1.4;
+                case RoadType.Avenue: return 0.6;
+                case RoadType.TwoLaneHighway: return 0.7;
+                case RoadType.OneWayHighway: return 0.0;
+                default: return 0.35;
+            }
+        }
+
+        /// <summary>
+        /// How far from the road's centre line the middle of a lane is. Lane 0 is the outermost lane on its side (the one beside the kerb),
+        /// higher numbers are closer to the middle. A one-way road's single lane is on the centre line.
+        /// </summary>
+        public static double LaneOffset(RoadType type, int lane)
+        {
+            if (IsOneWay(type))
+            {
+                return 0.0;
+            }
+
+            int lanes = LanesPerDirection(type);
+            double median = MedianHalfWidth(type);
+            double laneWidth = (HalfWidth(type) - median) / lanes;
+            return HalfWidth(type) - (lane + 0.5) * laneWidth;
         }
 
         public static double HalfWidth(RoadType type)
@@ -95,6 +130,7 @@ namespace UrbanGenesis.Simulation
                 case RoadType.Avenue: return 1.4;
                 case RoadType.Highway: return 2.0;
                 case RoadType.OneWayHighway: return 2.0;
+                case RoadType.TwoLaneHighway: return 1.8;
                 default: return 1.0;
             }
         }
@@ -116,6 +152,7 @@ namespace UrbanGenesis.Simulation
                 case RoadType.Avenue: return 2f;
                 case RoadType.Highway: return 3f;
                 case RoadType.OneWayHighway: return 1.5f;
+                case RoadType.TwoLaneHighway: return 2f;
                 default: return 1f;
             }
         }

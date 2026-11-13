@@ -81,6 +81,7 @@ namespace UrbanGenesis.Game
         private Label junctionLabel;
         private VisualElement lightsChip;
         private Label lightsChipLabel;
+        private VisualElement resetLanesChip;
         private VisualElement chipFill;
         private readonly VisualElement[] zoneChips = new VisualElement[3];
         private Label brushLabel;
@@ -604,6 +605,8 @@ namespace UrbanGenesis.Game
             lightsChip = Chip("Traffic lights: on", () => tools.ToggleSelectedLights(), null);
             lightsChipLabel = (Label)lightsChip.ElementAt(0);
             junctionOptions.Add(lightsChip);
+            resetLanesChip = Chip("Reset lanes", () => tools.ResetSelectedLanes(), null);
+            junctionOptions.Add(resetLanesChip);
             optionsPanel.Add(junctionOptions);
 
             zoneOptions = new VisualElement();
@@ -1020,6 +1023,7 @@ namespace UrbanGenesis.Game
             {
                 RoadNode picked = tools.SelectedJunction;
                 SetDisplay(lightsChip, picked != null);
+                SetDisplay(resetLanesChip, picked != null && picked.BlockedTurns.Count > 0);
                 if (picked == null)
                 {
                     SetText(junctionLabel, "Click an intersection to select it");

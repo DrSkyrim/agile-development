@@ -313,17 +313,61 @@ namespace UrbanGenesis.Game
             ShowResult(turnOn ? "Traffic lights switched on" : "Traffic lights switched off");
         }
 
+        private const double LaneMarkerPickRadius = 4.0;
+        private const double LaneMarkerDrawRadius = 1.8;
+        private static readonly Color LaneIdle = new Color(1f, 1f, 1f, 0.55f);
+        private static readonly Color LaneAllowed = new Color(0.30f, 0.90f, 0.50f, 0.85f);
+        private static readonly Color LaneBlocked = new Color(0.95f, 0.30f, 0.28f, 0.85f);
+
+        /// <summary>The road whose lane is being edited at the selected junction (null if no lane is picked).</summary>
+        public RoadSegment SelectedLaneRoad { get; private set; }
+
+        /// <summary>Which lane of <see cref="SelectedLaneRoad"/> (0 = the outermost, beside the kerb).</summary>
+        public int SelectedLane { get; private set; }
+
+        /// <summary>Lets every lane at the selected junction go everywhere again.</summary>
+        public void ResetSelectedLanes()
+        {
+            if (SelectedJunction == null)
+            {
+                return;
+            }
+
+            sim.ResetLaneTurns(SelectedJunction);
+            ShowResult("Lane connections reset");
+        }
+
+        private double LaneMarkerDistance(RoadNode node)
+        {
+            return JunctionRadius(node) + 7.0;
+        }
+
+        private void SelectJunction(RoadNode node)
+        {
+            if (node != SelectedJunction)
+            {
+                SelectedLaneRoad = null;
+            }
+
+            SelectedJunction = node;
+        }
+
         private void UpdateJunction(Mouse mouse, bool onMap, Vec2 p)
         {
             if (SelectedJunction != null && !SelectedJunction.IsIntersection)
             {
-                SelectedJunction = null; // a road was bulldozed and it is no longer an intersection
+                SelectJunction(null); // a road was bulldozed and it is no longer an intersection
+            }
+
+            if (SelectedLaneRoad != null && (SelectedJunction == null || !SelectedJunction.Segments.Contains(SelectedLaneRoad)))
+            {
+                SelectedLaneRoad = null;
             }
 
             RoadNode hover = onMap ? sim.Roads.FindIntersectionNear(p, JunctionPickRadius) : null;
             if (onMap && mouse.leftButton.wasPressedThisFrame)
             {
-                SelectedJunction = hover;
+                HandleJunctionClick(p, hover);
             }
 
             cityRenderer.BeginPreview();
@@ -335,15 +379,118 @@ namespace UrbanGenesis.Game
             if (SelectedJunction != null)
             {
                 cityRenderer.PreviewRing(SelectedJunction.Position, JunctionRadius(SelectedJunction) + 3.0, 2.2, JunctionSelected);
+                DrawLaneMarkers(SelectedJunction);
             }
 
             cityRenderer.EndPreview();
             previewShown = true;
             shownTool = ToolType.None; // so the cached-preview check never treats this as an up-to-date road/brush preview
 
-            liveText = SelectedJunction != null
-                ? "Junction selected: press T or use the button to switch its lights"
-                : "Junctions: click an intersection to select it";
+            if (SelectedJunction == null)
+            {
+                liveText = "Junctions: click an intersection to select it";
+            }
+            else if (SelectedLaneRoad == null)
+            {
+                liveText = "Junction: T switches the lights. Click a lane marker (white dot) to choose where that lane can go";
+            }
+            else
+            {
+                liveText = "Lane " + (SelectedLane + 1) + " of " + RoadSpecs.Name(SelectedLaneRoad.Type).ToLowerInvariant() + ": click a green or red marker to allow or block that turn";
+            }
+        }
+
+        private void HandleJunctionClick(Vec2 p, RoadNode hover)
+        {
+            RoadNode node = SelectedJunction;
+            if (node != null)
+            {
+                double distance = LaneMarkerDistance(node);
+
+                // 1. An exit marker of the picked lane: allow or block that turn.
+                if (SelectedLaneRoad != null)
+                {
+                    foreach (RoadSegment to in node.Segments)
+                    {
+                        if (!node.IsTurnPossible(SelectedLaneRoad, to))
+                        {
+                            continue;
+                        }
+
+                        if (Vec2.Distance(LaneGeometry.LeavingSide(to, node, distance), p) <= LaneMarkerPickRadius)
+                        {
+                            string error;
+                            bool allow = !node.IsTurnAllowed(SelectedLaneRoad, SelectedLane, to);
+                            if (!sim.SetLaneTurn(node, SelectedLaneRoad, SelectedLane, to, allow, out error))
+                            {
+                                ShowResult(error);
+                            }
+
+                            return;
+                        }
+                    }
+                }
+
+                // 2. A lane marker: pick that lane (click it again to put it down).
+                foreach (RoadSegment arm in node.Segments)
+                {
+                    int lanes = node.ArrivingLanes(arm);
+                    for (int lane = 0; lane < lanes; lane++)
+                    {
+                        if (Vec2.Distance(LaneGeometry.ArrivingLane(arm, node, lane, distance), p) <= LaneMarkerPickRadius)
+                        {
+                            if (SelectedLaneRoad == arm && SelectedLane == lane)
+                            {
+                                SelectedLaneRoad = null;
+                            }
+                            else
+                            {
+                                SelectedLaneRoad = arm;
+                                SelectedLane = lane;
+                            }
+
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // 3. Anything else: pick that intersection, or nothing.
+            SelectJunction(hover);
+        }
+
+        private void DrawLaneMarkers(RoadNode node)
+        {
+            double distance = LaneMarkerDistance(node);
+            foreach (RoadSegment arm in node.Segments)
+            {
+                int lanes = node.ArrivingLanes(arm);
+                for (int lane = 0; lane < lanes; lane++)
+                {
+                    bool picked = arm == SelectedLaneRoad && lane == SelectedLane;
+                    cityRenderer.PreviewDisc(LaneGeometry.ArrivingLane(arm, node, lane, distance), picked ? LaneMarkerDrawRadius * 1.35 : LaneMarkerDrawRadius, picked ? JunctionSelected : LaneIdle);
+                }
+            }
+
+            if (SelectedLaneRoad == null)
+            {
+                return;
+            }
+
+            Vec2 from = LaneGeometry.ArrivingLane(SelectedLaneRoad, node, SelectedLane, distance);
+            foreach (RoadSegment to in node.Segments)
+            {
+                if (!node.IsTurnPossible(SelectedLaneRoad, to))
+                {
+                    continue;
+                }
+
+                Vec2 exit = LaneGeometry.LeavingSide(to, node, distance);
+                Color color = node.IsTurnAllowed(SelectedLaneRoad, SelectedLane, to) ? LaneAllowed : LaneBlocked;
+                var path = new RoadCurve(from, node.Position, exit);
+                cityRenderer.PreviewRibbon(path.Sample(2.0), 0.45, color);
+                cityRenderer.PreviewDisc(exit, LaneMarkerDrawRadius * 1.25, color);
+            }
         }
 
         private static double JunctionRadius(RoadNode node)

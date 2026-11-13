@@ -43,6 +43,15 @@ namespace UrbanGenesis.Simulation
             public double X;
             public double Y;
             public bool LightsOff;
+            public List<TurnData> BlockedTurns = new List<TurnData>();
+        }
+
+        [Serializable]
+        public sealed class TurnData
+        {
+            public int From;
+            public int Lane;
+            public int To;
         }
 
         [Serializable]

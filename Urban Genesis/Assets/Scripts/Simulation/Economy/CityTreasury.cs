@@ -25,6 +25,8 @@ namespace UrbanGenesis.Simulation
 
         public double BuildCostPerMetre = 15.0;
         public double UpkeepPerMetrePerWeek = 0.5;
+        public double TwoLaneHighwayBuildCostPerMetre = 35.0;
+        public double TwoLaneHighwayUpkeepPerMetrePerWeek = 1.2;
         public double AvenueBuildCostPerMetre = 30.0;
         public double AvenueUpkeepPerMetrePerWeek = 0.9;
         public double OneWayHighwayBuildCostPerMetre = 30.0;
@@ -73,6 +75,7 @@ namespace UrbanGenesis.Simulation
                 case RoadType.Avenue: return AvenueBuildCostPerMetre;
                 case RoadType.Highway: return HighwayBuildCostPerMetre;
                 case RoadType.OneWayHighway: return OneWayHighwayBuildCostPerMetre;
+                case RoadType.TwoLaneHighway: return TwoLaneHighwayBuildCostPerMetre;
                 default: return BuildCostPerMetre;
             }
         }
@@ -84,6 +87,7 @@ namespace UrbanGenesis.Simulation
                 case RoadType.Avenue: return AvenueUpkeepPerMetrePerWeek;
                 case RoadType.Highway: return HighwayUpkeepPerMetrePerWeek;
                 case RoadType.OneWayHighway: return OneWayHighwayUpkeepPerMetrePerWeek;
+                case RoadType.TwoLaneHighway: return TwoLaneHighwayUpkeepPerMetrePerWeek;
                 default: return UpkeepPerMetrePerWeek;
             }
         }
