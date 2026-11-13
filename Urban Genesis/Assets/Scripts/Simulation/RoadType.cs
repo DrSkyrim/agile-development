@@ -130,7 +130,9 @@ namespace UrbanGenesis.Simulation
 
         /// <summary>
         /// Whether a road of type <paramref name="joining"/> may end in the middle of an existing road of type <paramref name="host"/>.
-        /// Streets and avenues take anything that allows junctions; highways take only one-way highways, which act as their ramps (turn-offs).
+        /// Streets and avenues join each other anywhere. Any highway-class road (including one-way ramps) may end on the middle of a
+        /// street, an avenue or a two-way highway. Streets and avenues cannot join a highway mid-way (they use its ends or a ramp),
+        /// and nothing joins the middle of a one-way highway.
         /// </summary>
         public static bool CanJoinMidway(RoadType joining, RoadType host)
         {
@@ -139,7 +141,7 @@ namespace UrbanGenesis.Simulation
                 return true;
             }
 
-            return joining == RoadType.OneWayHighway && IsHighway(host);
+            return !HasLots(joining) && (IsHighway(host) || HasLots(host));
         }
 
         /// <summary>How fast traffic moves compared with a street. Used by route costs.</summary>
@@ -157,6 +159,11 @@ namespace UrbanGenesis.Simulation
 
         public static double MinLength(RoadType type)
         {
+            if (type == RoadType.OneWayHighway)
+            {
+                return 50.0; // ramps and slip roads are short
+            }
+
             return HasLots(type) ? RoadNetwork.MinRoadLength : 100.0;
         }
 

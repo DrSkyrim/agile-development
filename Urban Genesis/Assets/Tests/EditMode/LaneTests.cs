@@ -172,7 +172,7 @@ namespace UrbanGenesis.Tests
             Assert.IsNotNull(highway);
 
             Assert.IsFalse(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.Street).IsValid, "a street cannot join");
-            Assert.IsFalse(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.Highway).IsValid, "a highway cannot join");
+            Assert.IsTrue(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.Highway).IsValid, "a highway can join another highway");
 
             RoadPlan exit = city.PlanRoad(new Vec2(0, 0), null, new Vec2(250, 250), RoadType.OneWayHighway);
             Assert.IsTrue(exit.IsValid, exit.Error);
@@ -196,11 +196,12 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
-        public void ARampCannotJoinTheMiddleOfAStreet()
+        public void ARampCanEndOnTheMiddleOfAStreet()
         {
             var city = new CitySimulation(1);
             city.PlaceRoad(city.PlanRoad(new Vec2(-300, 0), null, new Vec2(300, 0)));
-            Assert.IsFalse(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.OneWayHighway).IsValid);
+            RoadPlan plan = city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.OneWayHighway);
+            Assert.IsTrue(plan.IsValid, plan.Error);
         }
     }
 }

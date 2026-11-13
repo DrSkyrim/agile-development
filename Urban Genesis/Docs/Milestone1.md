@@ -235,4 +235,11 @@ In the Junctions tool, select an intersection and small white dots appear on eac
 
 ### Highway turn-offs (ramps)
 
-A **one-way highway** can start or end anywhere along a Highway 1+1 or Highway 2+2: the highway splits there and the one-way road becomes an exit or an entrance, depending on which way you draw it. Nothing else can join a highway mid-way (streets and other highways still connect at ends only). Because a wide road takes a while to get clear of, a ramp needs to leave at roughly 30° or more. Junctions made only of highways and ramps flow freely and have no traffic lights, but the lane-connection tool works there.
+A **one-way highway** can start or end anywhere along a Highway 1+1 or Highway 2+2: the highway splits there and the one-way road becomes an exit or an entrance, depending on which way you draw it. Streets and avenues still connect to a highway only at its ends (or via a ramp). Because a wide road takes a while to get clear of, a ramp needs to leave at roughly 30° or more. Junctions made only of highways and ramps flow freely and have no traffic lights, but the lane-connection tool works there.
+
+### Highway junctions and crossings
+
+- Any highway-class road (Highway 1+1, Highway 2+2, one-way highway) may **end on the middle of another highway, a street or an avenue**, which splits it there.
+- A highway may **cross** another highway: both are split and a flat four-way junction is made, with no traffic lights. A crossing must be at least about 35° (not a shallow graze), at least 30 m from either road's end or from another junction, and a new road may cross each existing road once. Streets and avenues cannot cross highways.
+- One-way highways need only **50 m** (other highways keep 100 m, streets 40 m).
+- There is no bridge or underpass yet, so crossings are always at street level.

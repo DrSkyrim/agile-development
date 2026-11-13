@@ -26,6 +26,16 @@ namespace UrbanGenesis.Simulation
     }
 
     /// <summary>The result of checking a road before building it. If valid, hand it to <see cref="RoadNetwork.AddRoad"/>.</summary>
+    /// <summary>A place where a new highway crosses an existing one.</summary>
+    internal sealed class RoadCrossing
+    {
+        public int SegmentId;
+        public double HostLength;
+        public double NewLength;
+        public Vec2 Point;
+        public double Zone;
+    }
+
     public sealed class RoadPlan
     {
         public RoadPlan()
@@ -42,6 +52,9 @@ namespace UrbanGenesis.Simulation
         public RoadType Type { get; internal set; }
         public RoadAnchor Start { get; internal set; }
         public RoadAnchor End { get; internal set; }
+
+        /// <summary>Where this road crosses other highways (a flat four-way junction at each), in order along the road.</summary>
+        internal List<RoadCrossing> Crossings = new List<RoadCrossing>();
 
         /// <summary>
         /// Buildings the road would run over. Filled in by <see cref="CitySimulation.PlanRoad"/> (the road network alone
@@ -267,13 +280,20 @@ namespace UrbanGenesis.Simulation
                 return RoadPlan.Fail(angleError);
             }
 
-            string clearanceError = CheckClearance(curve, samples, a, b, type);
+            List<RoadCrossing> crossings;
+            string crossingError = FindCrossings(curve, a, b, type, out crossings);
+            if (crossingError != null)
+            {
+                return RoadPlan.Fail(crossingError);
+            }
+
+            string clearanceError = CheckClearance(curve, samples, a, b, type, crossings);
             if (clearanceError != null)
             {
                 return RoadPlan.Fail(clearanceError);
             }
 
-            return new RoadPlan { IsValid = true, Error = string.Empty, Curve = curve, Type = type, Start = a, End = b };
+            return new RoadPlan { IsValid = true, Error = string.Empty, Curve = curve, Type = type, Start = a, End = b, Crossings = crossings };
         }
 
         private static bool SameJunction(RoadAnchor a, RoadAnchor b)
@@ -375,7 +395,7 @@ namespace UrbanGenesis.Simulation
             return null;
         }
 
-        private string CheckClearance(RoadCurve curve, List<Vec2> samples, RoadAnchor a, RoadAnchor b, RoadType type)
+        private string CheckClearance(RoadCurve curve, List<Vec2> samples, RoadAnchor a, RoadAnchor b, RoadType type, List<RoadCrossing> crossings)
         {
             foreach (RoadSegment other in SegmentsNear(curve.Bounds, RoadSpecs.MaxWidth))
             {
@@ -385,9 +405,20 @@ namespace UrbanGenesis.Simulation
                 // A wide road takes longer to get clear of: scale the zone around the junction with its width (a street is the baseline).
                 double zone = JunctionZone * Math.Max(1.0, other.Width / RoadSpecs.Width(RoadType.Street));
 
+                RoadCrossing crossing = null;
+                for (int c = 0; c < crossings.Count; c++)
+                {
+                    if (crossings[c].SegmentId == other.Id) { crossing = crossings[c]; }
+                }
+
                 for (int i = 0; i < samples.Count; i++)
                 {
                     Vec2 p = samples[i];
+                    if (crossing != null && Vec2.Distance(p, crossing.Point) < crossing.Zone)
+                    {
+                        continue;
+                    }
+
                     if ((nearA && Vec2.Distance(p, a.Position) < zone) ||
                         (nearB && Vec2.Distance(p, b.Position) < zone))
                     {
@@ -402,6 +433,126 @@ namespace UrbanGenesis.Simulation
             }
 
             return null;
+        }
+
+        private const double CrossingMargin = 30.0;
+        private const double MinCrossingSine = 0.57; // about 35 degrees
+
+        /// <summary>
+        /// Finds where a new limited-access road (a highway or ramp) crosses existing ones. Each crossing becomes a flat four-way junction.
+        /// Returns an error message if the crossing is not acceptable (too shallow, too close to an end, crossing the same road twice).
+        /// </summary>
+        private string FindCrossings(RoadCurve curve, RoadAnchor a, RoadAnchor b, RoadType type, out List<RoadCrossing> crossings)
+        {
+            crossings = new List<RoadCrossing>();
+            if (RoadSpecs.HasLots(type))
+            {
+                return null;
+            }
+
+            List<Vec2> mine = curve.Sample(2.0);
+            foreach (RoadSegment other in SegmentsNear(curve.Bounds, RoadSpecs.MaxWidth))
+            {
+                if (RoadSpecs.HasLots(other.Type) || Touches(a, other) || Touches(b, other))
+                {
+                    continue;
+                }
+
+                List<Vec2> theirs = other.Curve.Sample(2.0);
+                bool found = false;
+                Vec2 first = Vec2.Zero;
+                for (int i = 0; i + 1 < mine.Count; i++)
+                {
+                    for (int j = 0; j + 1 < theirs.Count; j++)
+                    {
+                        Vec2 hit;
+                        if (!SegmentsIntersect(mine[i], mine[i + 1], theirs[j], theirs[j + 1], out hit))
+                        {
+                            continue;
+                        }
+
+                        if (!found)
+                        {
+                            found = true;
+                            first = hit;
+                        }
+                        else if (Vec2.Distance(hit, first) > 6.0)
+                        {
+                            return "A highway can cross another road only once.";
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    continue;
+                }
+
+                // Home in on the exact crossing point on both curves.
+                double d;
+                double sOther = other.Curve.ClosestLength(first, out d);
+                double sNew = curve.ClosestLength(first, out d);
+                for (int k = 0; k < 8; k++)
+                {
+                    sNew = curve.ClosestLength(other.Curve.PointAtLength(sOther), out d);
+                    sOther = other.Curve.ClosestLength(curve.PointAtLength(sNew), out d);
+                }
+
+                Vec2 tNew = curve.TangentAtLength(sNew);
+                Vec2 tOther = other.Curve.TangentAtLength(sOther);
+                double sine = Math.Abs(tNew.X * tOther.Y - tNew.Y * tOther.X);
+                if (sine < MinCrossingSine)
+                {
+                    return "Cross the other road at a steeper angle (at least about 35 degrees).";
+                }
+
+                if (sOther < CrossingMargin || sOther > other.Length - CrossingMargin || sNew < CrossingMargin || sNew > curve.Length - CrossingMargin)
+                {
+                    return "Too close to the end of a road to cross here: cross at least " + (int)CrossingMargin + " m from a junction or an end.";
+                }
+
+                crossings.Add(new RoadCrossing
+                {
+                    SegmentId = other.Id,
+                    HostLength = sOther,
+                    NewLength = sNew,
+                    Point = other.Curve.PointAtLength(sOther),
+                    Zone = (RoadSpecs.Width(type) + other.Width) * 0.5 / sine + 3.0
+                });
+            }
+
+            crossings.Sort((x, y) => x.NewLength.CompareTo(y.NewLength));
+            for (int i = 1; i < crossings.Count; i++)
+            {
+                if (crossings[i].NewLength - crossings[i - 1].NewLength < CrossingMargin)
+                {
+                    return "Two crossings are too close together.";
+                }
+            }
+
+            return null;
+        }
+
+        private static bool SegmentsIntersect(Vec2 p, Vec2 p2, Vec2 q, Vec2 q2, out Vec2 hit)
+        {
+            hit = Vec2.Zero;
+            double rx = p2.X - p.X, ry = p2.Y - p.Y;
+            double sx = q2.X - q.X, sy = q2.Y - q.Y;
+            double denominator = rx * sy - ry * sx;
+            if (Math.Abs(denominator) < 1e-12)
+            {
+                return false;
+            }
+
+            double t = ((q.X - p.X) * sy - (q.Y - p.Y) * sx) / denominator;
+            double u = ((q.X - p.X) * ry - (q.Y - p.Y) * rx) / denominator;
+            if (t < 0.0 || t > 1.0 || u < 0.0 || u > 1.0)
+            {
+                return false;
+            }
+
+            hit = new Vec2(p.X + t * rx, p.Y + t * ry);
+            return true;
         }
 
         /// <summary>True if the anchor joins this segment (or a node at one of its ends).</summary>
@@ -450,10 +601,45 @@ namespace UrbanGenesis.Simulation
                 endNode = ResolveNode(end);
             }
 
-            var segment = new RoadSegment(nextSegmentId++, startNode, endNode, plan.Curve, RoadSpecs.BaseCapacity(plan.Type), plan.Type);
+            if (plan.Crossings.Count == 0)
+            {
+                return AddPiece(startNode, endNode, plan.Curve, plan.Type);
+            }
+
+            // The road crosses other highways: split each of them at the crossing, then lay the new road in pieces between the new junctions.
+            RoadCurve rest = plan.Curve;
+            RoadNode previous = startNode;
+            double consumed = 0.0;
+            RoadSegment firstPieceAdded = null;
+            foreach (RoadCrossing crossing in plan.Crossings)
+            {
+                RoadSegment ignoredPiece;
+                RoadNode junction = SplitAt(crossing.SegmentId, crossing.HostLength, out ignoredPiece);
+
+                RoadCurve before;
+                RoadCurve after;
+                rest.SplitAtLength(crossing.NewLength - consumed, out before, out after);
+                RoadSegment added = AddPiece(previous, junction, new RoadCurve(previous.Position, before.P1, junction.Position), plan.Type);
+                if (firstPieceAdded == null)
+                {
+                    firstPieceAdded = added;
+                }
+
+                rest = after;
+                consumed = crossing.NewLength;
+                previous = junction;
+            }
+
+            AddPiece(previous, endNode, new RoadCurve(previous.Position, rest.P1, endNode.Position), plan.Type);
+            return firstPieceAdded;
+        }
+
+        private RoadSegment AddPiece(RoadNode from, RoadNode to, RoadCurve curve, RoadType type)
+        {
+            var segment = new RoadSegment(nextSegmentId++, from, to, curve, RoadSpecs.BaseCapacity(type), type);
             segments[segment.Id] = segment;
-            startNode.Attach(segment);
-            endNode.Attach(segment);
+            from.Attach(segment);
+            to.Attach(segment);
             Raise(SegmentAdded, segment);
             return segment;
         }

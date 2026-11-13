@@ -39,11 +39,12 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
-        public void AHighwayCannotJoinTheMiddleOfAStreet()
+        public void AHighwayCanEndOnTheMiddleOfAStreet()
         {
             var city = new CitySimulation(1);
             city.PlaceRoad(city.PlanRoad(A, null, B));
-            Assert.IsFalse(city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.Highway).IsValid);
+            RoadPlan plan = city.PlanRoad(new Vec2(0, 300), null, new Vec2(0, 2), RoadType.Highway);
+            Assert.IsTrue(plan.IsValid, plan.Error);
         }
 
         [Test]
