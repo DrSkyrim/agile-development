@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UrbanGenesis.Simulation;
+using UrbanGenesis.Simulation.Traffic;
 
 namespace UrbanGenesis.Game
 {
@@ -34,11 +35,12 @@ namespace UrbanGenesis.Game
         private bool lightsDirty = true;
         private readonly List<LightHead> lightHeads = new List<LightHead>();
         private Material lightRed, lightAmber, lightGreen, lightOff, poleMaterial;
-        private const float GreenSeconds = 6f, AmberSeconds = 1f;
 
         private sealed class LightHead
         {
             public MeshRenderer Renderer;
+            public RoadNode Node;
+            public RoadSegment Arm;
             public int Phase;
             public int Phases;
             public float Offset;
@@ -61,6 +63,11 @@ namespace UrbanGenesis.Game
         private readonly BuildingModelFactory modelFactory = new BuildingModelFactory();
 
         private readonly MeshBuilder builder = new MeshBuilder();
+
+        private CityTraffic traffic;
+
+        /// <summary>Lets the traffic lights show the real signal state used by the vehicles.</summary>
+        public void SetTraffic(CityTraffic cityTraffic) { traffic = cityTraffic; }
 
         public void Init(CitySimulation simulation)
         {
@@ -187,6 +194,8 @@ namespace UrbanGenesis.Game
                     Vec2 right = new Vec2(-away.Y, away.X); // right-hand side for a driver heading toward the junction
                     Vec2 spot = node.Position + away * (radius + 3.0) + right * (seg.HalfWidth + 1.0);
                     LightHead head = BuildLight(spot);
+                    head.Node = node;
+                    head.Arm = seg;
                     head.Phase = i % phases;
                     head.Phases = phases;
                     head.Offset = offset;
@@ -226,15 +235,14 @@ namespace UrbanGenesis.Game
                 return;
             }
 
-            float phaseLength = GreenSeconds + AmberSeconds;
             foreach (LightHead head in lightHeads)
             {
-                float t = Mathf.Repeat(Time.time + head.Offset, phaseLength * head.Phases);
-                int current = Mathf.FloorToInt(t / phaseLength);
-                float within = t - current * phaseLength;
-                int state; // 0 red, 1 green, 2 amber
-                if (current != head.Phase) { state = 0; }
-                else { state = within < GreenSeconds ? 1 : 2; }
+                int state = 0; // 0 red, 1 green, 2 amber
+                if (traffic != null)
+                {
+                    SignalState signal = traffic.Signals.StateFor(head.Node, head.Arm, traffic.Time);
+                    state = signal == SignalState.Green ? 1 : signal == SignalState.Amber ? 2 : 0;
+                }
 
                 if (state != head.Shown)
                 {

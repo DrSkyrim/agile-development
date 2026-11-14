@@ -243,3 +243,14 @@ A **one-way highway** can start or end anywhere along a Highway 1+1 or Highway 2
 - A highway may **cross** another highway: both are split and a flat four-way junction is made, with no traffic lights. A crossing must be at least about 35° (not a shallow graze), at least 30 m from either road's end or from another junction, and a new road may cross each existing road once. Streets and avenues cannot cross highways.
 - One-way highways need only **50 m** (other highways keep 100 m, streets 40 m).
 - There is no bridge or underpass yet, so crossings are always at street level.
+
+## Traffic
+
+Cars, short trucks and long trucks now drive the roads (`Simulation/Traffic/`, drawn by `Game/TrafficRenderer.cs`).
+
+- **Where trips come from:** the economy's `TripFlow`s. Work and shopping trips become cars, goods trips become short or long trucks. Outside connections also bring in and take out cars and trucks. `CityTraffic.TripsPerVolume`, `OutsideTripsPerTick` and `MaxVehicles` (300) tune the amount.
+- **Routing:** `RoutePlanner` finds the quickest route over directed roads, so one-way roads, banned lane turns and closed roads are respected. Vehicles may turn around at dead ends.
+- **Driving:** each vehicle follows the one ahead per lane (IDM car-following), picks a lane that is allowed to make its next turn, and slows for bends and its destination.
+- **Junctions:** traffic lights use the real signal timing (`TrafficSignals`), the same one the light poles show. Unlit junctions let one vehicle through at a time, longest waiter first. Vehicles never enter a junction unless the road beyond has room.
+- **Clean-up:** vehicles on removed or closed roads vanish, and a vehicle stuck for 90 s is removed (counted in `GridlockRemovals`). Traffic is not saved.
+- **Models:** placeholders built from cubes. To use your own, put prefabs at `Assets/Resources/Vehicles/Car`, `ShortTruck` and `LongTruck` (origin at the middle on the ground, front along +Z, metre scale).

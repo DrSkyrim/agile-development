@@ -23,6 +23,9 @@ namespace UrbanGenesis.Simulation
         public int SpeedLevel { get; private set; }
 
         public static int MaxSpeedLevel { get { return SpeedMultipliers.Length - 1; } }
+        /// <summary>How many times faster than normal the game runs now (0 when paused).</summary>
+        public double SpeedMultiplier { get { return SpeedMultipliers[SpeedLevel]; } }
+
         public bool IsPaused { get { return SpeedLevel == 0; } }
 
         public TickClock(double tickSeconds, int maxTicksPerAdvance)

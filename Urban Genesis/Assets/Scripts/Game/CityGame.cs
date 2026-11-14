@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UrbanGenesis.Simulation;
+using UrbanGenesis.Simulation.Traffic;
 
 namespace UrbanGenesis.Game
 {
@@ -30,6 +31,7 @@ namespace UrbanGenesis.Game
 
         public CitySimulation Simulation { get; private set; }
         public TickClock Clock { get; private set; }
+        public CityTraffic Traffic { get; private set; }
 
         /// <summary>Raised when the player asks to go back to the main menu. The game flow then destroys this object.</summary>
         public event Action MainMenuRequested;
@@ -70,7 +72,12 @@ namespace UrbanGenesis.Game
             rig = CreateChild<CameraRig>("Camera Rig");
             tools = CreateChild<ToolController>("Tools");
 
+            Traffic = new CityTraffic(Simulation, randomSeed);
+            TrafficRenderer trafficRenderer = CreateChild<TrafficRenderer>("Traffic Renderer");
+            trafficRenderer.Init(Traffic);
+
             cityRenderer.Init(Simulation);
+            cityRenderer.SetTraffic(Traffic);
             rig.Init(hud, (float)(Simulation.Roads.WorldBounds.MaxX));
             tools.Init(Simulation, rig, cityRenderer, hud);
             hud.Init(Simulation, Clock, tools, rig, CityName);
@@ -163,7 +170,11 @@ namespace UrbanGenesis.Game
             for (int i = 0; i < ticksDue; i++)
             {
                 Simulation.Step();
+                Traffic.OnTick();
             }
+
+            // Vehicles move in real time scaled by the game speed (nothing moves while paused).
+            Traffic.Advance(Math.Min(Time.unscaledDeltaTime, 0.1f) * Clock.SpeedMultiplier);
         }
 
         private T CreateChild<T>(string childName) where T : Component
