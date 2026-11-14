@@ -120,6 +120,42 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
+        public void VehiclesKeepToTheLaneConnectionsThePlayerSet()
+        {
+            var city = new CitySimulation(1);
+            city.Treasury.Enable(1e7);
+            city.PlaceRoad(city.PlanRoad(new Vec2(-300, 0), null, new Vec2(0, 0), RoadType.Avenue));
+            city.PlaceRoad(city.PlanRoad(new Vec2(0, 0), null, new Vec2(300, 0), RoadType.Avenue));
+            city.PlaceRoad(city.PlanRoad(new Vec2(0, 0), null, new Vec2(0, 200), RoadType.Street));
+            RoadNode centre = city.Roads.FindIntersectionNear(new Vec2(0, 0), 5);
+            RoadSegment west = Find(city, new Vec2(-150, 0)), east = Find(city, new Vec2(150, 0));
+            string error;
+            // Forbid crossing over: each lane may only continue into the same-numbered lane.
+            Assert.IsTrue(city.SetLaneConnection(centre, west, 0, east, 1, false, out error), error);
+            Assert.IsTrue(city.SetLaneConnection(centre, west, 1, east, 0, false, out error), error);
+            var traffic = new CityTraffic(city, 3);
+            int checkedCrossings = 0;
+            for (int n = 0; n < 6; n++)
+            {
+                Assert.IsTrue(traffic.TestSpawn(VehicleType.Car, west, 20 + n * 25, east, 200));
+                Vehicle v = traffic.Vehicles[traffic.Vehicles.Count - 1];
+                int enteredFrom = -1;
+                for (int i = 0; i < 3000 && traffic.Vehicles.Contains(v); i++)
+                {
+                    traffic.Advance(0.1);
+                    if (v.StepIndex == 1 && enteredFrom < 0 && !v.Arrived)
+                    {
+                        enteredFrom = v.PreviousLane;
+                        Assert.AreEqual(enteredFrom, v.Lane, "a lane continues only into its own number");
+                        checkedCrossings++;
+                    }
+                }
+            }
+
+            Assert.Greater(checkedCrossings, 0);
+        }
+
+        [Test]
         public void SignalsCycleAndNeverShowGreenToCrossingArmsTogether()
         {
             CitySimulation city = Cross();

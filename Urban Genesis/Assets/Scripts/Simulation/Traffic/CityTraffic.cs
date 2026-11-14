@@ -361,6 +361,39 @@ namespace UrbanGenesis.Simulation.Traffic
             return chosen;
         }
 
+        /// <summary>The lane to enter on the next road: one joined to the lane the vehicle is in, that also allows the turn after it, and is not busy.</summary>
+        private int ChooseNextLane(Vehicle v)
+        {
+            RouteStep step = v.Step;
+            RouteStep next = v.Route[v.StepIndex + 1];
+            RoadNode node = v.NextNode;
+            if (node.Degree < 3 || next.Segment == step.Segment)
+            {
+                return PickLane(v, v.StepIndex + 1, v.Lane);
+            }
+
+            int count = RoadSpecs.LanesPerDirection(next.Segment.Type);
+            RoadNode beyond = next.Forward ? next.Segment.B : next.Segment.A;
+            RoadSegment following = v.StepIndex + 2 < v.Route.Count ? v.Route[v.StepIndex + 2].Segment : null;
+            int chosen = -1;
+            double bestScore = double.MaxValue;
+            for (int l = 0; l < count; l++)
+            {
+                if (!node.IsLaneConnected(step.Segment, v.Lane, next.Segment, l))
+                {
+                    continue;
+                }
+
+                bool turnOk = following == null || beyond.Degree < 3 || following == next.Segment || beyond.IsTurnAllowed(next.Segment, l, following);
+                List<Vehicle> list;
+                int busy = lanes.TryGetValue(LaneKey(next.Segment, next.Forward, l), out list) ? list.Count : 0;
+                double score = (turnOk ? 0.0 : 1000.0) + busy * 3.0 + Math.Abs(l - v.Lane);
+                if (score < bestScore) { bestScore = score; chosen = l; }
+            }
+
+            return chosen >= 0 ? chosen : PickLane(v, v.StepIndex + 1, v.Lane);
+        }
+
         // ------------------------------------------------------------------ movement
 
         /// <summary>Moves every vehicle on by <paramref name="seconds"/> of traffic time (0 when the game is paused).</summary>
@@ -490,7 +523,7 @@ namespace UrbanGenesis.Simulation.Traffic
             RoadNode node = v.NextNode;
             RouteStep step = v.Step;
             RouteStep next = v.Route[v.StepIndex + 1];
-            int nextLane = PickLane(v, v.StepIndex + 1, v.Lane);
+            int nextLane = ChooseNextLane(v);
             plannedLane[v] = nextLane;
             v.NextLane = nextLane;
 

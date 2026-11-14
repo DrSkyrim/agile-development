@@ -140,6 +140,33 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
+        public void ALaneCanBeJoinedToOneSpecificLaneOfTheRoadItEnters()
+        {
+            RoadNode centre;
+            CitySimulation city = Cross(RoadType.Avenue, out centre);
+            RoadSegment west = Arm(centre, -1, 0), east = Arm(centre, 1, 0), north = Arm(centre, 0, 1), south = Arm(centre, 0, -1);
+            string error;
+
+            Assert.IsTrue(city.SetLaneConnection(centre, west, 1, east, 0, false, out error));
+            Assert.IsFalse(centre.IsLaneConnected(west, 1, east, 0));
+            Assert.IsTrue(centre.IsLaneConnected(west, 1, east, 1), "the other lane of the same road is still joined");
+            Assert.IsTrue(centre.IsTurnAllowed(west, 1, east));
+            Assert.IsTrue(centre.IsLaneConnected(west, 0, east, 0), "other lanes are untouched");
+
+            int skipped;
+            CitySimulation loaded = CitySimulation.Restore(city.Capture(), out skipped);
+            RoadNode again = loaded.Roads.FindIntersectionNear(new Vec2(0, 0), 5);
+            Assert.IsFalse(again.IsLaneConnected(Arm(again, -1, 0), 1, Arm(again, 1, 0), 0));
+            Assert.IsTrue(again.IsLaneConnected(Arm(again, -1, 0), 1, Arm(again, 1, 0), 1));
+
+            // Cut every other way out of that lane: the last one cannot go.
+            Assert.IsTrue(city.SetLaneConnection(centre, west, 1, north, -1, false, out error));
+            Assert.IsTrue(city.SetLaneConnection(centre, west, 1, south, -1, false, out error));
+            Assert.IsFalse(city.SetLaneConnection(centre, west, 1, east, 1, false, out error));
+            Assert.AreEqual(1, centre.CountLaneExits(west, 1));
+        }
+
+        [Test]
         public void LaneRulesAreSaved_AndSurviveSplitsAndRemovals()
         {
             RoadNode centre;
@@ -157,7 +184,7 @@ namespace UrbanGenesis.Tests
             // A street joining the west arm halfway splits it; the rule must follow the piece that still touches the junction.
             Assert.IsNotNull(city.PlaceRoad(city.PlanRoad(new Vec2(-100, 150), null, new Vec2(-100, 2), RoadType.Street)));
             RoadNode after = city.Roads.FindIntersectionNear(new Vec2(0, 0), 5);
-            Assert.AreEqual(1, after.BlockedTurns.Count);
+            Assert.AreEqual(2, after.BlockedTurns.Count, "one rule per lane of the road it blocks");
             Assert.IsFalse(after.IsTurnAllowed(Arm(after, -1, 0), 1, Arm(after, 1, 0)));
 
             city.Roads.RemoveSegment(Arm(after, 1, 0));

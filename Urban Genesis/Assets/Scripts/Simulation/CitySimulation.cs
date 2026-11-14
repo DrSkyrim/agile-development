@@ -203,10 +203,18 @@ namespace UrbanGenesis.Simulation
         public event Action<RoadNode> LaneConnectionsChanged;
 
         /// <summary>
-        /// Allows or forbids one lane of <paramref name="from"/> to continue into <paramref name="to"/> at an intersection.
+        /// Allows or forbids one lane of <paramref name="from"/> to continue into every lane of <paramref name="to"/> at an intersection.
         /// Returns false with a reason in <paramref name="error"/> if that is not possible (for example it would leave the lane with no exit).
         /// </summary>
         public bool SetLaneTurn(RoadNode node, RoadSegment from, int lane, RoadSegment to, bool allowed, out string error)
+        {
+            return SetLaneConnection(node, from, lane, to, -1, allowed, out error);
+        }
+
+        /// <summary>
+        /// Allows or forbids the connection from one lane of <paramref name="from"/> into one lane (<paramref name="toLane"/>, or -1 for all of them) of <paramref name="to"/>.
+        /// </summary>
+        public bool SetLaneConnection(RoadNode node, RoadSegment from, int lane, RoadSegment to, int toLane, bool allowed, out string error)
         {
             error = null;
             if (node == null || from == null || to == null || !node.IsIntersection)
@@ -215,24 +223,46 @@ namespace UrbanGenesis.Simulation
                 return false;
             }
 
-            if (!node.IsTurnPossible(from, to) || lane < 0 || lane >= node.ArrivingLanes(from))
+            int leaving = node.LeavingLanes(to);
+            if (!node.IsTurnPossible(from, to) || lane < 0 || lane >= node.ArrivingLanes(from) || toLane >= leaving)
             {
                 error = "Traffic cannot make that turn.";
                 return false;
             }
 
-            if (node.IsTurnAllowed(from, lane, to) == allowed)
+            int first = toLane < 0 ? 0 : toLane;
+            int last = toLane < 0 ? leaving - 1 : toLane;
+            int changes = 0;
+            for (int l = first; l <= last; l++)
+            {
+                if (node.IsLaneConnected(from, lane, to, l) != allowed) { changes++; }
+            }
+
+            if (changes == 0)
             {
                 return true;
             }
 
-            if (!allowed && node.CountExits(from, lane) <= 1)
+            if (!allowed)
             {
-                error = "Every lane needs at least one exit.";
-                return false;
+                int connected = 0;
+                for (int l = first; l <= last; l++)
+                {
+                    if (node.IsLaneConnected(from, lane, to, l)) { connected++; }
+                }
+
+                if (node.CountLaneExits(from, lane) - connected < 1)
+                {
+                    error = "Every lane needs at least one exit.";
+                    return false;
+                }
             }
 
-            node.SetTurn(from.Id, lane, to.Id, allowed);
+            for (int l = first; l <= last; l++)
+            {
+                node.SetTurn(from.Id, lane, to.Id, l, allowed);
+            }
+
             Revision++;
             Action<RoadNode> changed = LaneConnectionsChanged;
             if (changed != null)

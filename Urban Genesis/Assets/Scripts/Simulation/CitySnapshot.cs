@@ -52,6 +52,9 @@ namespace UrbanGenesis.Simulation
             public int From;
             public int Lane;
             public int To;
+
+            /// <summary>1 + the lane entered (0 = every lane, as older saves recorded it).</summary>
+            public int ToLaneNumber;
         }
 
         [Serializable]

@@ -40,6 +40,12 @@ namespace UrbanGenesis.Simulation
             return OnArm(segment, node, offset, distance, false);
         }
 
+        /// <summary>The middle of lane <paramref name="lane"/> of a road leaving the junction, <paramref name="distance"/> metres from it.</summary>
+        public static Vec2 LeavingLane(RoadSegment segment, RoadNode node, int lane, double distance)
+        {
+            return OnArm(segment, node, RoadSpecs.LaneOffset(segment.Type, lane), distance, false);
+        }
+
         private static Vec2 OnArm(RoadSegment segment, RoadNode node, double offset, double distance, bool arriving)
         {
             bool atStart = segment.A == node;

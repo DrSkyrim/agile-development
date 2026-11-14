@@ -57,12 +57,15 @@ namespace UrbanGenesis.Simulation
 
         // ------------------------------------------------------------ lane connections
 
-        /// <summary>One lane's turn into one road that the player has forbidden. Everything not listed is allowed.</summary>
+        /// <summary>One lane's connection into one lane of another road that the player has forbidden. Everything not listed is allowed.</summary>
         public struct BlockedTurn
         {
             public int From;
             public int Lane;
             public int To;
+
+            /// <summary>The lane of the road being entered (0 = outermost). -1 only while loading old saves: every lane of the road.</summary>
+            public int ToLane;
         }
 
         private readonly List<BlockedTurn> blocked = new List<BlockedTurn>();
@@ -93,15 +96,36 @@ namespace UrbanGenesis.Simulation
             return from != to && CanArriveVia(from) && CanLeaveVia(to);
         }
 
-        /// <summary>Whether a vehicle in lane <paramref name="lane"/> (0 = outermost) of <paramref name="from"/> may go on into <paramref name="to"/>.</summary>
-        public bool IsTurnAllowed(RoadSegment from, int lane, RoadSegment to)
+        /// <summary>How many lanes leave this junction along the segment (0 if none can).</summary>
+        public int LeavingLanes(RoadSegment segment)
         {
-            if (!IsTurnPossible(from, to) || lane < 0 || lane >= ArrivingLanes(from))
+            return CanLeaveVia(segment) ? RoadSpecs.LanesPerDirection(segment.Type) : 0;
+        }
+
+        /// <summary>Whether lane <paramref name="lane"/> (0 = outermost) of <paramref name="from"/> is joined to lane <paramref name="toLane"/> of <paramref name="to"/>.</summary>
+        public bool IsLaneConnected(RoadSegment from, int lane, RoadSegment to, int toLane)
+        {
+            if (!IsTurnPossible(from, to) || lane < 0 || lane >= ArrivingLanes(from) || toLane < 0 || toLane >= LeavingLanes(to))
             {
                 return false;
             }
 
-            return IndexOfBlocked(from.Id, lane, to.Id) < 0;
+            return IndexOfBlocked(from.Id, lane, to.Id, toLane) < 0;
+        }
+
+        /// <summary>Whether a vehicle in lane <paramref name="lane"/> (0 = outermost) of <paramref name="from"/> may go on into <paramref name="to"/> (by any lane of it).</summary>
+        public bool IsTurnAllowed(RoadSegment from, int lane, RoadSegment to)
+        {
+            int lanes = LeavingLanes(to);
+            for (int l = 0; l < lanes; l++)
+            {
+                if (IsLaneConnected(from, lane, to, l))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>How many roads the lane may continue into.</summary>
@@ -119,16 +143,52 @@ namespace UrbanGenesis.Simulation
             return count;
         }
 
-        internal void SetTurn(int from, int lane, int to, bool allowed)
+        /// <summary>How many lanes (of any road) the lane is joined to.</summary>
+        public int CountLaneExits(RoadSegment from, int lane)
         {
-            int index = IndexOfBlocked(from, lane, to);
+            int count = 0;
+            for (int i = 0; i < segments.Count; i++)
+            {
+                int lanes = LeavingLanes(segments[i]);
+                for (int l = 0; l < lanes; l++)
+                {
+                    if (IsLaneConnected(from, lane, segments[i], l))
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        internal void SetTurn(int from, int lane, int to, int toLane, bool allowed)
+        {
+            int index = IndexOfBlocked(from, lane, to, toLane);
             if (allowed && index >= 0)
             {
                 blocked.RemoveAt(index);
             }
             else if (!allowed && index < 0)
             {
-                blocked.Add(new BlockedTurn { From = from, Lane = lane, To = to });
+                blocked.Add(new BlockedTurn { From = from, Lane = lane, To = to, ToLane = toLane });
+            }
+        }
+
+        /// <summary>Old saves blocked a whole road; spell that out lane by lane now that the roads are known.</summary>
+        internal void ExpandWildcardTurns()
+        {
+            for (int i = blocked.Count - 1; i >= 0; i--)
+            {
+                BlockedTurn t = blocked[i];
+                if (t.ToLane >= 0) { continue; }
+                blocked.RemoveAt(i);
+                for (int k = 0; k < segments.Count; k++)
+                {
+                    if (segments[k].Id != t.To) { continue; }
+                    int lanes = RoadSpecs.LanesPerDirection(segments[k].Type);
+                    for (int l = 0; l < lanes; l++) { SetTurn(t.From, t.Lane, t.To, l, false); }
+                }
             }
         }
 
@@ -151,11 +211,11 @@ namespace UrbanGenesis.Simulation
             blocked.RemoveAll(t => t.From == segmentId || t.To == segmentId);
         }
 
-        private int IndexOfBlocked(int from, int lane, int to)
+        private int IndexOfBlocked(int from, int lane, int to, int toLane)
         {
             for (int i = 0; i < blocked.Count; i++)
             {
-                if (blocked[i].From == from && blocked[i].Lane == lane && blocked[i].To == to)
+                if (blocked[i].From == from && blocked[i].Lane == lane && blocked[i].To == to && blocked[i].ToLane == toLane)
                 {
                     return i;
                 }

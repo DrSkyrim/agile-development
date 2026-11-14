@@ -31,7 +31,7 @@ namespace UrbanGenesis.Simulation
                 var data = new CitySnapshot.NodeData { Id = node.Id, X = node.Position.X, Y = node.Position.Y, LightsOff = node.TrafficLightsOff };
                 foreach (RoadNode.BlockedTurn t in node.BlockedTurns)
                 {
-                    data.BlockedTurns.Add(new CitySnapshot.TurnData { From = t.From, Lane = t.Lane, To = t.To });
+                    data.BlockedTurns.Add(new CitySnapshot.TurnData { From = t.From, Lane = t.Lane, To = t.To, ToLaneNumber = t.ToLane + 1 });
                 }
 
                 s.Nodes.Add(data);
@@ -117,7 +117,7 @@ namespace UrbanGenesis.Simulation
                 restored.TrafficLightsOff = n.LightsOff;
                 foreach (CitySnapshot.TurnData t in n.BlockedTurns)
                 {
-                    restored.SetTurn(t.From, t.Lane, t.To, false);
+                    restored.SetTurn(t.From, t.Lane, t.To, t.ToLaneNumber - 1, false);
                 }
             }
 
@@ -133,6 +133,7 @@ namespace UrbanGenesis.Simulation
                 }
             }
 
+            foreach (RoadNode node in city.Roads.Nodes) { node.ExpandWildcardTurns(); }
             city.Roads.NextNodeId = s.NextNodeId;
             city.Roads.NextSegmentId = s.NextSegmentId;
 

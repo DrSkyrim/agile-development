@@ -334,7 +334,7 @@ namespace UrbanGenesis.Game
             ShowResult(turnOn ? "Traffic lights switched on" : "Traffic lights switched off");
         }
 
-        private const double LaneMarkerPickRadius = 4.0;
+        private const double LaneMarkerPickRadius = 2.6;
         private const double LaneMarkerDrawRadius = 1.8;
         private static readonly Color LaneIdle = new Color(1f, 1f, 1f, 0.55f);
         private static readonly Color LaneAllowed = new Color(0.30f, 0.90f, 0.50f, 0.85f);
@@ -478,7 +478,7 @@ namespace UrbanGenesis.Game
             }
             else
             {
-                liveText = "Lane " + (SelectedLane + 1) + " of " + RoadSpecs.Name(SelectedLaneRoad.Type).ToLowerInvariant() + ": click a green or red marker to allow or block that turn";
+                liveText = "Lane " + (SelectedLane + 1) + " of " + RoadSpecs.Name(SelectedLaneRoad.Type).ToLowerInvariant() + ": click a green or red marker (one per lane of the road) to join or cut that connection";
             }
         }
 
@@ -489,9 +489,12 @@ namespace UrbanGenesis.Game
             {
                 double distance = LaneMarkerDistance(node);
 
-                // 1. An exit marker of the picked lane: allow or block that turn.
+                // 1. An exit marker (one per lane of each road it can enter): join that lane to the picked one, or cut the link.
                 if (SelectedLaneRoad != null)
                 {
+                    RoadSegment hitRoad = null;
+                    int hitLane = 0;
+                    double nearest = LaneMarkerPickRadius;
                     foreach (RoadSegment to in node.Segments)
                     {
                         if (!node.IsTurnPossible(SelectedLaneRoad, to))
@@ -499,17 +502,24 @@ namespace UrbanGenesis.Game
                             continue;
                         }
 
-                        if (Vec2.Distance(LaneGeometry.LeavingSide(to, node, distance), p) <= LaneMarkerPickRadius)
+                        int exitLanes = node.LeavingLanes(to);
+                        for (int l = 0; l < exitLanes; l++)
                         {
-                            string error;
-                            bool allow = !node.IsTurnAllowed(SelectedLaneRoad, SelectedLane, to);
-                            if (!sim.SetLaneTurn(node, SelectedLaneRoad, SelectedLane, to, allow, out error))
-                            {
-                                ShowResult(error);
-                            }
-
-                            return;
+                            double d = Vec2.Distance(LaneGeometry.LeavingLane(to, node, l, distance), p);
+                            if (d <= nearest) { nearest = d; hitRoad = to; hitLane = l; }
                         }
+                    }
+
+                    if (hitRoad != null)
+                    {
+                        string error;
+                        bool allow = !node.IsLaneConnected(SelectedLaneRoad, SelectedLane, hitRoad, hitLane);
+                        if (!sim.SetLaneConnection(node, SelectedLaneRoad, SelectedLane, hitRoad, hitLane, allow, out error))
+                        {
+                            ShowResult(error);
+                        }
+
+                        return;
                     }
                 }
 
@@ -567,11 +577,15 @@ namespace UrbanGenesis.Game
                     continue;
                 }
 
-                Vec2 exit = LaneGeometry.LeavingSide(to, node, distance);
-                Color color = node.IsTurnAllowed(SelectedLaneRoad, SelectedLane, to) ? LaneAllowed : LaneBlocked;
-                var path = new RoadCurve(from, node.Position, exit);
-                cityRenderer.PreviewRibbon(path.Sample(2.0), 0.45, color);
-                cityRenderer.PreviewDisc(exit, LaneMarkerDrawRadius * 1.25, color);
+                int exitLanes = node.LeavingLanes(to);
+                for (int l = 0; l < exitLanes; l++)
+                {
+                    Vec2 exit = LaneGeometry.LeavingLane(to, node, l, distance);
+                    Color color = node.IsLaneConnected(SelectedLaneRoad, SelectedLane, to, l) ? LaneAllowed : LaneBlocked;
+                    var path = new RoadCurve(from, node.Position, exit);
+                    cityRenderer.PreviewRibbon(path.Sample(2.0), 0.45, color);
+                    cityRenderer.PreviewDisc(exit, LaneMarkerDrawRadius * 1.25, color);
+                }
             }
         }
 
