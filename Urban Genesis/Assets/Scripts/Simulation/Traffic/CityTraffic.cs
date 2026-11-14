@@ -257,6 +257,8 @@ namespace UrbanGenesis.Simulation.Traffic
             v.Variant = rng.Next(1000);
             v.SpeedBias = 0.92 + rng.NextDouble() * 0.16;
             v.Lane = PickLane(v, 0, rng.Next(RoadSpecs.LanesPerDirection(first.Segment.Type)));
+            v.PreviousLane = v.Lane;
+            v.NextLane = v.Lane;
 
             List<Vehicle> list = LaneList(first.Segment, first.Forward, v.Lane);
             for (int i = 0; i < list.Count; i++)
@@ -490,6 +492,7 @@ namespace UrbanGenesis.Simulation.Traffic
             RouteStep next = v.Route[v.StepIndex + 1];
             int nextLane = PickLane(v, v.StepIndex + 1, v.Lane);
             plannedLane[v] = nextLane;
+            v.NextLane = nextLane;
 
             if (node.Degree < 3 || v.HeldNode == node)
             {
@@ -627,6 +630,7 @@ namespace UrbanGenesis.Simulation.Traffic
                 }
 
                 v.S -= length;
+                v.PreviousLane = v.Lane;
                 v.StepIndex++;
                 int lane;
                 if (!plannedLane.TryGetValue(v, out lane)) { lane = v.Lane; }
