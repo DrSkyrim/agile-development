@@ -437,7 +437,9 @@ namespace UrbanGenesis.Simulation.Traffic
                 for (int s = v.StepIndex; s < v.Route.Count && ok; s++)
                 {
                     RoadSegment seg = v.Route[s].Segment;
-                    ok = city.Roads.GetSegment(seg.Id) == seg && !seg.IsClosed;
+                    ok = city.Roads.GetSegment(seg.Id) == seg && !seg.IsClosed
+                        && (v.Route[s].Forward || !RoadSpecs.IsOneWay(seg.Type))
+                        && (s != v.StepIndex || v.Lane < RoadSpecs.LanesPerDirection(seg.Type));
                 }
 
                 if (!ok)

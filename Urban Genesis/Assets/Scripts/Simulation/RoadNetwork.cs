@@ -120,6 +120,9 @@ namespace UrbanGenesis.Simulation
         public event Action<RoadSegment> SegmentAdded;
         public event Action<RoadSegment> SegmentRemoved;
 
+        /// <summary>Raised when a road is rebuilt as another type (upgraded) without moving.</summary>
+        public event Action<RoadSegment> SegmentRetyped;
+
         /// <summary>Raised when a segment is cut in two by a new junction: (old segment, first part, second part, length of the first part).</summary>
         public event Action<RoadSegment, RoadSegment, RoadSegment, double> SegmentSplit;
 
@@ -166,6 +169,142 @@ namespace UrbanGenesis.Simulation
             }
 
             return result;
+        }
+
+        // ---------------------------------------------------------------- upgrading
+
+        /// <summary>Why a road cannot be rebuilt as <paramref name="type"/>, or null if it can.</summary>
+        public string CheckUpgrade(RoadSegment segment, RoadType type)
+        {
+            string name = RoadSpecs.Name(type).ToLowerInvariant();
+            if (segment.IsOutsideConnection)
+            {
+                return "The road to the outside world cannot be rebuilt.";
+            }
+
+            if (segment.Type == type)
+            {
+                return "This is already a " + name + ".";
+            }
+
+            if (segment.Length < RoadSpecs.MinLength(type))
+            {
+                return "Too short for a " + name + " (at least " + (int)RoadSpecs.MinLength(type) + " m).";
+            }
+
+            if (segment.Curve.MinRadius() < RoadSpecs.MinRadius(type))
+            {
+                return "Too sharp a bend for a " + name + ".";
+            }
+
+            RoadNode[] ends = { segment.A, segment.B };
+            for (int e = 0; e < 2; e++)
+            {
+                string join = CheckUpgradeJoin(segment, ends[e], type);
+                if (join != null)
+                {
+                    return join;
+                }
+            }
+
+            double newHalf = RoadSpecs.HalfWidth(type);
+            List<Vec2> samples = segment.Curve.Sample(2.0);
+            foreach (RoadSegment other in SegmentsNear(segment.Curve.Bounds, RoadSpecs.MaxWidth))
+            {
+                if (other == segment)
+                {
+                    continue;
+                }
+
+                bool nearA = other.A == segment.A || other.B == segment.A;
+                bool nearB = other.A == segment.B || other.B == segment.B;
+                double need = 0.9 * (newHalf + other.HalfWidth);
+                double zone = JunctionZone * Math.Max(1.0, Math.Max(RoadSpecs.Width(type), other.Width) / RoadSpecs.Width(RoadType.Street));
+                for (int i = 0; i < samples.Count; i++)
+                {
+                    Vec2 p = samples[i];
+                    if ((nearA && Vec2.Distance(p, segment.A.Position) < zone) || (nearB && Vec2.Distance(p, segment.B.Position) < zone))
+                    {
+                        continue;
+                    }
+
+                    if (other.Curve.DistanceTo(p) < need)
+                    {
+                        return "A " + name + " would be too close to another road.";
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        // At a junction the joining road must be allowed to join the road it meets (see RoadSpecs.CanJoinMidway).
+        private static string CheckUpgradeJoin(RoadSegment segment, RoadNode node, RoadType type)
+        {
+            if (node.Degree < 3)
+            {
+                return null;
+            }
+
+            string name = RoadSpecs.Name(type).ToLowerInvariant();
+            if (node.Degree == 3)
+            {
+                // The two roads that run most nearly straight on are the through road; the third one joins it.
+                RoadSegment h1 = null, h2 = null, joiner = null;
+                double straightest = 2.0;
+                for (int i = 0; i < 3; i++)
+                {
+                    RoadSegment x = node.Segments[i], y = node.Segments[(i + 1) % 3], z = node.Segments[(i + 2) % 3];
+                    double dot = Vec2.Dot(Away(x, node), Away(y, node));
+                    if (dot < straightest) { straightest = dot; h1 = x; h2 = y; joiner = z; }
+                }
+
+                RoadType joinerType = joiner == segment ? type : joiner.Type;
+                RoadType h1Type = h1 == segment ? type : h1.Type;
+                RoadType h2Type = h2 == segment ? type : h2.Type;
+                if (!RoadSpecs.CanJoinMidway(joinerType, h1Type) || !RoadSpecs.CanJoinMidway(joinerType, h2Type))
+                {
+                    return "A " + name + " there would not fit the roads that meet it.";
+                }
+
+                return null;
+            }
+
+            for (int i = 0; i < node.Segments.Count; i++)
+            {
+                RoadSegment other = node.Segments[i];
+                if (other == segment) { continue; }
+                if (!RoadSpecs.CanJoinMidway(type, other.Type) || !RoadSpecs.CanJoinMidway(other.Type, type))
+                {
+                    return "A " + name + " cannot cross the " + RoadSpecs.Name(other.Type).ToLowerInvariant() + " that meets it.";
+                }
+            }
+
+            return null;
+        }
+
+        private static Vec2 Away(RoadSegment segment, RoadNode node)
+        {
+            return segment.A == node ? segment.Curve.TangentAtLength(0.0) : segment.Curve.TangentAtLength(segment.Length) * -1.0;
+        }
+
+        /// <summary>Rebuilds the road as another type. Call <see cref="CheckUpgrade"/> first. Lane rules of the road are dropped when the lanes change.</summary>
+        internal void Retype(RoadSegment segment, RoadType type)
+        {
+            bool lanesChange = RoadSpecs.LanesPerDirection(segment.Type) != RoadSpecs.LanesPerDirection(type)
+                || RoadSpecs.IsOneWay(segment.Type) != RoadSpecs.IsOneWay(type);
+            segment.SetType(type);
+            if (lanesChange)
+            {
+                segment.A.ForgetSegmentInTurns(segment.Id);
+                segment.B.ForgetSegmentInTurns(segment.Id);
+            }
+
+            Action<RoadSegment> changed = SegmentRetyped;
+            if (changed != null)
+            {
+                changed(segment);
+            }
         }
 
         public RoadNode FindNodeNear(Vec2 p, double radius)

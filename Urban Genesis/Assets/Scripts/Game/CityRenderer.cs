@@ -84,6 +84,7 @@ namespace UrbanGenesis.Game
             sim.Roads.SegmentAdded += OnRoadsChanged;
             sim.Roads.SegmentRemoved += OnRoadsChanged;
             sim.Roads.SegmentSplit += OnRoadSplit;
+            sim.Roads.SegmentRetyped += OnRoadsChanged;
             sim.TrafficLightsChanged += OnLightsChanged;
             sim.BuildingSpawned += OnBuildingSpawned;
             sim.BuildingRemoved += OnBuildingRemoved;
@@ -103,6 +104,7 @@ namespace UrbanGenesis.Game
                 sim.Roads.SegmentAdded -= OnRoadsChanged;
                 sim.Roads.SegmentRemoved -= OnRoadsChanged;
                 sim.Roads.SegmentSplit -= OnRoadSplit;
+                sim.Roads.SegmentRetyped -= OnRoadsChanged;
                 sim.TrafficLightsChanged -= OnLightsChanged;
                 sim.BuildingSpawned -= OnBuildingSpawned;
                 sim.BuildingRemoved -= OnBuildingRemoved;

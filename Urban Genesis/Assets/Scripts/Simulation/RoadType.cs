@@ -28,15 +28,16 @@ namespace UrbanGenesis.Simulation
         public const double MaxWidth = 28.0;
         public const double MaxHalfWidth = MaxWidth / 2.0;
 
+        /// <summary>Plain names by lanes per direction: a single-lane road has one lane each way, a two-lane road has two each way.</summary>
         public static string Name(RoadType type)
         {
             switch (type)
             {
-                case RoadType.Avenue: return "Avenue";
-                case RoadType.Highway:
-                case RoadType.TwoLaneHighway: return "Highway";
+                case RoadType.Avenue: return "Two-lane road";
+                case RoadType.Highway: return "Two-lane highway";
+                case RoadType.TwoLaneHighway: return "Single-lane highway";
                 case RoadType.OneWayHighway: return "One-way highway";
-                default: return "Street";
+                default: return "Single-lane road";
             }
         }
 

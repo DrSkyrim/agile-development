@@ -77,6 +77,8 @@ namespace UrbanGenesis.Game
         private VisualElement chipStraight;
         private VisualElement chipCurved;
         private readonly VisualElement[] typeChips = new VisualElement[RoadSpecs.All.Length];
+        private readonly VisualElement[] upgradeChips = new VisualElement[RoadSpecs.All.Length];
+        private VisualElement upgradeOptions;
         private VisualElement junctionOptions;
         private Label junctionLabel;
         private VisualElement lightsChip;
@@ -587,12 +589,29 @@ namespace UrbanGenesis.Game
             for (int i = 0; i < RoadSpecs.All.Length; i++)
             {
                 RoadType type = RoadSpecs.All[i];
-                string label = type == RoadType.OneWayHighway ? "One-way highway" : RoadSpecs.Name(type) + " " + RoadSpecs.LaneLabel(type);
+                string label = RoadSpecs.Name(type);
                 typeChips[i] = Chip(label, () => tools.SetRoadType(type), null);
                 roadOptions.Add(typeChips[i]);
             }
 
             optionsPanel.Add(roadOptions);
+
+            upgradeOptions = new VisualElement();
+            upgradeOptions.style.flexDirection = FlexDirection.Row;
+            upgradeOptions.style.alignItems = Align.Center;
+            Label upgradeLabel = Text("Rebuild as", "ug-text--soft", Weight.Regular);
+            upgradeLabel.style.fontSize = 11;
+            upgradeLabel.style.marginLeft = 8;
+            upgradeLabel.style.marginRight = 8;
+            upgradeOptions.Add(upgradeLabel);
+            for (int i = 0; i < RoadSpecs.All.Length; i++)
+            {
+                RoadType type = RoadSpecs.All[i];
+                upgradeChips[i] = Chip(RoadSpecs.Name(type), () => tools.SetUpgradeType(type), null);
+                upgradeOptions.Add(upgradeChips[i]);
+            }
+
+            optionsPanel.Add(upgradeOptions);
 
             junctionOptions = new VisualElement();
             junctionOptions.style.flexDirection = FlexDirection.Row;
@@ -659,6 +678,9 @@ namespace UrbanGenesis.Game
             AddTool(bar, "route", "Roads", true,
                 () => tools.CurrentTool == ToolType.Road,
                 () => tools.SetTool(tools.CurrentTool == ToolType.Road ? ToolType.None : ToolType.Road));
+            AddTool(bar, "layers", "Upgrade", true,
+                () => tools.CurrentTool == ToolType.Upgrade,
+                () => tools.SetTool(tools.CurrentTool == ToolType.Upgrade ? ToolType.None : ToolType.Upgrade));
             AddTool(bar, "locate-fixed", "Junctions", true,
                 () => tools.CurrentTool == ToolType.Junction,
                 () => tools.SetTool(tools.CurrentTool == ToolType.Junction ? ToolType.None : ToolType.Junction));
@@ -1004,7 +1026,17 @@ namespace UrbanGenesis.Game
             bool zone = tools.IsZoneTool;
             bool brush = tools.IsBrushTool;
             bool junction = tools.CurrentTool == ToolType.Junction;
-            SetDisplay(optionsPanel, road || brush || junction);
+            bool upgrade = tools.CurrentTool == ToolType.Upgrade;
+            SetDisplay(optionsPanel, road || brush || junction || upgrade);
+            SetDisplay(upgradeOptions, upgrade);
+            if (upgrade)
+            {
+                for (int i = 0; i < upgradeChips.Length; i++)
+                {
+                    SetOn(upgradeChips[i], "ug-chip--on", tools.UpgradeType == RoadSpecs.All[i]);
+                }
+            }
+
             SetDisplay(roadOptions, road);
             SetDisplay(junctionOptions, junction);
             SetDisplay(zoneOptions, zone);

@@ -135,6 +135,15 @@ namespace UrbanGenesis.Game
             HidePreview();
         }
 
+        /// <summary>The type the Upgrade tool rebuilds roads as.</summary>
+        public RoadType UpgradeType { get; private set; } = RoadType.Avenue;
+
+        public void SetUpgradeType(RoadType type)
+        {
+            UpgradeType = type;
+            HidePreview();
+        }
+
         public void SetRoadType(RoadType type)
         {
             CancelRoad();
@@ -165,6 +174,7 @@ namespace UrbanGenesis.Game
                 case ToolType.ZoneIndustrial: return "Industrial";
                 case ToolType.Bulldoze: return "Bulldoze";
                 case ToolType.Junction: return "Junctions";
+                case ToolType.Upgrade: return "Upgrade";
                 default: return "None";
             }
         }
@@ -231,6 +241,10 @@ namespace UrbanGenesis.Game
             {
                 UpdateJunction(mouse, onMap, ground);
             }
+            else if (CurrentTool == ToolType.Upgrade)
+            {
+                UpdateUpgrade(mouse, onMap, ground);
+            }
             else
             {
                 UpdateBrush(mouse, onMap, ground);
@@ -251,6 +265,7 @@ namespace UrbanGenesis.Game
             }
 
             if (keyboard.digit6Key.wasPressedThisFrame || keyboard.jKey.wasPressedThisFrame) { SetTool(ToolType.Junction); }
+            if (keyboard.digit7Key.wasPressedThisFrame || keyboard.uKey.wasPressedThisFrame) { SetTool(ToolType.Upgrade); }
 
             if (keyboard.hKey.wasPressedThisFrame)
             {
@@ -356,6 +371,67 @@ namespace UrbanGenesis.Game
             }
 
             SelectedJunction = node;
+        }
+
+        private void UpdateUpgrade(Mouse mouse, bool onMap, Vec2 p)
+        {
+            RoadSegment hover = null;
+            if (onMap)
+            {
+                double along;
+                RoadSegment near = sim.Roads.FindSegmentNear(p, RoadSpecs.MaxHalfWidth, out along);
+                if (near != null && near.Curve.DistanceTo(p) <= near.HalfWidth + 1.0)
+                {
+                    hover = near;
+                }
+            }
+
+            cityRenderer.BeginPreview();
+            CitySimulation.UpgradePlan plan = null;
+            if (hover != null)
+            {
+                plan = sim.PlanUpgrade(hover, UpgradeType);
+                Color color = !plan.IsValid ? CityPalette.PreviewInvalid : plan.Demolitions.Count > 0 ? BulldozeHighlight : CityPalette.PreviewValid;
+                cityRenderer.PreviewRibbon(hover.Curve.Sample(4.0), RoadSpecs.HalfWidth(UpgradeType), color);
+                if (plan.IsValid)
+                {
+                    for (int i = 0; i < plan.Demolitions.Count; i++)
+                    {
+                        cityRenderer.PreviewQuad(plan.Demolitions[i].Footprint, BulldozeHighlight);
+                    }
+                }
+            }
+
+            cityRenderer.EndPreview();
+            previewShown = true;
+            shownTool = ToolType.None;
+
+            string target = RoadSpecs.Name(UpgradeType).ToLowerInvariant();
+            if (plan == null)
+            {
+                liveText = "Upgrade: point at a road to rebuild it as a " + target + " (pick the type above)";
+            }
+            else if (!plan.IsValid)
+            {
+                liveText = plan.Error;
+            }
+            else
+            {
+                string text = "Rebuild as " + target + ": " + CitySimulation.FormatMoney(plan.Cost);
+                if (plan.Demolitions.Count > 0)
+                {
+                    text += "  ·  demolishes " + plan.Demolitions.Count + (plan.Demolitions.Count == 1 ? " building" : " buildings");
+                }
+
+                liveText = text;
+            }
+
+            if (hover != null && plan != null && plan.IsValid && onMap && mouse.leftButton.wasPressedThisFrame)
+            {
+                string error = sim.UpgradeRoad(hover, UpgradeType);
+                ShowResult(error ?? "Rebuilt as a " + target + ".");
+                shownRevision = -1;
+            }
         }
 
         private void UpdateJunction(Mouse mouse, bool onMap, Vec2 p)

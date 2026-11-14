@@ -359,6 +359,67 @@ namespace UrbanGenesis.Simulation
             return segment;
         }
 
+        /// <summary>What rebuilding a road as another type would do.</summary>
+        public sealed class UpgradePlan
+        {
+            public bool IsValid { get { return Error == null; } }
+            public string Error { get; internal set; }
+            public double Cost { get; internal set; }
+            public IList<Building> Demolitions { get; internal set; }
+        }
+
+        /// <summary>Checks an upgrade: the cost and the buildings beside the road that would have to go (the lots move when the road gets wider or narrower).</summary>
+        public UpgradePlan PlanUpgrade(RoadSegment segment, RoadType type)
+        {
+            var plan = new UpgradePlan { Demolitions = new List<Building>() };
+            plan.Error = Roads.CheckUpgrade(segment, type);
+            if (plan.Error != null)
+            {
+                return plan;
+            }
+
+            var gone = new HashSet<Building>(BuildingsOnRoad(segment.Curve, type));
+            foreach (Building b in buildings.Values)
+            {
+                for (int i = 0; i < b.Lots.Count; i++)
+                {
+                    if (b.Lots[i].Key.SegmentId == segment.Id) { gone.Add(b); break; }
+                }
+            }
+
+            foreach (Building b in gone) { plan.Demolitions.Add(b); }
+            double refund = Treasury.RoadCost(segment.Length, segment.Type) * Treasury.RefundShare;
+            plan.Cost = Math.Max(0.0, Treasury.RoadCost(segment.Length, type) - refund);
+            return plan;
+        }
+
+        /// <summary>Rebuilds a road as another type, demolishing the buildings the plan lists. Returns an error message, or null on success.</summary>
+        public string UpgradeRoad(RoadSegment segment, RoadType type)
+        {
+            UpgradePlan plan = PlanUpgrade(segment, type);
+            if (!plan.IsValid)
+            {
+                return plan.Error;
+            }
+
+            if (!Treasury.CanAfford(plan.Cost))
+            {
+                return "Not enough money: this costs " + FormatMoney(plan.Cost) + ".";
+            }
+
+            for (int i = 0; i < plan.Demolitions.Count; i++)
+            {
+                RemoveBuilding(plan.Demolitions[i]);
+            }
+
+            Treasury.Charge(plan.Cost);
+            Roads.Retype(segment, type);
+            RefreshAround(segment);
+            Treasury.Recompute();
+            Revision++;
+            return null;
+        }
+
         private List<Building> BuildingsOnRoad(RoadCurve curve, RoadType type)
         {
             var found = new List<Building>();

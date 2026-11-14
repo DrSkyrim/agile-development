@@ -53,6 +53,14 @@ namespace UrbanGenesis.Simulation
             BaseCapacity = baseCapacity;
         }
 
+        /// <summary>Rebuilds the road as another type in the same place (the road network checks that it fits).</summary>
+        internal void SetType(RoadType type)
+        {
+            Type = type;
+            BaseCapacity = RoadSpecs.BaseCapacity(type);
+            surface = null;
+        }
+
         public RoadNode OtherEnd(RoadNode node)
         {
             return node == A ? B : A;

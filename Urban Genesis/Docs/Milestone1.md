@@ -254,3 +254,9 @@ Cars, short trucks and long trucks now drive the roads (`Simulation/Traffic/`, d
 - **Junctions:** traffic lights use the real signal timing (`TrafficSignals`), the same one the light poles show. Unlit junctions let one vehicle through at a time, longest waiter first. Vehicles never enter a junction unless the road beyond has room.
 - **Clean-up:** vehicles on removed or closed roads vanish, and a vehicle stuck for 90 s is removed (counted in `GridlockRemovals`). Traffic is not saved.
 - **Models:** placeholders built from cubes. To use your own, put prefabs at `Assets/Resources/Vehicles/Car`, `ShortTruck` and `LongTruck` (origin at the middle on the ground, front along +Z, metre scale).
+
+## Road names and the Upgrade tool
+
+Roads are named by lanes per direction: **single-lane road** (1+1), **two-lane road** (2+2), **single-lane highway** (1+1), **two-lane highway** (2+2) and **one-way highway**. The saved numbers did not change, so old saves still load.
+
+The **Upgrade** tool (toolbar, key `7` or `U`) rebuilds a road as another type in place. Pick the target type in the options row, point at a road: green means it fits, orange means buildings beside it will be demolished (the lots move when the road gets wider), red shows why it cannot be done (too short or sharp for that type, would be too close to another road, or would break a junction's join rules). It costs the new road's price minus half of the old road's price. Lane rules at the road's junctions are reset when the lane count changes, and the road to the outside world cannot be rebuilt. Rules live in `RoadNetwork.CheckUpgrade` and `CitySimulation.PlanUpgrade/UpgradeRoad`.
