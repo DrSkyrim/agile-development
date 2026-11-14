@@ -83,7 +83,7 @@ namespace UrbanGenesis.Game
 
         public bool IsZoneTool
         {
-            get { return ZoneForTool(CurrentTool) != ZoneType.None; }
+            get { return ZoneForTool(CurrentTool) != ZoneType.None || CurrentTool == ToolType.ZoneClear; }
         }
         public float BrushRadius { get; private set; }
 
@@ -101,7 +101,7 @@ namespace UrbanGenesis.Game
 
         public bool IsBrushTool
         {
-            get { return CurrentTool == ToolType.Bulldoze || ZoneForTool(CurrentTool) != ZoneType.None; }
+            get { return CurrentTool == ToolType.Bulldoze || IsZoneTool; }
         }
 
         public void Init(CitySimulation simulation, CameraRig cameraRig, CityRenderer renderer, HudToolbar toolbar)
@@ -175,6 +175,7 @@ namespace UrbanGenesis.Game
                 case ToolType.Bulldoze: return "Bulldoze";
                 case ToolType.Junction: return "Junctions";
                 case ToolType.Upgrade: return "Upgrade";
+                case ToolType.ZoneClear: return "Clear zoning";
                 default: return "None";
             }
         }
@@ -258,6 +259,7 @@ namespace UrbanGenesis.Game
             else if (keyboard.digit3Key.wasPressedThisFrame) { SetTool(ToolType.ZoneCommercial); }
             else if (keyboard.digit4Key.wasPressedThisFrame) { SetTool(ToolType.ZoneIndustrial); }
             else if (keyboard.digit5Key.wasPressedThisFrame) { SetTool(ToolType.Bulldoze); }
+            else if (keyboard.digit8Key.wasPressedThisFrame) { SetTool(ToolType.ZoneClear); }
 
             if (keyboard.cKey.wasPressedThisFrame)
             {
@@ -904,6 +906,11 @@ namespace UrbanGenesis.Game
                 }
                 else
                 {
+                    if (CurrentTool == ToolType.ZoneClear)
+                    {
+                        ShowResult(paintedCount == 0 ? "No zoning to clear there" : "Cleared the zoning of " + paintedCount + " lots");
+                    }
+                    else
                     ShowResult(paintedCount == 0
                         ? (FillMode ? "Nothing to fill: click a lot beside a road" : "Nothing zoned (zones go on lots beside roads)")
                         : "Zoned " + paintedCount + " lots " + ToolLabel(CurrentTool).ToLowerInvariant());
@@ -961,6 +968,28 @@ namespace UrbanGenesis.Game
                 }
 
                 cityRenderer.PreviewRing(p, radius, 0.7, BulldozeHighlight);
+                return;
+            }
+
+            if (CurrentTool == ToolType.ZoneClear)
+            {
+                List<Lot> area = FillMode ? sim.LotsToFill(p) : lots;
+                int cleared = 0;
+                if (area != null)
+                {
+                    foreach (Lot lot in area)
+                    {
+                        if (lot.Zone == ZoneType.None) { continue; }
+                        cleared++;
+                        cityRenderer.PreviewQuad(lot.Corners, BulldozeHighlight);
+                        if (lot.Building != null) { cityRenderer.PreviewQuad(lot.Building.Footprint, BulldozeHighlight); }
+                    }
+                }
+
+                if (!FillMode) { cityRenderer.PreviewRing(p, radius, 0.7, BulldozeHighlight); }
+                liveText = area == null
+                    ? "Clear zoning: point at a lot beside a road"
+                    : "Clear zoning: " + cleared + " zoned lots" + (FillMode ? " along this side of the road" : "  -  press and drag to paint, [ ] changes the brush") + " (buildings on them go too)";
                 return;
             }
 

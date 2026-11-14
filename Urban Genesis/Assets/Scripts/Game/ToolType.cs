@@ -9,6 +9,7 @@ namespace UrbanGenesis.Game
         ZoneIndustrial = 4,
         Bulldoze = 5,
         Junction = 6,
-        Upgrade = 7
+        Upgrade = 7,
+        ZoneClear = 8
     }
 }

@@ -23,6 +23,25 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
+        public void ClearingZoningRemovesZonesAndTheBuildingsOnThem()
+        {
+            CitySimulation city = Street();
+            city.PaintZone(new Vec2(0, 20), 400, ZoneType.Residential);
+            city.PaintZone(new Vec2(0, -20), 400, ZoneType.Commercial);
+            for (int i = 0; i < 200; i++) { city.Step(); }
+            Assert.Greater(city.BuildingCount, 3);
+
+            // Clear one whole side of the road, as the fill mode does.
+            int cleared = city.FillZone(new Vec2(0, 12), ZoneType.None);
+            Assert.Greater(cleared, 10);
+            Assert.AreEqual(0, city.CountBuildings(ZoneType.Residential));
+            Assert.Greater(city.CountBuildings(ZoneType.Commercial), 0, "the other side is untouched");
+
+            city.PaintZone(new Vec2(0, -20), 400, ZoneType.None);
+            Assert.AreEqual(0, city.BuildingCount);
+        }
+
+        [Test]
         public void RoadsHaveHumanNames()
         {
             Assert.AreEqual("Single-lane road", RoadSpecs.Name(RoadType.Street));

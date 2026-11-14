@@ -264,3 +264,7 @@ The **Upgrade** tool (toolbar, key `7` or `U`) rebuilds a road as another type i
 ## Lane-to-lane connections
 
 In the Junctions tool, pick an arriving lane (white dot) and every lane of every road it can enter shows its own marker. Click a marker to join or cut that one connection, so a lane of a two-lane road can be sent into a chosen lane of another road. Every lane keeps at least one exit. Vehicles pick their lanes to follow these links (and the turn after them). Saves from before this change load with whole-road rules spelled out lane by lane.
+
+## Clear zoning
+
+The zoning options row has a **Clear zoning** button (key `8`). It works like the zone brushes, including the whole-side fill mode: lots it touches lose their zoning, and buildings on them are demolished (highlighted orange in the preview).

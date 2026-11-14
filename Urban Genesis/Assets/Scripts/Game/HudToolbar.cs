@@ -63,7 +63,7 @@ namespace UrbanGenesis.Game
         private Label populationValue;
         private Label populationChange;
         private Label happinessValue;
-        private readonly VisualElement[] demandFill = new VisualElement[3];
+        private readonly VisualElement[] demandFill = new VisualElement[4];
         private Label milestoneTarget;
         private VisualElement milestoneFill;
         private Label advisoryTitle;
@@ -637,6 +637,8 @@ namespace UrbanGenesis.Game
             zoneOptions.Add(zoneChips[0]);
             zoneOptions.Add(zoneChips[1]);
             zoneOptions.Add(zoneChips[2]);
+            zoneChips[3] = Chip("Clear zoning", () => tools.SetTool(ToolType.ZoneClear), null);
+            zoneOptions.Add(zoneChips[3]);
             var zoneDivider = Divider(true);
             zoneDivider.style.height = 20;
             zoneDivider.style.marginLeft = 6;
@@ -1073,6 +1075,7 @@ namespace UrbanGenesis.Game
                 SetOn(zoneChips[0], "ug-chip--on", tools.CurrentTool == ToolType.ZoneResidential);
                 SetOn(zoneChips[1], "ug-chip--on", tools.CurrentTool == ToolType.ZoneCommercial);
                 SetOn(zoneChips[2], "ug-chip--on", tools.CurrentTool == ToolType.ZoneIndustrial);
+                SetOn(zoneChips[3], "ug-chip--on", tools.CurrentTool == ToolType.ZoneClear);
                 SetOn(chipFill, "ug-chip--on", tools.FillMode);
             }
 
