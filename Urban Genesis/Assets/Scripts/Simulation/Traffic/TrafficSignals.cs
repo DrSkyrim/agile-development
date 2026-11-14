@@ -12,7 +12,7 @@ namespace UrbanGenesis.Simulation.Traffic
     /// </summary>
     public sealed class TrafficSignals
     {
-        public const double GreenSeconds = 7.0;
+        public const double GreenSeconds = 10.0;
         public const double AmberSeconds = 1.5;
         public const double ClearSeconds = 1.5;
         public const double PhaseSeconds = GreenSeconds + AmberSeconds + ClearSeconds;

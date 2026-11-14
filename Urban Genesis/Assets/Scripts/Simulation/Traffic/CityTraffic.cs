@@ -47,8 +47,9 @@ namespace UrbanGenesis.Simulation.Traffic
             planner = new RoutePlanner(city.Roads);
             Signals = new TrafficSignals(city);
             MaxVehicles = 300;
-            TripsPerVolume = 0.006;
-            OutsideTripsPerTick = 0.12;
+            TripsPerVolume = 1.0;
+            VehiclesPerBuilding = 0.15;
+            OutsideTripsPerTick = 0.04;
         }
 
         public TrafficSignals Signals { get; private set; }
@@ -58,8 +59,20 @@ namespace UrbanGenesis.Simulation.Traffic
 
         public int MaxVehicles { get; set; }
 
-        /// <summary>How many vehicles one unit of trip volume from the economy puts on the road.</summary>
+        /// <summary>Multiplies how many trips are made (1 = the normal amount for the size of the city).</summary>
         public double TripsPerVolume { get; set; }
+
+        /// <summary>How many vehicles are on the road per building, at most.</summary>
+        public double VehiclesPerBuilding { get; set; }
+
+        /// <summary>The most vehicles allowed now: grows with the city, up to <see cref="MaxVehicles"/>.</summary>
+        public int EffectiveMaxVehicles
+        {
+            get { return Math.Max(6, Math.Min(MaxVehicles, (int)Math.Round(city.BuildingCount * VehiclesPerBuilding))); }
+        }
+
+        // Roughly how many ticks a trip lasts, used to turn "vehicles on the road" into "trips started per tick".
+        private const double TripTicks = 100.0;
 
         /// <summary>Vehicles per game tick that come in from (or leave for) each outside connection, once the city has some buildings.</summary>
         public double OutsideTripsPerTick { get; set; }
@@ -78,15 +91,19 @@ namespace UrbanGenesis.Simulation.Traffic
         /// <summary>Call once per simulation tick: turns the economy's trips into vehicles waiting to enter the roads.</summary>
         public void OnTick()
         {
-            double perTick = 1.0 / Math.Max(1, city.Economy.UpdateIntervalTicks);
             IList<TripFlow> flows = city.Economy.Flows;
+            double totalVolume = 0.0;
+            for (int i = 0; i < flows.Count; i++) { totalVolume += flows[i].Volume; }
+
+            // The city gets about VehiclesPerBuilding vehicles on the road per building; the economy's flows only decide who goes where.
+            double perTick = totalVolume > 0.0 ? EffectiveMaxVehicles / TripTicks * TripsPerVolume / totalVolume : 0.0;
             for (int i = 0; i < flows.Count; i++)
             {
                 TripFlow flow = flows[i];
                 long key = ((long)(int)flow.Kind << 56) ^ ((long)flow.FromSegmentId << 28) ^ flow.ToSegmentId;
                 double credit;
                 credits.TryGetValue(key, out credit);
-                credit = Math.Min(3.0, credit + flow.Volume * TripsPerVolume * perTick);
+                credit = Math.Min(3.0, credit + flow.Volume * perTick);
                 while (credit >= 1.0)
                 {
                     credit -= 1.0;
@@ -172,7 +189,7 @@ namespace UrbanGenesis.Simulation.Traffic
 
         private void Enqueue(VehicleType type, int fromSegment, int toSegment)
         {
-            if (pending.Count >= 150)
+            if (pending.Count >= 40)
             {
                 return;
             }
@@ -211,7 +228,7 @@ namespace UrbanGenesis.Simulation.Traffic
             int tries = Math.Min(pending.Count, 25);
             for (int i = 0; i < tries && pending.Count > 0; i++)
             {
-                if (vehicles.Count >= MaxVehicles)
+                if (vehicles.Count >= EffectiveMaxVehicles)
                 {
                     return;
                 }
