@@ -154,6 +154,7 @@ namespace UrbanGenesis.Game
                 Part(root, "Body", 0f, 0.65f, 0f, 1.8f, 0.7f, 4.4f, carColors[0]);
                 Part(root, "Cabin", 0f, 1.25f, -0.2f, 1.6f, 0.55f, 2.3f, glass);
                 Wheels(root, 0.9f, 1.35f, 0.3f);
+                Wheels(root, 0.9f, -1.35f, 0.3f);
             }
             else if (v.Type == VehicleType.ShortTruck)
             {
@@ -162,6 +163,8 @@ namespace UrbanGenesis.Game
                 Part(root, "Windshield", 0f, 2.1f, 3.66f, 2.0f, 0.8f, 0.05f, glass);
                 Part(root, "Box", 0f, 2.15f, -1.15f, 2.4f, 2.7f, 5.0f, white);
                 Wheels(root, 1.15f, 2.6f, 0.5f);
+                Wheels(root, 1.15f, -1.6f, 0.5f);
+                Wheels(root, 1.15f, -2.9f, 0.5f);
             }
             else
             {

@@ -48,7 +48,7 @@ namespace UrbanGenesis.Simulation.Traffic
             Signals = new TrafficSignals(city);
             MaxVehicles = 300;
             TripsPerVolume = 1.0;
-            VehiclesPerBuilding = 0.15;
+            VehiclesPerBuilding = 0.5;
             OutsideTripsPerTick = 0.04;
         }
 

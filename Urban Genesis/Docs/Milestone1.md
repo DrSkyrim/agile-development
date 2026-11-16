@@ -248,7 +248,7 @@ A **one-way highway** can start or end anywhere along a Highway 1+1 or Highway 2
 
 Cars, short trucks and long trucks now drive the roads (`Simulation/Traffic/`, drawn by `Game/TrafficRenderer.cs`).
 
-- **Where trips come from:** the economy's `TripFlow`s. Work and shopping trips become cars, goods trips become short or long trucks. Outside connections also bring in and take out cars and trucks. The number of vehicles scales with the city: at most `VehiclesPerBuilding` (0.15) per building, up to `MaxVehicles` (300); the economy's flows only decide who goes where. `TripsPerVolume` (1.0) scales how many trips start and `OutsideTripsPerTick` the outside traffic.
+- **Where trips come from:** the economy's `TripFlow`s. Work and shopping trips become cars, goods trips become short or long trucks. Outside connections also bring in and take out cars and trucks. The number of vehicles scales with the city: at most `VehiclesPerBuilding` (0.5) per building, up to `MaxVehicles` (300); the economy's flows only decide who goes where. `TripsPerVolume` (1.0) scales how many trips start and `OutsideTripsPerTick` the outside traffic.
 - **Routing:** `RoutePlanner` finds the quickest route over directed roads, so one-way roads, banned lane turns and closed roads are respected. Vehicles may turn around at dead ends.
 - **Driving:** each vehicle follows the one ahead per lane (IDM car-following), picks a lane that is allowed to make its next turn, and slows for bends and its destination.
 - **Junctions:** traffic lights use the real signal timing (`TrafficSignals`), the same one the light poles show. Unlit junctions let one vehicle through at a time, longest waiter first. Vehicles never enter a junction unless the road beyond has room.
