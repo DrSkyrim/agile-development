@@ -63,7 +63,7 @@ namespace UrbanGenesis.Game
         private Label populationValue;
         private Label populationChange;
         private Label happinessValue;
-        private readonly VisualElement[] demandFill = new VisualElement[4];
+        private readonly VisualElement[] demandFill = new VisualElement[3];
         private Label milestoneTarget;
         private VisualElement milestoneFill;
         private Label advisoryTitle;
@@ -85,7 +85,7 @@ namespace UrbanGenesis.Game
         private Label lightsChipLabel;
         private VisualElement resetLanesChip;
         private VisualElement chipFill;
-        private readonly VisualElement[] zoneChips = new VisualElement[3];
+        private readonly VisualElement[] zoneChips = new VisualElement[4];
         private Label brushLabel;
         private VisualElement scaleBar;
         private Label scaleLabel;
