@@ -90,7 +90,27 @@ namespace UrbanGenesis.Game
         /// <summary>Short message for the toolbar: what the current aim would do, or what the last action did.</summary>
         public string StatusText
         {
-            get { return Time.unscaledTime < resultUntil ? resultText : liveText; }
+            get
+            {
+                if (Time.unscaledTime < resultUntil) { return resultText; }
+                if (!string.IsNullOrEmpty(liveText)) { return liveText; }
+                return DefaultHint();
+            }
+        }
+
+        /// <summary>What to do next with the selected tool, shown when nothing else is going on.</summary>
+        private string DefaultHint()
+        {
+            switch (CurrentTool)
+            {
+                case ToolType.Road: return roadStage > 0 ? "Click to place the next point. Right-click or Esc cancels." : "Click to start a road. Esc leaves the tool.";
+                case ToolType.Junction: return "Click a junction to change its lights and lane connections.";
+                case ToolType.Upgrade: return "Click a road to change its type.";
+                case ToolType.Bulldoze: return "Click or drag to demolish. Esc leaves the tool.";
+                case ToolType.ZoneClear: return "Drag over zoned land to clear zoning. Esc leaves the tool.";
+                case ToolType.None: return "";
+                default: return IsZoneTool ? "Drag next to a road to paint a zone. The tool stays selected, Esc leaves it." : "";
+            }
         }
 
         /// <summary>

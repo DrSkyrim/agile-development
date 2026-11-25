@@ -1062,7 +1062,7 @@ namespace UrbanGenesis.Game
             SetText(dateLabel, now.ToString("d MMM yyyy", CultureInfo.InvariantCulture));
             SetText(timeLabel, now.ToString("HH:mm", CultureInfo.InvariantCulture));
             SetText(speedLabel, (clock.IsPaused ? Mathf.Max(1, lastRunningSpeed) : clock.SpeedLevel) + "×");
-            SetOn(pauseButton, "ug-btn--on", clock.IsPaused);
+            SetOn(pauseButton, "ug-btn--paused", clock.IsPaused);
             SetOn(playButton, "ug-btn--on", !clock.IsPaused);
 
             // Tools

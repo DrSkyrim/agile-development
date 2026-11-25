@@ -9,10 +9,10 @@ Order rule: fix what confuses a first-time player, then show information, then p
 - [x] Date shows "15 May 2026": the start date is hard-coded. Start from today's real date (or a clearly intended in-game date). *(UX: first impressions)*
 - [x] Demolishing homes does not lower the population: make the population react straight away, not at the next economy update. *(UX 10)*
 - [ ] Building roads when zoomed out is blocked or unclear: let roads be planned at any zoom, or say why not. **(verify)** *(UX 1)*
-- [ ] Camera: add left-drag panning when no tool is active, and edge scrolling. Middle-drag panning already exists but was not found. *(UX 2)*
-- [ ] Controls help panel (key `H` or a "?" button) listing camera and tool controls. *(UX 2, 4)*
-- [ ] Pause and speed controls were not noticed: make them more visible, check space and the buttons. **(verify)** *(UX first impressions)*
-- [ ] Why can't I repeat building a house: check that the zoning tool stays selected after painting, and that the status line says what to do next. **(verify)** *(UX 4, 5, 7)*
+- [x] Camera: add left-drag panning when no tool is active, and edge scrolling. Middle-drag panning already exists but was not found. *(UX 2)*
+- [x] Controls help panel (F1 or "?") (key `H` or a "?" button) listing camera and tool controls. *(UX 2, 4)*
+- [x] Pause and speed controls were not noticed (pause button turns amber while paused): make them more visible, check space and the buttons. **(verify)** *(UX first impressions)*
+- [x] Why can't I repeat building a house (tool stays selected; status line now shows a hint per tool): check that the zoning tool stays selected after painting, and that the status line says what to do next. **(verify)** *(UX 4, 5, 7)*
 
 ## Phase B: information (the biggest gap in the stories and the UX report)
 

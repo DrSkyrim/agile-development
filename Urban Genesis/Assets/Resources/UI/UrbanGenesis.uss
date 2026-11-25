@@ -60,6 +60,9 @@
 .ug-btn--on { background-color: rgb(52, 77, 104); }
 .ug-btn--on:hover { background-color: rgb(52, 77, 104); }
 .ug-btn--on .ug-icon { -unity-background-image-tint-color: rgb(113, 183, 255); }
+.ug-btn--paused { background-color: rgb(214, 140, 40); }
+.ug-btn--paused:hover { background-color: rgb(226, 156, 58); }
+.ug-btn--paused .ug-icon { -unity-background-image-tint-color: rgb(255, 255, 255); }
 .ug-btn--disabled .ug-icon { -unity-background-image-tint-color: rgb(93, 106, 120); }
 
 .ug-divider { background-color: rgba(255, 255, 255, 0.08); }
