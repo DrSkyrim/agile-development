@@ -10,6 +10,7 @@ namespace UrbanGenesis.Game
         Bulldoze = 5,
         Junction = 6,
         Upgrade = 7,
-        ZoneClear = 8
+        ZoneClear = 8,
+        Inspect = 9
     }
 }

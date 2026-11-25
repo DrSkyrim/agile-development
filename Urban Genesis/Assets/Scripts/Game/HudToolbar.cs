@@ -222,6 +222,36 @@ namespace UrbanGenesis.Game
             }
         }
 
+        private VisualElement inspectPanel;
+        private Label inspectLabel;
+
+        private void BuildInspect()
+        {
+            inspectPanel = Panel("Inspector", false);
+            Place(inspectPanel, null, null, 24, 110);
+            inspectPanel.style.width = 320;
+            inspectPanel.style.alignItems = Align.FlexStart;
+            inspectPanel.style.paddingLeft = 14;
+            inspectPanel.style.paddingRight = 14;
+            inspectPanel.style.paddingTop = 10;
+            inspectPanel.style.paddingBottom = 10;
+            inspectPanel.style.display = DisplayStyle.None;
+            inspectLabel = Text("", null, Weight.Regular);
+            inspectLabel.style.whiteSpace = WhiteSpace.Normal;
+            inspectPanel.Add(inspectLabel);
+        }
+
+        private void UpdateInspect()
+        {
+            string text = tools.CurrentTool == ToolType.Inspect ? tools.InspectText : "";
+            bool show = !string.IsNullOrEmpty(text);
+            inspectPanel.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (show)
+            {
+                SetText(inspectLabel, text);
+            }
+        }
+
         private void BuildHelp()
         {
             helpPanel = Panel("Controls help", false);
@@ -239,6 +269,7 @@ namespace UrbanGenesis.Game
             {
                 "WASD / arrow keys: move the camera (Shift = faster)",
                 "Q / E: rotate the camera",
+                "I or 9: inspect a building or road",
                 "Mouse wheel: zoom",
                 "Right mouse drag: rotate and tilt",
                 "Middle mouse drag: pan",
@@ -290,6 +321,7 @@ namespace UrbanGenesis.Game
             BuildScale();
             BuildMeasureTag();
             BuildHelp();
+            BuildInspect();
 
             built = true;
             Refresh();
@@ -509,9 +541,10 @@ namespace UrbanGenesis.Game
 
             panel.Add(IconButton("bell", false, () => Notify("Notifications are not available yet.")));
             panel.Add(IconButton("save", false, () => { Action requested = SaveRequested; if (requested != null) { requested(); } }));
-            var helpButton = Text("?", null, Weight.SemiBold);
+            var helpButton = new VisualElement();
             helpButton.AddToClassList("ug-btn");
-            helpButton.style.unityTextAlign = TextAnchor.MiddleCenter;
+            helpButton.style.justifyContent = Justify.Center;
+            helpButton.Add(Text("?", null, Weight.SemiBold));
             helpButton.RegisterCallback<ClickEvent>(e => ToggleHelp());
             panel.Add(helpButton);
             panel.Add(IconButton("settings-2", false, () => Notify("Settings are not available yet.")));
@@ -758,6 +791,9 @@ namespace UrbanGenesis.Game
             VisualElement barDivider = Divider(true);
             barDivider.style.height = 36;
             bar.Add(barDivider);
+            AddTool(bar, "locate-fixed", "Inspect", true,
+                () => tools.CurrentTool == ToolType.Inspect,
+                () => tools.SetTool(tools.CurrentTool == ToolType.Inspect ? ToolType.None : ToolType.Inspect));
             AddTool(bar, "pickaxe", "Demolish", true,
                 () => tools.CurrentTool == ToolType.Bulldoze,
                 () => tools.SetTool(tools.CurrentTool == ToolType.Bulldoze ? ToolType.None : ToolType.Bulldoze));
@@ -1147,6 +1183,8 @@ namespace UrbanGenesis.Game
             {
                 compassArrow.style.rotate = new StyleRotate(new Rotate(Angle.Degrees(-rig.YawDegrees)));
             }
+
+            UpdateInspect();
 
             // Advisory: the tool's live message first, then a transient notice, then a hint for what to do next.
             string title;

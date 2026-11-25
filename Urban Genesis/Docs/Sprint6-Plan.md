@@ -16,7 +16,7 @@ Order rule: fix what confuses a first-time player, then show information, then p
 
 ## Phase B: information (the biggest gap in the stories and the UX report)
 
-- [ ] **Inspect tool** (select a building, road or junction): residential shows capacity, residents, free places; industrial/commercial shows jobs, workers, free positions; road shows type, capacity, current load, remaining capacity; building shows its upkeep and income per day. *(story 9, #38; UX 9, 14)*
+- [x] **Inspect tool** (key I or 9; panel shows capacity, jobs, workers, income, road load) (select a building, road or junction): residential shows capacity, residents, free places; industrial/commercial shows jobs, workers, free positions; road shows type, capacity, current load, remaining capacity; building shows its upkeep and income per day. *(story 9, #38; UX 9, 14)*
 - [ ] Costs everywhere: show the price of each road type in the road options, price of rebuilding when upgrading, refund when demolishing, and say plainly whether demolishing costs money. *(stories 1.2, 8; UX 9, 11, 14)*
 - [ ] Housing and jobs overview in the HUD: housing capacity next to population, free jobs, a "needs more housing" hint. *(story 5, UX 9)*
 - [x] Happiness indicator removed from the HUD (happiness is now a wishlist feature). *(UX 12)*

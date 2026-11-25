@@ -87,6 +87,12 @@ namespace UrbanGenesis.Game
         }
         public float BrushRadius { get; private set; }
 
+        /// <summary>Traffic, so the Inspect tool can show how many vehicles are on a road.</summary>
+        public UrbanGenesis.Simulation.Traffic.CityTraffic Traffic { get; set; }
+
+        /// <summary>Facts about whatever the Inspect tool points at (empty when it points at nothing).</summary>
+        public string InspectText { get; private set; }
+
         /// <summary>Short message for the toolbar: what the current aim would do, or what the last action did.</summary>
         public string StatusText
         {
@@ -105,6 +111,7 @@ namespace UrbanGenesis.Game
             {
                 case ToolType.Road: return roadStage > 0 ? "Click to place the next point. Right-click or Esc cancels." : "Click to start a road. Esc leaves the tool.";
                 case ToolType.Junction: return "Click a junction to change its lights and lane connections.";
+                case ToolType.Inspect: return "Point at a building or a road to see its details.";
                 case ToolType.Upgrade: return "Click a road to change its type.";
                 case ToolType.Bulldoze: return "Click or drag to demolish. Esc leaves the tool.";
                 case ToolType.ZoneClear: return "Drag over zoned land to clear zoning. Esc leaves the tool.";
@@ -144,6 +151,7 @@ namespace UrbanGenesis.Game
             painting = false;
             CurrentTool = tool;
             liveText = "";
+            InspectText = "";
             HidePreview();
             cityRenderer.SetLotGridVisible(IsBrushTool);
         }
@@ -266,6 +274,10 @@ namespace UrbanGenesis.Game
             {
                 UpdateUpgrade(mouse, onMap, ground);
             }
+            else if (CurrentTool == ToolType.Inspect)
+            {
+                UpdateInspect(onMap, ground);
+            }
             else
             {
                 UpdateBrush(mouse, onMap, ground);
@@ -288,6 +300,7 @@ namespace UrbanGenesis.Game
 
             if (keyboard.digit6Key.wasPressedThisFrame || keyboard.jKey.wasPressedThisFrame) { SetTool(ToolType.Junction); }
             if (keyboard.digit7Key.wasPressedThisFrame || keyboard.uKey.wasPressedThisFrame) { SetTool(ToolType.Upgrade); }
+            if (keyboard.digit9Key.wasPressedThisFrame || keyboard.iKey.wasPressedThisFrame) { SetTool(ToolType.Inspect); }
 
             if (keyboard.hKey.wasPressedThisFrame)
             {
@@ -393,6 +406,31 @@ namespace UrbanGenesis.Game
             }
 
             SelectedJunction = node;
+        }
+
+        private void UpdateInspect(bool onMap, Vec2 p)
+        {
+            string text = "";
+            if (onMap)
+            {
+                Building building;
+                if (sim.TryGetBuildingAt(p, out building))
+                {
+                    text = Inspector.DescribeBuilding(sim, building);
+                }
+                else
+                {
+                    double along;
+                    RoadSegment near = sim.Roads.FindSegmentNear(p, RoadSpecs.MaxHalfWidth, out along);
+                    if (near != null && near.Curve.DistanceTo(p) <= near.HalfWidth + 1.0)
+                    {
+                        text = Inspector.DescribeRoad(sim, Traffic, near);
+                    }
+                }
+            }
+
+            InspectText = text;
+            liveText = text.Length == 0 ? "Inspect: point at a building or a road." : "";
         }
 
         private void UpdateUpgrade(Mouse mouse, bool onMap, Vec2 p)
