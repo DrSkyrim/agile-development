@@ -201,7 +201,59 @@ namespace UrbanGenesis.Game
                 }
             }
 
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            if (keyboard != null && keyboard.f1Key.wasPressedThisFrame)
+            {
+                ToggleHelp();
+            }
+
             Refresh();
+        }
+
+        private VisualElement helpPanel;
+
+        /// <summary>Shows or hides the list of controls.</summary>
+        public void ToggleHelp()
+        {
+            if (helpPanel != null)
+            {
+                bool show = helpPanel.resolvedStyle.display == DisplayStyle.None;
+                helpPanel.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
+        private void BuildHelp()
+        {
+            helpPanel = Panel("Controls help", false);
+            Place(helpPanel, null, 84, 300, null);
+            helpPanel.style.width = 340;
+            helpPanel.style.alignItems = Align.FlexStart;
+            helpPanel.style.paddingLeft = 16;
+            helpPanel.style.paddingRight = 16;
+            helpPanel.style.paddingTop = 12;
+            helpPanel.style.paddingBottom = 12;
+            helpPanel.style.display = DisplayStyle.None;
+
+            helpPanel.Add(Text("Controls (F1 closes this)", null, Weight.SemiBold));
+            string[] lines =
+            {
+                "WASD / arrow keys: move the camera (Shift = faster)",
+                "Q / E: rotate the camera",
+                "Mouse wheel: zoom",
+                "Right mouse drag: rotate and tilt",
+                "Middle mouse drag: pan",
+                "Left drag with no tool selected: pan",
+                "Mouse at the screen edge: scroll",
+                "Esc: cancel the current tool",
+                "H: road tool, other tool hotkeys are shown on the toolbar",
+            };
+            for (int i = 0; i < lines.Length; i++)
+            {
+                Label line = Text(lines[i], "ug-text--soft", Weight.Regular);
+                line.style.marginTop = 6;
+                line.style.whiteSpace = WhiteSpace.Normal;
+                helpPanel.Add(line);
+            }
         }
 
         private void TryBuild()
@@ -237,6 +289,7 @@ namespace UrbanGenesis.Game
             BuildStatusBar();
             BuildScale();
             BuildMeasureTag();
+            BuildHelp();
 
             built = true;
             Refresh();
@@ -456,6 +509,11 @@ namespace UrbanGenesis.Game
 
             panel.Add(IconButton("bell", false, () => Notify("Notifications are not available yet.")));
             panel.Add(IconButton("save", false, () => { Action requested = SaveRequested; if (requested != null) { requested(); } }));
+            var helpButton = Text("?", null, Weight.SemiBold);
+            helpButton.AddToClassList("ug-btn");
+            helpButton.style.unityTextAlign = TextAnchor.MiddleCenter;
+            helpButton.RegisterCallback<ClickEvent>(e => ToggleHelp());
+            panel.Add(helpButton);
             panel.Add(IconButton("settings-2", false, () => Notify("Settings are not available yet.")));
             panel.Add(IconButton("menu", false, () => { Action requested = MainMenuRequested; if (requested != null) { requested(); } }));
         }

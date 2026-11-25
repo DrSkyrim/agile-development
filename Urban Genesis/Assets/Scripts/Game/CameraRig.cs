@@ -8,7 +8,8 @@ namespace UrbanGenesis.Game
     ///   WASD / arrow keys  move (Shift = faster)
     ///   Q / E              rotate
     ///   Right mouse drag   rotate (and tilt with up/down movement)
-    ///   Middle mouse drag  pan
+    ///   Middle mouse drag  pan (left drag too, when no tool is active)
+    ///   Mouse at screen edge  scroll
     ///   Mouse wheel        zoom
     /// </summary>
     public sealed class CameraRig : MonoBehaviour
@@ -30,6 +31,11 @@ namespace UrbanGenesis.Game
 
         /// <summary>While true (a menu is open) the camera ignores the keyboard and mouse.</summary>
         public bool InputBlocked { get; set; }
+
+        /// <summary>When this returns true, dragging with the left mouse button pans the map (set while no tool is active).</summary>
+        public System.Func<bool> LeftDragPanEnabled { get; set; }
+
+        private bool leftDragging;
 
         public Camera Camera { get { return cam; } }
 
@@ -161,10 +167,34 @@ namespace UrbanGenesis.Game
                 pitch = Mathf.Clamp(pitch - delta.y * 0.2f, MinPitch, MaxPitch);
             }
 
-            if (mouse.middleButton.isPressed && pointerFree)
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                leftDragging = pointerFree && LeftDragPanEnabled != null && LeftDragPanEnabled();
+            }
+
+            if (!mouse.leftButton.isPressed)
+            {
+                leftDragging = false;
+            }
+
+            if ((mouse.middleButton.isPressed && pointerFree) || leftDragging)
             {
                 Vector3 drag = yawRotation * new Vector3(-delta.x, 0f, -delta.y);
                 focus += drag * (distance * 0.0016f);
+            }
+
+            // Edge scrolling: push the mouse against the border of the window.
+            Vector2 mousePosition = mouse.position.ReadValue();
+            bool inside = mousePosition.x >= 0f && mousePosition.y >= 0f && mousePosition.x <= Screen.width && mousePosition.y <= Screen.height;
+            if (inside && pointerFree && !leftDragging && !mouse.leftButton.isPressed && !mouse.rightButton.isPressed && !mouse.middleButton.isPressed)
+            {
+                const float margin = 4f;
+                Vector2 edge = Vector2.zero;
+                if (mousePosition.x <= margin) { edge.x -= 1f; }
+                if (mousePosition.x >= Screen.width - margin) { edge.x += 1f; }
+                if (mousePosition.y <= margin) { edge.y -= 1f; }
+                if (mousePosition.y >= Screen.height - margin) { edge.y += 1f; }
+                focus += yawRotation * new Vector3(edge.x, 0f, edge.y) * (distance * 0.6f * dt);
             }
 
             // Zoom with the wheel. The raw value differs per platform, so only its sign is used.

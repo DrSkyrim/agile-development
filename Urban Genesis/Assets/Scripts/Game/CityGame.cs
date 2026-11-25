@@ -82,6 +82,7 @@ namespace UrbanGenesis.Game
             cityRenderer.SetTraffic(Traffic);
             rig.Init(hud, (float)(Simulation.Roads.WorldBounds.MaxX));
             tools.Init(Simulation, rig, cityRenderer, hud);
+            rig.LeftDragPanEnabled = () => tools.CurrentTool == ToolType.None;
             gameStart = save != null && save.StartDateTicks > 0 ? new DateTime(save.StartDateTicks) : DateTime.Today.AddHours(9);
             hud.GameStart = gameStart;
             hud.Init(Simulation, Clock, tools, rig, CityName);
