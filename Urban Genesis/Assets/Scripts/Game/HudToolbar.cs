@@ -23,7 +23,10 @@ namespace UrbanGenesis.Game
         private const string IconFolder = "UI/Icons/";
 
         // One game tick is ten minutes on the clock in the status bar.
-        private static readonly DateTime StartDate = new DateTime(2026, 5, 14, 9, 0, 0);
+        private DateTime StartDate = DateTime.Today.AddHours(9);
+
+        /// <summary>The in-game date and time the city started at (kept in the save).</summary>
+        public DateTime GameStart { get { return StartDate; } set { StartDate = value; } }
 
         private static readonly int[] Milestones = { 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000 };
 
@@ -996,6 +999,7 @@ namespace UrbanGenesis.Game
 
         private void Refresh()
         {
+            sim.RefreshEconomyIfStale();
             if (!clock.IsPaused)
             {
                 lastRunningSpeed = clock.SpeedLevel;

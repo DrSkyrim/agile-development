@@ -42,6 +42,20 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
+        public void PopulationDropsAtOnceWhenHomesAreRemoved()
+        {
+            CitySimulation city = Street();
+            city.PaintZone(new Vec2(0, 20), 400, ZoneType.Residential);
+            city.PaintZone(new Vec2(0, -20), 400, ZoneType.Commercial);
+            for (int i = 0; i < 400; i++) { city.Step(); }
+            Assert.Greater(city.Economy.Snapshot.Residents, 0.0);
+
+            city.FillZone(new Vec2(0, 12), ZoneType.None);
+            city.RefreshEconomyIfStale();
+            Assert.AreEqual(0.0, city.Economy.Snapshot.Residents, 0.001, "no homes, no residents, without waiting for the next tick");
+        }
+
+        [Test]
         public void RoadsHaveHumanNames()
         {
             Assert.AreEqual("Single-lane road", RoadSpecs.Name(RoadType.Street));

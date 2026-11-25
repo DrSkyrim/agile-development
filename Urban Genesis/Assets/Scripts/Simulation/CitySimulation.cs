@@ -665,6 +665,18 @@ namespace UrbanGenesis.Simulation
             return (amount < 0 ? "-$" : "$") + Math.Abs(Math.Round(amount)).ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        private bool economyStale;
+
+        /// <summary>Recalculates the economy right away if buildings were removed since the last update (so population and jobs drop at once, even while paused).</summary>
+        public void RefreshEconomyIfStale()
+        {
+            if (economyStale)
+            {
+                economyStale = false;
+                Economy.Update();
+            }
+        }
+
         /// <summary>Advances the city by one tick.</summary>
         public void Step()
         {
@@ -976,6 +988,8 @@ namespace UrbanGenesis.Simulation
             {
                 return;
             }
+
+            economyStale = true;
 
             for (int i = 0; i < building.Lots.Count; i++)
             {

@@ -46,6 +46,8 @@ namespace UrbanGenesis.Game
         /// Starts the city: a brand-new one when <paramref name="save"/> is null, otherwise the saved one.
         /// (Called by <see cref="GameFlow"/>, right after this object is created.)
         /// </summary>
+        private DateTime gameStart;
+
         public void Begin(SaveGame save)
         {
             int skipped = 0;
@@ -80,6 +82,8 @@ namespace UrbanGenesis.Game
             cityRenderer.SetTraffic(Traffic);
             rig.Init(hud, (float)(Simulation.Roads.WorldBounds.MaxX));
             tools.Init(Simulation, rig, cityRenderer, hud);
+            gameStart = save != null && save.StartDateTicks > 0 ? new DateTime(save.StartDateTicks) : DateTime.Today.AddHours(9);
+            hud.GameStart = gameStart;
             hud.Init(Simulation, Clock, tools, rig, CityName);
 
             pauseMenu = CreateChild<PauseMenu>("Pause Menu");
@@ -133,6 +137,7 @@ namespace UrbanGenesis.Game
             save.Buildings = Simulation.BuildingCount;
             save.Money = Simulation.Treasury.Balance;
             save.SpeedLevel = Clock.SpeedLevel;
+            save.StartDateTicks = gameStart.Ticks;
             rig.CaptureView(save);
             save.City = Simulation.Capture();
             return save;

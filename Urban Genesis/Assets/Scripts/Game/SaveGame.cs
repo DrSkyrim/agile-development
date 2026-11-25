@@ -14,6 +14,9 @@ namespace UrbanGenesis.Game
         public int Version = CurrentVersion;
         public string CityName;
         public string SavedAt;
+
+        /// <summary>The in-game start date, as ticks (0 in older saves: the date then starts from today).</summary>
+        public long StartDateTicks;
         public int Population;
         public int Buildings;
         public double Money;
