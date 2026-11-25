@@ -26,8 +26,8 @@ namespace UrbanGenesis.Tests
         public void ClearingZoningRemovesZonesAndTheBuildingsOnThem()
         {
             CitySimulation city = Street();
-            city.PaintZone(new Vec2(0, 20), 400, ZoneType.Residential);
-            city.PaintZone(new Vec2(0, -20), 400, ZoneType.Commercial);
+            city.FillZone(new Vec2(0, 12), ZoneType.Residential);
+            city.FillZone(new Vec2(0, -12), ZoneType.Commercial);
             for (int i = 0; i < 200; i++) { city.Step(); }
             Assert.Greater(city.BuildingCount, 3);
 
@@ -45,8 +45,8 @@ namespace UrbanGenesis.Tests
         public void PopulationDropsAtOnceWhenHomesAreRemoved()
         {
             CitySimulation city = Street();
-            city.PaintZone(new Vec2(0, 20), 400, ZoneType.Residential);
-            city.PaintZone(new Vec2(0, -20), 400, ZoneType.Commercial);
+            city.FillZone(new Vec2(0, 12), ZoneType.Residential);
+            city.FillZone(new Vec2(0, -12), ZoneType.Commercial);
             for (int i = 0; i < 400; i++) { city.Step(); }
             Assert.Greater(city.Economy.Snapshot.Residents, 0.0);
 

@@ -65,7 +65,6 @@ namespace UrbanGenesis.Game
         private Label treasuryChange;
         private Label populationValue;
         private Label populationChange;
-        private Label happinessValue;
         private readonly VisualElement[] demandFill = new VisualElement[3];
         private Label milestoneTarget;
         private VisualElement milestoneFill;
@@ -787,16 +786,11 @@ namespace UrbanGenesis.Game
 
             panel.Add(Divider(true));
 
-            Label happinessChange;
             VisualElement treasury = Metric("wallet", "Treasury", out treasuryValue, out treasuryChange);
             treasuryValue.text = "—";
             treasuryChange.text = "";
             panel.Add(treasury);
             panel.Add(Metric("users", "Population", out populationValue, out populationChange));
-            VisualElement happiness = Metric("smile", "Happiness", out happinessValue, out happinessChange);
-            happinessValue.text = "—";
-            happinessChange.text = "";
-            panel.Add(happiness);
 
             panel.Add(Divider(true));
 
@@ -1194,15 +1188,6 @@ namespace UrbanGenesis.Game
             }
 
             EconomySnapshot snapshot = economy.Snapshot;
-            if (snapshot.Residents > 0.0)
-            {
-                SetText(happinessValue, Mathf.RoundToInt((float)snapshot.Happiness * 100f) + "%");
-            }
-            else
-            {
-                SetText(happinessValue, "—");
-            }
-
             int target = Milestones[Milestones.Length - 1];
             int previous = 0;
             for (int i = 0; i < Milestones.Length; i++)

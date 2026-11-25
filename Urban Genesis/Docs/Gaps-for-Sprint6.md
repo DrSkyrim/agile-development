@@ -40,7 +40,8 @@ Compared against the user stories document (stories 1 to 9 plus the epics) and t
 - [ ] First milestone reward (#14).
 - [ ] Sound effects and music (#16, #21, #41).
 - [ ] Real models and textures: buildings (#4, #25), road, vehicles (#13), textures (#5). Vehicles have a prefab hook at `Assets/Resources/Vehicles/{Car,ShortTruck,LongTruck}`.
-- [ ] Infrastructure and services (#17, epic "Infrastructure feature").
+- [ ] Infrastructure (#17, epic): electricity, and water and sewage, for now.
+- Wishlist (not planned): happiness (indicator removed from the HUD), pollution or environment indicator.
 
 ## Traffic and economy follow-ups
 
