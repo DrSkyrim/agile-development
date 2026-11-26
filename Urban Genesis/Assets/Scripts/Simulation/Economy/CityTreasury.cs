@@ -14,7 +14,7 @@ namespace UrbanGenesis.Simulation
     /// </summary>
     public sealed class CityTreasury
     {
-        public const double DefaultStartingFunds = 50000.0;
+        public const double DefaultStartingFunds = 100000.0;
 
         private readonly CitySimulation sim;
 
@@ -110,6 +110,35 @@ namespace UrbanGenesis.Simulation
             }
         }
 
+        /// <summary>A new road must leave enough money to pay the deficit it causes for this many weeks.</summary>
+        public double SustainWeeks = 4.0;
+
+        /// <summary>
+        /// Checks that spending <paramref name="cost"/> and adding <paramref name="extraUpkeepPerWeek"/> does not leave a city that
+        /// runs out of money within <see cref="SustainWeeks"/> weeks. Returns null if fine, or a message for the player.
+        /// </summary>
+        public string CheckSustainable(double cost, double extraUpkeepPerWeek)
+        {
+            if (!IsEnabled)
+            {
+                return null;
+            }
+
+            double remaining = Balance - cost;
+            double net = WeeklyNet - extraUpkeepPerWeek;
+            if (net < 0.0 && remaining < -net * SustainWeeks)
+            {
+                return "Too expensive to keep: with this the upkeep (" + CitySimulation.FormatMoney(WeeklyUpkeep + extraUpkeepPerWeek)
+                    + "/wk) outruns the tax income (" + CitySimulation.FormatMoney(WeeklyIncome) + "/wk) and the " + CitySimulation.FormatMoney(remaining)
+                    + " left would be gone in under " + (int)SustainWeeks + " weeks. Zone land and grow the city first.";
+            }
+
+            return null;
+        }
+
+        /// <summary>Upkeep that could not be paid on the last day because the treasury ran dry.</summary>
+        public double LastDayShortfall { get; private set; }
+
         public bool CanAfford(double cost)
         {
             return !IsEnabled || Balance >= cost;
@@ -176,6 +205,13 @@ namespace UrbanGenesis.Simulation
                 LastDaySpent = SpentToday;
                 LastDayRefunded = RefundedToday;
                 Balance += WeeklyNet / 7.0;
+                LastDayShortfall = 0.0;
+                if (Balance < 0.0)
+                {
+                    LastDayShortfall = -Balance;
+                    Balance = 0.0;
+                }
+
                 LastDayEnd = Balance;
                 DayStartBalance = Balance;
                 SpentToday = 0.0;

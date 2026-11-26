@@ -21,7 +21,7 @@ namespace UrbanGenesis.Game
 
         [Header("Money")]
         [Tooltip("Money at the start. Zones and buildings are free; roads cost money (see CityTreasury).")]
-        [SerializeField] private float startingFunds = 50000f;
+        [SerializeField] private float startingFunds = 100000f;
 
         [Header("Simulation")]
         [SerializeField] private int randomSeed = 12345;

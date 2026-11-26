@@ -263,6 +263,11 @@ namespace UrbanGenesis.Game
                 m.Append("Road upkeep: -").Append(CitySimulation.FormatMoney(t.LastDayUpkeep)).Append('\n');
                 m.Append("Building roads: -").Append(CitySimulation.FormatMoney(t.LastDaySpent)).Append('\n');
                 m.Append("Demolition refunds: +").Append(CitySimulation.FormatMoney(t.LastDayRefunded)).Append('\n');
+                if (t.LastDayShortfall > 0.5)
+                {
+                    m.Append("Unpaid upkeep: ").Append(CitySimulation.FormatMoney(t.LastDayShortfall)).Append(" (the treasury ran dry)\n");
+                }
+
                 m.Append("End of day: ").Append(CitySimulation.FormatMoney(t.LastDayEnd));
                 SetText(summaryLabel, m.ToString());
                 summaryPanel.style.display = DisplayStyle.Flex;

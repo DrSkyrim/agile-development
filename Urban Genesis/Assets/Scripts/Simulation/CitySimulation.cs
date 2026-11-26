@@ -160,6 +160,15 @@ namespace UrbanGenesis.Simulation
                 plan.IsValid = false;
                 plan.Error = "Not enough money: this road costs " + FormatMoney(plan.Cost) + ", you have " + FormatMoney(Treasury.Balance) + ".";
             }
+            else
+            {
+                string unsustainable = Treasury.CheckSustainable(plan.Cost, Treasury.UpkeepPerMetreOf(plan.Type) * plan.Curve.Length);
+                if (unsustainable != null)
+                {
+                    plan.IsValid = false;
+                    plan.Error = unsustainable;
+                }
+            }
 
             return plan;
         }
@@ -435,6 +444,13 @@ namespace UrbanGenesis.Simulation
             if (!Treasury.CanAfford(plan.Cost))
             {
                 return "Not enough money: this costs " + FormatMoney(plan.Cost) + ".";
+            }
+
+            double extra = (Treasury.UpkeepPerMetreOf(type) - Treasury.UpkeepPerMetreOf(segment.Type)) * segment.Length;
+            string unsustainable = Treasury.CheckSustainable(plan.Cost, Math.Max(0.0, extra));
+            if (unsustainable != null)
+            {
+                return unsustainable;
             }
 
             for (int i = 0; i < plan.Demolitions.Count; i++)
