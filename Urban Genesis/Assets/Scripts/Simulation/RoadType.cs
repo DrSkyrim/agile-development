@@ -41,6 +41,19 @@ namespace UrbanGenesis.Simulation
             }
         }
 
+        /// <summary>One sentence on what the road is good for, shown when choosing a road type.</summary>
+        public static string Description(RoadType type)
+        {
+            switch (type)
+            {
+                case RoadType.Avenue: return "Two lanes each way: more traffic fits, buildings still line both sides.";
+                case RoadType.Highway: return "Two lanes each way and fast, for long hauls. No buildings, junctions only at its ends.";
+                case RoadType.TwoLaneHighway: return "One lane each way and fast. No buildings along it.";
+                case RoadType.OneWayHighway: return "A single fast lane in one direction only. No buildings along it.";
+                default: return "One lane each way: cheap and slow, good for homes and shops.";
+            }
+        }
+
         /// <summary>The lane layout as players say it: "1+1", "2+2" or "1 way".</summary>
         public static string LaneLabel(RoadType type)
         {

@@ -85,6 +85,24 @@ namespace UrbanGenesis.Simulation
             return count;
         }
 
+        /// <summary>Vehicles on every segment, counted in one pass (segment id to count).</summary>
+        public static System.Collections.Generic.Dictionary<int, int> LoadBySegment(CityTraffic traffic)
+        {
+            var load = new System.Collections.Generic.Dictionary<int, int>();
+            if (traffic == null) { return load; }
+            for (int i = 0; i < traffic.Vehicles.Count; i++)
+            {
+                Vehicle v = traffic.Vehicles[i];
+                if (v.Route == null || v.StepIndex >= v.Route.Count) { continue; }
+                int id = v.Step.Segment.Id;
+                int n;
+                load.TryGetValue(id, out n);
+                load[id] = n + 1;
+            }
+
+            return load;
+        }
+
         public static string DescribeRoad(CitySimulation sim, CityTraffic traffic, RoadSegment s)
         {
             var text = new StringBuilder();

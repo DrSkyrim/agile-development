@@ -55,6 +55,10 @@ namespace UrbanGenesis.Game
 
         // Preview overlay
         private Mesh previewMesh;
+        private Mesh congestionMesh;
+        private readonly MeshBuilder congestion = new MeshBuilder();
+        private bool congestionVisible;
+        private float congestionRefreshAt;
         private readonly MeshBuilder preview = new MeshBuilder();
 
         // Buildings
@@ -77,6 +81,7 @@ namespace UrbanGenesis.Game
             roadMesh = CreateOverlayObject("Roads", 2100);
             lotMesh = CreateOverlayObject("Lots", 2200);
             previewMesh = CreateOverlayObject("Tool Preview", 3000);
+            congestionMesh = CreateOverlayObject("Traffic Overlay", 2900);
 
             buildingRoot = new GameObject("Buildings").transform;
             buildingRoot.SetParent(transform, false);
@@ -111,8 +116,46 @@ namespace UrbanGenesis.Game
             }
         }
 
+        /// <summary>Colours every road by how full it is (green, amber, red). Off by default.</summary>
+        public void SetCongestionVisible(bool visible)
+        {
+            congestionVisible = visible;
+            congestionRefreshAt = 0f;
+            if (!visible)
+            {
+                congestionMesh.Clear();
+            }
+        }
+
+        public bool CongestionVisible { get { return congestionVisible; } }
+
+        private void RefreshCongestion()
+        {
+            congestion.Clear();
+            var load = UrbanGenesis.Simulation.Inspector.LoadBySegment(traffic);
+            foreach (RoadSegment segment in sim.Roads.Segments)
+            {
+                if (segment.IsOutsideConnection) { continue; }
+                int n;
+                load.TryGetValue(segment.Id, out n);
+                double fill = n / UrbanGenesis.Simulation.Inspector.Capacity(segment);
+                Color color = fill < 0.35 ? new Color(0.20f, 0.85f, 0.40f, 0.75f)
+                    : fill < 0.7 ? new Color(1.00f, 0.75f, 0.15f, 0.8f)
+                    : new Color(0.95f, 0.22f, 0.18f, 0.85f);
+                congestion.Ribbon(segment.Curve.Sample(4.0), segment.HalfWidth, 0.25f, color);
+            }
+
+            congestion.Apply(congestionMesh);
+        }
+
         private void LateUpdate()
         {
+            if (congestionVisible && Time.unscaledTime >= congestionRefreshAt)
+            {
+                RefreshCongestion();
+                congestionRefreshAt = Time.unscaledTime + 0.5f;
+            }
+
             if (roadsDirty)
             {
                 RebuildRoads();

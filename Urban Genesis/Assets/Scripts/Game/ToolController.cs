@@ -109,16 +109,32 @@ namespace UrbanGenesis.Game
         {
             switch (CurrentTool)
             {
-                case ToolType.Road: return roadStage > 0 ? "Click to place the next point. Right-click or Esc cancels." : "Click to start a road. Esc leaves the tool.";
+                case ToolType.Road:
+                    return roadStage > 0 ? "Click to place the next point. Right-click or Esc cancels." : RoadFacts(RoadType) + " Click to start.";
                 case ToolType.Junction: return "Click a junction to change its lights and lane connections.";
                 case ToolType.Inspect: return "Point at a building or a road to see its details.";
-                case ToolType.Upgrade: return "Click a road to change its type.";
-                case ToolType.Bulldoze: return "Click or drag to demolish. Esc leaves the tool.";
+                case ToolType.Upgrade: return RoadFacts(UpgradeType) + " Click a road to rebuild it (you pay the difference).";
+                case ToolType.Bulldoze: return "Click or drag to demolish. Roads refund half their price, buildings go for free.";
                 case ToolType.ZoneClear: return "Drag over zoned land to clear zoning. Esc leaves the tool.";
                 case ToolType.None: return "";
                 default: return IsZoneTool ? "Drag next to a road to paint a zone. The tool stays selected, Esc leaves it." : "";
             }
         }
+
+        private string RoadFacts(RoadType type)
+        {
+            return RoadSpecs.Name(type) + " (" + RoadSpecs.LaneLabel(type) + ", " + (int)RoadSpecs.Width(type) + " m): "
+                + RoadSpecs.Description(type) + " " + CitySimulation.FormatMoney(sim.Treasury.BuildCostPerMetreOf(type)) + " per metre, upkeep "
+                + CitySimulation.FormatMoney(sim.Treasury.UpkeepPerMetreOf(type)) + "/m a week.";
+        }
+
+        /// <summary>Shows or hides the traffic overlay (roads coloured by how full they are).</summary>
+        public void ToggleTrafficOverlay()
+        {
+            cityRenderer.SetCongestionVisible(!cityRenderer.CongestionVisible);
+        }
+
+        public bool TrafficOverlayOn { get { return cityRenderer.CongestionVisible; } }
 
         /// <summary>
         /// Size of the road being drawn, as text for a tag beside the cursor (empty when no road is being drawn).
@@ -292,6 +308,8 @@ namespace UrbanGenesis.Game
             else if (keyboard.digit4Key.wasPressedThisFrame) { SetTool(ToolType.ZoneIndustrial); }
             else if (keyboard.digit5Key.wasPressedThisFrame) { SetTool(ToolType.Bulldoze); }
             else if (keyboard.digit8Key.wasPressedThisFrame) { SetTool(ToolType.ZoneClear); }
+
+            if (keyboard.oKey.wasPressedThisFrame) { ToggleTrafficOverlay(); }
 
             if (keyboard.cKey.wasPressedThisFrame)
             {

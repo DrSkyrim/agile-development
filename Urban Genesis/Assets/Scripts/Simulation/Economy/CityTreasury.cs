@@ -44,6 +44,23 @@ namespace UrbanGenesis.Simulation
         /// <summary>Raised when the balance changes because of a purchase or refund (not for the steady income per tick).</summary>
         public event Action Changed;
 
+        // The books of the current game day, for the end-of-day summary.
+        public double DayStartBalance { get; private set; }
+        public double SpentToday { get; private set; }
+        public double RefundedToday { get; private set; }
+
+        /// <summary>The figures of the day that just ended.</summary>
+        public double LastDayStart { get; private set; }
+        public double LastDayIncome { get; private set; }
+        public double LastDayUpkeep { get; private set; }
+        public double LastDaySpent { get; private set; }
+        public double LastDayRefunded { get; private set; }
+        public double LastDayEnd { get; private set; }
+        public int DaysClosed { get; private set; }
+
+        /// <summary>Raised after each day's income and upkeep are settled.</summary>
+        public event Action DayClosed;
+
         internal CityTreasury(CitySimulation simulation)
         {
             sim = simulation;
@@ -54,6 +71,7 @@ namespace UrbanGenesis.Simulation
         {
             IsEnabled = true;
             Balance = startingFunds;
+            DayStartBalance = startingFunds;
             Recompute();
         }
 
@@ -102,6 +120,7 @@ namespace UrbanGenesis.Simulation
             if (IsEnabled && cost > 0.0)
             {
                 Balance -= cost;
+                SpentToday += cost;
                 RaiseChanged();
             }
         }
@@ -111,7 +130,9 @@ namespace UrbanGenesis.Simulation
         {
             if (IsEnabled && !segment.IsOutsideConnection)
             {
-                Balance += RoadCost(segment.Length, segment.Type) * RefundShare;
+                double refund = RoadCost(segment.Length, segment.Type) * RefundShare;
+                Balance += refund;
+                RefundedToday += refund;
                 RaiseChanged();
             }
         }
@@ -149,8 +170,23 @@ namespace UrbanGenesis.Simulation
             if (ticksIntoDay >= GameTime.TicksPerDay)
             {
                 ticksIntoDay = 0;
+                LastDayStart = DayStartBalance;
+                LastDayIncome = WeeklyIncome / 7.0;
+                LastDayUpkeep = WeeklyUpkeep / 7.0;
+                LastDaySpent = SpentToday;
+                LastDayRefunded = RefundedToday;
                 Balance += WeeklyNet / 7.0;
+                LastDayEnd = Balance;
+                DayStartBalance = Balance;
+                SpentToday = 0.0;
+                RefundedToday = 0.0;
+                DaysClosed++;
                 RaiseChanged();
+                Action closed = DayClosed;
+                if (closed != null)
+                {
+                    closed();
+                }
             }
         }
 

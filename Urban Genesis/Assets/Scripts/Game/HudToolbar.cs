@@ -63,6 +63,7 @@ namespace UrbanGenesis.Game
         private Label cityDetail;
         private Label treasuryValue;
         private Label treasuryChange;
+        private Label jobsValue, jobsChange, milestoneDetail;
         private Label populationValue;
         private Label populationChange;
         private readonly VisualElement[] demandFill = new VisualElement[3];
@@ -222,6 +223,53 @@ namespace UrbanGenesis.Game
             }
         }
 
+        private VisualElement summaryPanel;
+        private Label summaryLabel;
+        private float summaryHideAt;
+        private bool summaryPending;
+
+        private void BuildSummary()
+        {
+            summaryPanel = Panel("Day summary", false);
+            Place(summaryPanel, null, 176, 24, null);
+            summaryPanel.style.width = 264;
+            summaryPanel.style.alignItems = Align.FlexStart;
+            summaryPanel.style.paddingLeft = 14;
+            summaryPanel.style.paddingRight = 14;
+            summaryPanel.style.paddingTop = 10;
+            summaryPanel.style.paddingBottom = 10;
+            summaryPanel.style.display = DisplayStyle.None;
+            summaryLabel = Text("", null, Weight.Regular);
+            summaryLabel.style.whiteSpace = WhiteSpace.Normal;
+            summaryPanel.Add(summaryLabel);
+            summaryPanel.RegisterCallback<ClickEvent>(e => summaryPanel.style.display = DisplayStyle.None);
+            sim.Treasury.DayClosed += () => summaryPending = true;
+        }
+
+        private void UpdateSummary()
+        {
+            if (summaryPending)
+            {
+                summaryPending = false;
+                CityTreasury t = sim.Treasury;
+                var m = new System.Text.StringBuilder();
+                m.Append("End of day ").Append(t.DaysClosed).Append(" (click to close)\n");
+                m.Append("Start of day: ").Append(CitySimulation.FormatMoney(t.LastDayStart)).Append('\n');
+                m.Append("Tax income: +").Append(CitySimulation.FormatMoney(t.LastDayIncome)).Append('\n');
+                m.Append("Road upkeep: -").Append(CitySimulation.FormatMoney(t.LastDayUpkeep)).Append('\n');
+                m.Append("Building roads: -").Append(CitySimulation.FormatMoney(t.LastDaySpent)).Append('\n');
+                m.Append("Demolition refunds: +").Append(CitySimulation.FormatMoney(t.LastDayRefunded)).Append('\n');
+                m.Append("End of day: ").Append(CitySimulation.FormatMoney(t.LastDayEnd));
+                SetText(summaryLabel, m.ToString());
+                summaryPanel.style.display = DisplayStyle.Flex;
+                summaryHideAt = Time.unscaledTime + 12f;
+            }
+            else if (summaryPanel.resolvedStyle.display != DisplayStyle.None && Time.unscaledTime > summaryHideAt)
+            {
+                summaryPanel.style.display = DisplayStyle.None;
+            }
+        }
+
         private VisualElement inspectPanel;
         private Label inspectLabel;
 
@@ -270,6 +318,7 @@ namespace UrbanGenesis.Game
                 "WASD / arrow keys: move the camera (Shift = faster)",
                 "Q / E: rotate the camera",
                 "I or 9: inspect a building or road",
+                "O: show how full the roads are",
                 "Mouse wheel: zoom",
                 "Right mouse drag: rotate and tilt",
                 "Middle mouse drag: pan",
@@ -322,6 +371,7 @@ namespace UrbanGenesis.Game
             BuildMeasureTag();
             BuildHelp();
             BuildInspect();
+            BuildSummary();
 
             built = true;
             Refresh();
@@ -539,6 +589,7 @@ namespace UrbanGenesis.Game
             divider.style.marginRight = 5;
             panel.Add(divider);
 
+            panel.Add(IconButton("route", false, () => { tools.ToggleTrafficOverlay(); Notify(tools.TrafficOverlayOn ? "Traffic overlay on: green is quiet, amber busy, red full (O toggles)." : "Traffic overlay off."); }));
             panel.Add(IconButton("bell", false, () => Notify("Notifications are not available yet.")));
             panel.Add(IconButton("save", false, () => { Action requested = SaveRequested; if (requested != null) { requested(); } }));
             var helpButton = new VisualElement();
@@ -682,7 +733,7 @@ namespace UrbanGenesis.Game
             for (int i = 0; i < RoadSpecs.All.Length; i++)
             {
                 RoadType type = RoadSpecs.All[i];
-                string label = RoadSpecs.Name(type);
+                string label = RoadSpecs.Name(type) + "  " + CitySimulation.FormatMoney(sim.Treasury.BuildCostPerMetreOf(type)) + "/m";
                 typeChips[i] = Chip(label, () => tools.SetRoadType(type), null);
                 roadOptions.Add(typeChips[i]);
             }
@@ -700,7 +751,7 @@ namespace UrbanGenesis.Game
             for (int i = 0; i < RoadSpecs.All.Length; i++)
             {
                 RoadType type = RoadSpecs.All[i];
-                upgradeChips[i] = Chip(RoadSpecs.Name(type), () => tools.SetUpgradeType(type), null);
+                upgradeChips[i] = Chip(RoadSpecs.Name(type) + "  " + CitySimulation.FormatMoney(sim.Treasury.BuildCostPerMetreOf(type)) + "/m", () => tools.SetUpgradeType(type), null);
                 upgradeOptions.Add(upgradeChips[i]);
             }
 
@@ -885,6 +936,7 @@ namespace UrbanGenesis.Game
             treasuryChange.text = "";
             panel.Add(treasury);
             panel.Add(Metric("users", "Population", out populationValue, out populationChange));
+            panel.Add(Metric("building-2", "Jobs", out jobsValue, out jobsChange));
 
             panel.Add(Divider(true));
 
@@ -946,6 +998,10 @@ namespace UrbanGenesis.Game
             milestoneFill.AddToClassList("ug-fill--h");
             progress.Add(milestoneFill);
             milestone.Add(progress);
+            milestoneDetail = Text("", "ug-text--muted ug-text--soft", Weight.Regular);
+            milestoneDetail.style.fontSize = 10;
+            milestoneDetail.style.marginTop = 4;
+            milestone.Add(milestoneDetail);
             panel.Add(milestone);
         }
 
@@ -1185,6 +1241,7 @@ namespace UrbanGenesis.Game
             }
 
             UpdateInspect();
+            UpdateSummary();
 
             // Advisory: the tool's live message first, then a transient notice, then a hint for what to do next.
             string title;
@@ -1272,6 +1329,14 @@ namespace UrbanGenesis.Game
                 populationSampledAt = Time.unscaledTime;
             }
 
+            EconomySnapshot jobs = sim.Economy.Snapshot;
+            SetText(jobsValue, Mathf.RoundToInt((float)jobs.Employed) + " / " + Mathf.RoundToInt((float)jobs.Jobs));
+            string jobsNote = jobs.Unemployed >= 5.0 ? Mathf.RoundToInt((float)jobs.Unemployed) + " jobless: more jobs needed"
+                : jobs.UnfilledJobs >= 5.0 ? Mathf.RoundToInt((float)jobs.UnfilledJobs) + " free jobs: more homes needed" : "";
+            SetText(jobsChange, jobsNote);
+            jobsChange.EnableInClassList("ug-text--bad", jobs.Unemployed >= 5.0);
+            jobsChange.EnableInClassList("ug-text--good", jobs.Unemployed < 5.0);
+
             SetText(populationValue, population.ToString("N0", CultureInfo.InvariantCulture));
             SetText(populationChange, populationTrend > 0 ? "+" + populationTrend.ToString("0", CultureInfo.InvariantCulture) : "");
 
@@ -1297,6 +1362,7 @@ namespace UrbanGenesis.Game
             }
 
             SetText(milestoneTarget, FormatShort(target));
+            SetText(milestoneDetail, "Reach " + target.ToString("N0", CultureInfo.InvariantCulture) + " residents (now " + population.ToString("N0", CultureInfo.InvariantCulture) + ")");
             float progress = Mathf.Clamp01((population - previous) / (float)(target - previous));
             milestoneFill.style.width = new StyleLength(new Length(progress * 100f, LengthUnit.Percent));
 
