@@ -39,11 +39,103 @@ namespace UrbanGenesis.Simulation
                 case BuildingShape.Factory: Factory(sketch); break;
                 case BuildingShape.SiloYard: SiloYard(sketch); break;
 
+                case BuildingShape.ApartmentBlock: ApartmentBlock(sketch); break;
+                case BuildingShape.HighRise: HighRise(sketch); break;
+                case BuildingShape.PowerPlant: PowerPlant(sketch); break;
+                case BuildingShape.WaterTower: WaterTower(sketch); break;
+                case BuildingShape.SewageOutlet: SewageOutlet(sketch); break;
+                case BuildingShape.Hospital: Hospital(sketch); break;
+                case BuildingShape.PoliceStation: PoliceStation(sketch); break;
+                case BuildingShape.FireStation: FireStation(sketch); break;
+                case BuildingShape.School: School(sketch); break;
+
                 default:
                     throw new ArgumentOutOfRangeException("building", "There is no design for the shape " + building.Shape + ".");
             }
 
             return sketch.Parts;
+        }
+
+        // ------------------------------------------------------------ dense housing and civic buildings
+
+        private static void ApartmentBlock(Sketch s)
+        {
+            float f = s.Floors;
+            s.Box(0.10f, 0.12f, s.W - 0.10f, 0.88f, f, 0f, PartTone.Wall);
+            s.Box(0.20f, 0.22f, s.W - 0.20f, 0.78f, 0.5f, f, PartTone.Light);              // roof deck
+            s.Box(s.W - 0.45f, 0.30f, s.W - 0.25f, 0.50f, 0.6f, f + 0.5f, PartTone.Dark);   // lift housing
+            if (s.Rng.Next(2) == 0) { s.Box(0.25f, 0.30f, 0.55f, 0.60f, 0.35f, f + 0.5f, PartTone.Dark); } // water tank
+        }
+
+        private static void HighRise(Sketch s)
+        {
+            float f = s.Floors;
+            s.Box(0.08f, 0.08f, s.W - 0.08f, s.D - 0.08f, 1.0f, 0f, PartTone.Dark);        // lobby base
+            s.Box(0.25f, 0.25f, s.W - 0.25f, s.D - 0.25f, f, 1.0f, PartTone.Wall);
+            s.Box(0.45f, 0.45f, s.W - 0.45f, s.D - 0.45f, 0.8f, f + 1.0f, PartTone.Light);
+            if (s.Rng.Next(2) == 0) { s.Pyramid(0.7f, 0.7f, s.W - 0.7f, s.D - 0.7f, 0.9f, f + 1.8f, PartTone.Dark); }
+            else { s.Cylinder(s.W * 0.5f, s.D * 0.5f, 0.35f, 1.4f, f + 1.8f, PartTone.Dark); }
+        }
+
+        private static void PowerPlant(Sketch s)
+        {
+            s.Box(0.10f, 0.15f, 2.30f, 1.30f, 2.0f, 0f, PartTone.Wall);                     // turbine hall
+            s.Box(0.05f, 0.10f, 2.35f, 1.35f, 0.3f, 2.0f, PartTone.Light);
+            s.Cylinder(2.60f, 0.55f, 0.45f, 4.5f, 0f, PartTone.Dark);                       // chimneys
+            s.Cylinder(2.60f, 1.35f, 0.45f, 3.8f, 0f, PartTone.Dark);
+            s.Box(0.20f, 1.50f, 1.40f, 1.90f, 0.8f, 0f, PartTone.Light);                    // switch yard
+            if (s.Rng.Next(2) == 0) { s.Cylinder(1.9f, 1.7f, 0.5f, 1.2f, 0f, PartTone.Light); }
+        }
+
+        private static void WaterTower(Sketch s)
+        {
+            s.Box(0.60f, 0.60f, 1.40f, 1.40f, 0.5f, 0f, PartTone.Dark);
+            s.Box(0.85f, 0.85f, 1.15f, 1.15f, 2.6f, 0.5f, PartTone.Wall);                   // stem
+            s.Cylinder(1.0f, 1.0f, 1.4f, 1.3f, 3.1f, PartTone.Light);                       // tank
+            if (s.Rng.Next(2) == 0) { s.Pyramid(0.3f, 0.3f, 1.7f, 1.7f, 0.6f, 4.4f, PartTone.Dark); }
+            else { s.Box(0.9f, 0.9f, 1.1f, 1.1f, 0.5f, 4.4f, PartTone.Dark); }
+        }
+
+        private static void SewageOutlet(Sketch s)
+        {
+            s.Box(0.10f, 0.20f, 1.30f, 0.85f, 1.0f, 0f, PartTone.Wall);
+            s.Cylinder(1.65f, 0.50f, 0.65f, 0.5f, 0f, PartTone.Light);                      // settling tank
+            s.Box(0.30f, 0.08f, 1.60f, 0.20f, 0.2f, 0f, PartTone.Dark);                     // outfall pipe
+            if (s.Rng.Next(2) == 0) { s.Cylinder(0.5f, 0.55f, 0.4f, 1.5f, 1.0f, PartTone.Light); }
+        }
+
+        private static void Hospital(Sketch s)
+        {
+            s.Box(0.10f, 0.20f, 2.90f, 1.80f, 3.0f, 0f, PartTone.Wall);
+            s.Box(0.90f, 0.05f, 2.10f, 0.20f, 0.5f, 0f, PartTone.Dark);                     // entrance canopy
+            s.Box(1.30f, 0.80f, 1.70f, 1.20f, 0.25f, 3.0f, PartTone.Light);                 // roof cross
+            s.Box(1.45f, 0.65f, 1.55f, 1.35f, 0.25f, 3.0f, PartTone.Light);
+            if (s.Rng.Next(2) == 0) { s.Box(0.20f, 1.0f, 0.80f, 1.6f, 0.4f, 3.0f, PartTone.Dark); }
+        }
+
+        private static void PoliceStation(Sketch s)
+        {
+            s.Box(0.10f, 0.15f, 1.90f, 0.85f, 2.0f, 0f, PartTone.Wall);
+            s.Box(0.10f, 0.15f, 0.60f, 0.85f, 2.8f, 0f, PartTone.Dark);                     // tower
+            s.Box(0.20f, 0.05f, 0.50f, 0.15f, 0.2f, 0f, PartTone.Light);
+            if (s.Rng.Next(2) == 0) { s.Box(1.2f, 0.3f, 1.7f, 0.7f, 2.5f, 0f, PartTone.Dark); }
+        }
+
+        private static void FireStation(Sketch s)
+        {
+            s.Box(0.10f, 0.20f, 1.90f, 1.30f, 2.0f, 0f, PartTone.Wall);
+            s.Box(0.25f, 0.05f, 1.75f, 0.20f, 1.2f, 0f, PartTone.Dark);                     // engine doors
+            s.Box(1.50f, 1.35f, 1.90f, 1.85f, 3.8f, 0f, PartTone.Light);                    // hose tower
+            if (s.Rng.Next(2) == 0) { s.Box(0.20f, 1.40f, 0.70f, 1.80f, 1.0f, 0f, PartTone.Dark); }
+        }
+
+        private static void School(Sketch s)
+        {
+            s.Box(0.10f, 0.20f, 2.90f, 1.00f, 2.0f, 0f, PartTone.Wall);
+            s.Gable(0.05f, 0.15f, 2.95f, 1.05f, 0.6f, 2.0f, true, PartTone.Light);
+            s.Box(1.25f, 1.00f, 1.75f, 1.50f, 3.0f, 0f, PartTone.Light);                    // clock tower
+            s.Pyramid(1.20f, 0.95f, 1.80f, 1.55f, 0.6f, 3.0f, PartTone.Dark);
+            if (s.Rng.Next(2) == 0) { s.Box(2.1f, 1.1f, 2.7f, 1.7f, 0.8f, 0f, PartTone.Dark); }
         }
 
         // ------------------------------------------------------------ residential

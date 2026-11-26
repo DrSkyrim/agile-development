@@ -153,6 +153,14 @@ namespace UrbanGenesis.Simulation
         /// <summary>Upkeep that could not be paid on the last day because the treasury ran dry.</summary>
         public double LastDayShortfall { get; private set; }
 
+        public double PowerLinePerMetre = 10.0;
+        public double WaterPipePerMetre = 14.0;
+
+        public double UtilityCost(double length, UtilityKind kind)
+        {
+            return Math.Round(length * (kind == UtilityKind.Power ? PowerLinePerMetre : WaterPipePerMetre));
+        }
+
         public bool CanAfford(double cost)
         {
             return !IsEnabled || Balance >= cost;

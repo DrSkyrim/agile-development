@@ -27,6 +27,17 @@ namespace UrbanGenesis.Simulation
         public double Balance;
         public int TicksIntoDay;
 
+        public int MilestonesReached;
+        public bool RequireUtilities;
+
+        /// <summary>The river's middle line as x, y, x, y, ... (empty if the map has none).</summary>
+        public List<double> RiverPoints = new List<double>();
+        public double RiverHalfWidth = 20.0;
+
+        /// <summary>Roads that are closed for roadworks: segment id and the tick they reopen.</summary>
+        public List<int> WorkSegments = new List<int>();
+        public List<int> WorkReopenTicks = new List<int>();
+
         public int NextNodeId;
         public int NextSegmentId;
         public int NextBuildingId;
@@ -67,6 +78,8 @@ namespace UrbanGenesis.Simulation
             public int Type;
             public float Open = 1f;
             public bool Outside;
+            public bool Power;
+            public bool Water;
         }
 
         [Serializable]

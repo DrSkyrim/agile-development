@@ -376,6 +376,9 @@ namespace UrbanGenesis.Simulation
         /// Checks a road and works out how its ends join the network. <paramref name="control"/> is the curve's
         /// control point (null for a straight road). Nothing is changed.
         /// </summary>
+        /// <summary>Set by the simulation: returns true for ground where no road may go (the river and its banks).</summary>
+        public Func<Vec2, bool> IsBlocked { get; set; }
+
         public RoadPlan Plan(Vec2 start, Vec2? control, Vec2 end, RoadType type = RoadType.Street)
         {
             RoadAnchor a;
@@ -405,6 +408,17 @@ namespace UrbanGenesis.Simulation
             }
 
             List<Vec2> samples = curve.Sample(4.0);
+            if (IsBlocked != null)
+            {
+                for (int i = 0; i < samples.Count; i++)
+                {
+                    if (IsBlocked(samples[i]))
+                    {
+                        return RoadPlan.Fail("The river is in the way: roads cannot cross it or run along its banks.");
+                    }
+                }
+            }
+
             Aabb inner = bounds.Expanded(-LotSize * 5.0);
             for (int i = 0; i < samples.Count; i++)
             {
@@ -878,6 +892,8 @@ namespace UrbanGenesis.Simulation
             second.IsOutsideConnection = old.IsOutsideConnection;
             first.OpenFraction = old.OpenFraction;
             second.OpenFraction = old.OpenFraction;
+            first.HasPower = second.HasPower = old.HasPower;
+            first.HasWater = second.HasWater = old.HasWater;
 
             segments[first.Id] = first;
             segments[second.Id] = second;

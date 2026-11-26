@@ -189,7 +189,7 @@ namespace UrbanGenesis.Tests
                 for (int variant = 0; variant < 12; variant++)
                 {
                     Building b = TestBuildings.Make(t, t.MinFloors, variant);
-                    if (t.Zone == ZoneType.Residential)
+                    if (Zones.IsResidential(t.Zone))
                     {
                         Assert.IsTrue(b.Residents >= 2 * t.Homes && b.Residents <= 4 * t.Homes, t.Shape + " residents " + b.Residents);
                     }

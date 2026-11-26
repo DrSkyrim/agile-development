@@ -11,7 +11,9 @@ namespace UrbanGenesis.Simulation
 
         public static string Title(Building b)
         {
-            string kind = b.Zone == ZoneType.Residential ? "Residential building"
+            string kind = b.IsCivic ? CivicInfo.Name(b.Shape)
+                : b.Zone == ZoneType.DenseResidential ? "Dense residential building"
+                : b.Zone == ZoneType.Residential ? "Residential building"
                 : b.Zone == ZoneType.Commercial ? "Commercial building" : "Industrial building";
             return kind + " #" + b.Id;
         }
@@ -22,6 +24,31 @@ namespace UrbanGenesis.Simulation
             BuildingEconomy e = sim.Economy.StatusOf(b);
             CityTreasury t = sim.Treasury;
             text.Append(Title(b)).Append('\n');
+            if (b.IsCivic)
+            {
+                text.Append(CivicInfo.Description(b.Shape)).Append('\n');
+                RoadSegment host = b.Lots.Count > 0 ? sim.Roads.GetSegment(b.Lots[0].Key.SegmentId) : null;
+                if (b.Shape == BuildingShape.PowerPlant)
+                {
+                    text.Append(host != null && host.HasPower ? "Connected to the power cable on its road.\n" : "Not connected: lay a power cable along the road it stands on.\n");
+                }
+                else if (b.Shape == BuildingShape.WaterTower || b.Shape == BuildingShape.SewageOutlet)
+                {
+                    text.Append(host != null && host.HasWater ? "Connected to the pipe on its road.\n" : "Not connected: lay a water pipe along the road it stands on.\n");
+                }
+
+                text.Append("Cost to build: ").Append(CitySimulation.FormatMoney(CivicInfo.Cost(b.Shape))).Append(", demolishing gives nothing back.");
+                return text.ToString();
+            }
+
+            string missing = sim.MissingServices(b);
+            if (missing.Length > 0)
+            {
+                text.Append("NOT SERVED: no ").Append(missing).Append(". It sits idle and earns nothing.\n");
+                text.Append("Lay cables and pipes along its road and connect them to a power plant, water tower and sewage outlet.");
+                return text.ToString();
+            }
+
             text.Append("Floors: ").Append(b.Floors).Append(", footprint ").Append(b.Width).Append("x").Append(b.Depth).Append(" lots\n");
             if (e == null)
             {
@@ -30,7 +57,7 @@ namespace UrbanGenesis.Simulation
             }
 
             double income;
-            if (b.Zone == ZoneType.Residential)
+            if (b.IsResidential)
             {
                 double employed = e.Workers * e.EmploymentFill;
                 text.Append("Residents: ").Append(Round(e.Residents)).Append(" (capacity ").Append(Round(e.Residents)).Append(", full)\n");

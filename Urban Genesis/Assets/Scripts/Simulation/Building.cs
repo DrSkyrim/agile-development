@@ -27,6 +27,12 @@ namespace UrbanGenesis.Simulation
 
         public BuildingShape Shape { get { return Template.Shape; } }
 
+        /// <summary>True for homes, small or dense.</summary>
+        public bool IsResidential { get { return Zones.IsResidential(Zone); } }
+
+        /// <summary>True for buildings the player placed (power plant, hospital, ...).</summary>
+        public bool IsCivic { get { return Zone == ZoneType.Civic; } }
+
         /// <summary>Footprint size in lots.</summary>
         public int Width { get { return Template.Width; } }
         public int Depth { get { return Template.Depth; } }

@@ -52,6 +52,36 @@ namespace UrbanGenesis.Simulation
             new BuildingTemplate(BuildingShape.SiloYard,  ZoneType.Industrial, 2, 1, 1, 1, 2.0)
         };
 
+        private static readonly BuildingTemplate[] Dense =
+        {
+            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.DenseResidential, 2, 1, 5, 8, 4.0, 8),
+            new BuildingTemplate(BuildingShape.HighRise,       ZoneType.DenseResidential, 2, 2, 9, 14, 3.0, 16),
+            new BuildingTemplate(BuildingShape.ApartmentBlock, ZoneType.DenseResidential, 1, 1, 4, 6, 1.0, 4)
+        };
+
+        // Placed by the player, never grown. Floors are fixed (min = max).
+        private static readonly BuildingTemplate[] Civic =
+        {
+            new BuildingTemplate(BuildingShape.PowerPlant,    ZoneType.Civic, 3, 2, 1, 1, 1.0),
+            new BuildingTemplate(BuildingShape.WaterTower,    ZoneType.Civic, 2, 2, 1, 1, 1.0),
+            new BuildingTemplate(BuildingShape.SewageOutlet,  ZoneType.Civic, 2, 1, 1, 1, 1.0),
+            new BuildingTemplate(BuildingShape.Hospital,      ZoneType.Civic, 3, 2, 1, 1, 1.0),
+            new BuildingTemplate(BuildingShape.PoliceStation, ZoneType.Civic, 2, 1, 1, 1, 1.0),
+            new BuildingTemplate(BuildingShape.FireStation,   ZoneType.Civic, 2, 2, 1, 1, 1.0),
+            new BuildingTemplate(BuildingShape.School,        ZoneType.Civic, 3, 2, 1, 1, 1.0)
+        };
+
+        /// <summary>The template of a civic building by shape (power plant, hospital, ...).</summary>
+        public static BuildingTemplate CivicTemplate(BuildingShape shape)
+        {
+            foreach (BuildingTemplate t in Civic)
+            {
+                if (t.Shape == shape) { return t; }
+            }
+
+            return null;
+        }
+
         private static readonly BuildingTemplate[] None = new BuildingTemplate[0];
 
         public static IList<BuildingTemplate> ForZone(ZoneType zone)
@@ -61,6 +91,8 @@ namespace UrbanGenesis.Simulation
                 case ZoneType.Residential: return Residential;
                 case ZoneType.Commercial: return Commercial;
                 case ZoneType.Industrial: return Industrial;
+                case ZoneType.DenseResidential: return Dense;
+                case ZoneType.Civic: return Civic;
                 default: return None;
             }
         }
@@ -70,6 +102,8 @@ namespace UrbanGenesis.Simulation
             foreach (BuildingTemplate t in Residential) { yield return t; }
             foreach (BuildingTemplate t in Commercial) { yield return t; }
             foreach (BuildingTemplate t in Industrial) { yield return t; }
+            foreach (BuildingTemplate t in Dense) { yield return t; }
+            foreach (BuildingTemplate t in Civic) { yield return t; }
         }
 
         /// <summary>

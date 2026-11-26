@@ -38,6 +38,7 @@ namespace UrbanGenesis.Simulation
         private readonly List<Lot> residentialCandidates = new List<Lot>();
         private readonly List<Lot> commercialCandidates = new List<Lot>();
         private readonly List<Lot> industrialCandidates = new List<Lot>();
+        private readonly List<Lot> denseCandidates = new List<Lot>();
 
         public RoadNetwork Roads { get; private set; }
         public LotLayout Lots { get; private set; }
@@ -71,9 +72,39 @@ namespace UrbanGenesis.Simulation
             if (handler != null) { handler(message); }
         }
 
-        private void RunEvents()
+        private void RunDayEvents()
         {
             if (TickCount % GameTime.TicksPerDay != 0)
+            {
+                return;
+            }
+
+            // Roadworks (cables and pipes) end.
+            List<int> finished = null;
+            foreach (KeyValuePair<int, int> work in worksUntil)
+            {
+                if (TickCount >= work.Value)
+                {
+                    if (finished == null) { finished = new List<int>(); }
+                    finished.Add(work.Key);
+                }
+            }
+
+            if (finished != null)
+            {
+                foreach (int id in finished)
+                {
+                    worksUntil.Remove(id);
+                    RoadSegment done = Roads.GetSegment(id);
+                    if (done != null)
+                    {
+                        done.OpenFraction = 1f;
+                        RaiseEvent("Roadworks finished: " + RoadSpecs.Name(done.Type).ToLowerInvariant() + " #" + id + " is open again.");
+                    }
+                }
+            }
+
+            if (!RandomEventsEnabled)
             {
                 return;
             }
@@ -81,7 +112,7 @@ namespace UrbanGenesis.Simulation
             // A closure left over from an old save has no timer: open it again.
             foreach (RoadSegment segment in Roads.Segments)
             {
-                if (segment != closedByEvent && segment.IsClosed) { segment.OpenFraction = 1f; }
+                if (segment != closedByEvent && segment.IsClosed && !worksUntil.ContainsKey(segment.Id)) { segment.OpenFraction = 1f; }
             }
 
             if (closedByEvent != null)
@@ -92,30 +123,28 @@ namespace UrbanGenesis.Simulation
                     RaiseEvent(RoadSpecs.Name(closedByEvent.Type) + " #" + closedByEvent.Id + " is open again.");
                     closedByEvent = null;
                 }
-
-                return;
             }
-
-            if (TickCount < 3 * GameTime.TicksPerDay || rng.NextDouble() >= EventChancePerDay)
+            else if (TickCount >= 3 * GameTime.TicksPerDay && rng.NextDouble() < EventChancePerDay)
             {
-                return;
+                var candidates = new List<RoadSegment>();
+                foreach (RoadSegment segment in Roads.Segments)
+                {
+                    if (!segment.IsOutsideConnection && !RoadSpecs.IsHighway(segment.Type) && !worksUntil.ContainsKey(segment.Id)) { candidates.Add(segment); }
+                }
+
+                if (candidates.Count >= 4)
+                {
+                    closedByEvent = candidates[rng.Next(candidates.Count)];
+                    closedByEvent.OpenFraction = 0f;
+                    reopenAtTick = TickCount + GameTime.TicksPerDay;
+                    RaiseEvent("Accident: " + RoadSpecs.Name(closedByEvent.Type).ToLowerInvariant() + " #" + closedByEvent.Id + " is closed for a day (shown in red). Traffic finds another way, if there is one.");
+                }
             }
 
-            var candidates = new List<RoadSegment>();
-            foreach (RoadSegment segment in Roads.Segments)
+            if (BurningBuilding == null && TickCount >= 5 * GameTime.TicksPerDay && rng.NextDouble() < FireChancePerDay)
             {
-                if (!segment.IsOutsideConnection && !RoadSpecs.IsHighway(segment.Type)) { candidates.Add(segment); }
+                StartFire();
             }
-
-            if (candidates.Count < 4)
-            {
-                return;
-            }
-
-            closedByEvent = candidates[rng.Next(candidates.Count)];
-            closedByEvent.OpenFraction = 0f;
-            reopenAtTick = TickCount + GameTime.TicksPerDay;
-            RaiseEvent("Accident: " + RoadSpecs.Name(closedByEvent.Type).ToLowerInvariant() + " #" + closedByEvent.Id + " is closed for a day (shown in red). Traffic finds another way, if there is one.");
         }
 
         /// <summary>Goes up every time roads, lots, zones or buildings change. Handy for "redraw if changed".</summary>
@@ -563,6 +592,15 @@ namespace UrbanGenesis.Simulation
         private void OnSegmentSplit(RoadSegment old, RoadSegment first, RoadSegment second, double length)
         {
             Lots.Remap(old, first, second, length);
+            int until;
+            if (worksUntil.TryGetValue(old.Id, out until))
+            {
+                worksUntil.Remove(old.Id);
+                worksUntil[first.Id] = until;
+                worksUntil[second.Id] = until;
+            }
+
+            servicesDirty = true;
         }
 
         private void OnSegmentAdded(RoadSegment segment)
@@ -573,6 +611,8 @@ namespace UrbanGenesis.Simulation
         private void OnSegmentRemoved(RoadSegment segment)
         {
             ClearRemovedLots(Lots.RemoveSegment(segment.Id));
+            worksUntil.Remove(segment.Id);
+            servicesDirty = true;
             RefreshAround(segment);
             Revision++;
         }
@@ -639,7 +679,7 @@ namespace UrbanGenesis.Simulation
             int changed = 0;
             foreach (Lot lot in lots)
             {
-                if (lot.Zone == zone)
+                if (lot.Zone == zone || (lot.Building != null && lot.Building.IsCivic))
                 {
                     continue;
                 }
@@ -771,14 +811,15 @@ namespace UrbanGenesis.Simulation
             }
 
             Treasury.Tick();
-            if (RandomEventsEnabled)
-            {
-                RunEvents();
-            }
+            RunDayEvents();
+            AdvanceFire();
+            CheckMilestones();
 
             residentialCandidates.Clear();
             commercialCandidates.Clear();
             industrialCandidates.Clear();
+            denseCandidates.Clear();
+            bool gated = UtilitiesRequired;
 
             // Only lots on the road itself (row 0) can start a building: that is what gives it a road connection.
             foreach (Lot lot in Lots.Lots)
@@ -788,17 +829,24 @@ namespace UrbanGenesis.Simulation
                     continue;
                 }
 
+                if (gated && lot.Zone != ZoneType.None && !SegmentServed(lot.Key.SegmentId))
+                {
+                    continue;
+                }
+
                 switch (lot.Zone)
                 {
                     case ZoneType.Residential: residentialCandidates.Add(lot); break;
                     case ZoneType.Commercial: commercialCandidates.Add(lot); break;
                     case ZoneType.Industrial: industrialCandidates.Add(lot); break;
+                    case ZoneType.DenseResidential: denseCandidates.Add(lot); break;
                 }
             }
 
             Grow(residentialCandidates, ZoneType.Residential);
             Grow(commercialCandidates, ZoneType.Commercial);
             Grow(industrialCandidates, ZoneType.Industrial);
+            Grow(denseCandidates, ZoneType.DenseResidential);
         }
 
         private void Grow(List<Lot> candidates, ZoneType zone)
@@ -943,7 +991,7 @@ namespace UrbanGenesis.Simulation
                 for (int i = 0; i < template.Width; i++)
                 {
                     Lot lot = Lots.Get(new LotKey(seed.SegmentId, seed.Side, firstCol + i, row));
-                    if (lot == null || lot.Building != null || lot.Zone != template.Zone)
+                    if (lot == null || lot.Building != null || (template.Zone != ZoneType.Civic && lot.Zone != template.Zone))
                     {
                         return null;
                     }
@@ -1077,6 +1125,7 @@ namespace UrbanGenesis.Simulation
             }
 
             economyStale = true;
+            servicesDirty = true;
 
             for (int i = 0; i < building.Lots.Count; i++)
             {

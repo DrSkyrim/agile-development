@@ -140,7 +140,8 @@ namespace UrbanGenesis.Simulation
         {
             switch (zone)
             {
-                case ZoneType.Residential: return ResidentialDemand;
+                case ZoneType.Residential:
+                case ZoneType.DenseResidential: return ResidentialDemand;
                 case ZoneType.Commercial: return CommercialDemand;
                 case ZoneType.Industrial: return IndustrialDemand;
                 default: return 0.0;
@@ -184,9 +185,11 @@ namespace UrbanGenesis.Simulation
             var snapshot = new EconomySnapshot();
 
             // 1. What every building offers and needs, added up per road segment.
+            sim.RecomputeServices();
             foreach (Building b in sim.Buildings)
             {
-                if (b.Lots.Count == 0)
+                // Civic buildings are not part of the market, and buildings without power, water or sewage sit idle.
+                if (b.Lots.Count == 0 || b.IsCivic || !sim.IsServed(b))
                 {
                     continue;
                 }
@@ -199,7 +202,7 @@ namespace UrbanGenesis.Simulation
 
                 var e = new BuildingEconomy { BuildingId = b.Id, SegmentId = segmentId };
                 double units = EconomyParameters.Units(b);
-                if (b.Zone == ZoneType.Residential)
+                if (b.IsResidential)
                 {
                     e.Residents = b.Residents;
                     e.Workers = e.Residents * p.WorkingShare;
@@ -236,7 +239,7 @@ namespace UrbanGenesis.Simulation
                 Building b = sim.GetBuilding(e.BuildingId);
                 EconomyProfile profile = p.ProfileOf(b.Shape);
                 double units = EconomyParameters.Units(b);
-                if (b.Zone != ZoneType.Residential)
+                if (!b.IsResidential)
                 {
                     e.GoodsIn = profile.GoodsIn * units * e.Staffing;
                     e.EffectiveGoodsOut = profile.GoodsOut * units * e.Staffing;
@@ -255,7 +258,7 @@ namespace UrbanGenesis.Simulation
                 SegmentTotals t = segments[e.SegmentId];
                 e.GoodsFill = t.GoodsFill;
                 Building b = sim.GetBuilding(e.BuildingId);
-                if (b.Zone != ZoneType.Residential)
+                if (!b.IsResidential)
                 {
                     e.EffectiveService = p.ProfileOf(b.Shape).Service * EconomyParameters.Units(b) * e.Staffing * e.GoodsFill;
                     t.Service += e.EffectiveService;

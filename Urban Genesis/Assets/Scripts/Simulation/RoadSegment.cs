@@ -32,6 +32,12 @@ namespace UrbanGenesis.Simulation
         /// <summary>How much traffic the segment carries when fully open (abstract units).</summary>
         public float BaseCapacity { get; set; }
 
+        /// <summary>True once a power cable has been laid along this road.</summary>
+        public bool HasPower { get; internal set; }
+
+        /// <summary>True once a water and sewage pipe has been laid along this road.</summary>
+        public bool HasWater { get; internal set; }
+
         /// <summary>1 = fully open, 0 = fully closed. Values outside the range are clamped.</summary>
         public float OpenFraction
         {

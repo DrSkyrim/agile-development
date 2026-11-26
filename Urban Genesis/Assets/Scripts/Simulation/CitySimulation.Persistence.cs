@@ -37,6 +37,24 @@ namespace UrbanGenesis.Simulation
                 s.Nodes.Add(data);
             }
 
+            s.MilestonesReached = MilestonesReached;
+            s.RequireUtilities = RequireUtilities;
+            if (River != null)
+            {
+                s.RiverHalfWidth = River.HalfWidth;
+                foreach (Vec2 point in River.Points)
+                {
+                    s.RiverPoints.Add(point.X);
+                    s.RiverPoints.Add(point.Y);
+                }
+            }
+
+            foreach (KeyValuePair<int, int> work in worksUntil)
+            {
+                s.WorkSegments.Add(work.Key);
+                s.WorkReopenTicks.Add(work.Value);
+            }
+
             foreach (RoadSegment seg in Roads.Segments)
             {
                 s.Segments.Add(new CitySnapshot.SegmentData
@@ -49,7 +67,9 @@ namespace UrbanGenesis.Simulation
                     P2X = seg.Curve.P2.X, P2Y = seg.Curve.P2.Y,
                     Type = (int)seg.Type,
                     Open = seg.OpenFraction,
-                    Outside = seg.IsOutsideConnection
+                    Outside = seg.IsOutsideConnection,
+                    Power = seg.HasPower,
+                    Water = seg.HasWater
                 });
             }
 
@@ -121,12 +141,23 @@ namespace UrbanGenesis.Simulation
                 }
             }
 
+            city.MilestonesReached = s.MilestonesReached;
+            city.RequireUtilities = s.RequireUtilities;
+            if (s.RiverPoints != null && s.RiverPoints.Count >= 4)
+            {
+                var river = new River { HalfWidth = s.RiverHalfWidth };
+                for (int i = 0; i + 1 < s.RiverPoints.Count; i += 2) { river.Points.Add(new Vec2(s.RiverPoints[i], s.RiverPoints[i + 1])); }
+                city.SetRiver(river);
+            }
+
             var segments = new List<CitySnapshot.SegmentData>(s.Segments);
             segments.Sort((a, b) => a.Id.CompareTo(b.Id));
             foreach (CitySnapshot.SegmentData d in segments)
             {
                 var curve = new RoadCurve(new Vec2(d.P0X, d.P0Y), new Vec2(d.P1X, d.P1Y), new Vec2(d.P2X, d.P2Y));
                 RoadSegment seg = city.Roads.RestoreSegment(d.Id, d.A, d.B, curve, (RoadType)d.Type, d.Open, d.Outside);
+                seg.HasPower = d.Power;
+                seg.HasWater = d.Water;
                 if (d.Outside)
                 {
                     city.outsideConnections.Add(new OutsideConnection { Segment = seg });
@@ -158,6 +189,11 @@ namespace UrbanGenesis.Simulation
             }
 
             city.nextBuildingId = Math.Max(city.nextBuildingId, s.NextBuildingId);
+            for (int i = 0; s.WorkSegments != null && i < s.WorkSegments.Count && i < s.WorkReopenTicks.Count; i++)
+            {
+                city.worksUntil[s.WorkSegments[i]] = s.WorkReopenTicks[i];
+            }
+
 
             if (s.MoneyEnabled)
             {

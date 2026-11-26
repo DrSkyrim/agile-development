@@ -26,6 +26,19 @@ namespace UrbanGenesis.Simulation
         Shed,             // 1x1, small shed
         Warehouse,        // long hall with loading docks
         Factory,          // 2x2, hall, annex and chimneys
-        SiloYard          // 2x1, grain silos
+        SiloYard,         // 2x1, grain silos
+
+        // Dense housing (unlocked by a milestone)
+        ApartmentBlock,   // 2x1, five to eight floors
+        HighRise,         // 2x2, nine to fourteen floors
+
+        // Buildings the player places (power, water, services)
+        PowerPlant,       // 3x2, hall with chimneys
+        WaterTower,       // 2x2, tank on a tall stem, must stand near the river
+        SewageOutlet,     // 2x1, treatment tank, must stand near the river
+        Hospital,         // 3x2
+        PoliceStation,    // 2x1
+        FireStation,      // 2x2
+        School            // 3x2
     }
 }
