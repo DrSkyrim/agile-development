@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UrbanGenesis.Simulation;
@@ -48,7 +50,7 @@ namespace UrbanGenesis.Game
         /// </summary>
         private DateTime gameStart;
 
-        public void Begin(SaveGame save)
+        public void Begin(SaveGame save, string notice = null)
         {
             int skipped = 0;
             if (save == null)
@@ -83,6 +85,10 @@ namespace UrbanGenesis.Game
             rig.Init(hud, (float)(Simulation.Roads.WorldBounds.MaxX));
             tools.Init(Simulation, rig, cityRenderer, hud);
             tools.Traffic = Traffic;
+            tools.BeforeChange += PushUndo;
+            tools.ChangeDiscarded += DiscardUndo;
+            hud.UndoRequested += Undo;
+            hud.RedoRequested += Redo;
             rig.LeftDragPanEnabled = () => tools.CurrentTool == ToolType.None;
             gameStart = save != null && save.StartDateTicks > 0 ? new DateTime(save.StartDateTicks) : DateTime.Today.AddHours(9);
             hud.GameStart = gameStart;
@@ -112,10 +118,80 @@ namespace UrbanGenesis.Game
             else
             {
                 rig.RestoreView(save);
-                hud.Notify(skipped > 0 ? "Game loaded. " + skipped + " saved items no longer fit and were dropped." : "Game loaded.", 4f);
+                hud.Notify(notice ?? (skipped > 0 ? "Game loaded. " + skipped + " saved items no longer fit and were dropped." : "Game loaded."), 4f);
             }
 
             EnsureLight();
+        }
+
+        // ------------------------------------------------------------ undo and redo
+        // Each change the player makes first stores a full snapshot of the city. Undo rebuilds the city from the last
+        // snapshot (and keeps the camera where it is), so every kind of change can be undone the same way.
+
+        private const int MaxUndo = 20;
+        private readonly List<SaveGame> undoStack = new List<SaveGame>();
+        private readonly List<SaveGame> redoStack = new List<SaveGame>();
+        private bool rebuilding;
+
+        private void PushUndo()
+        {
+            undoStack.Add(CaptureSave());
+            if (undoStack.Count > MaxUndo) { undoStack.RemoveAt(0); }
+            redoStack.Clear();
+        }
+
+        private void DiscardUndo()
+        {
+            if (undoStack.Count > 0) { undoStack.RemoveAt(undoStack.Count - 1); }
+        }
+
+        public void Undo()
+        {
+            if (rebuilding || Simulation == null) { return; }
+            if (undoStack.Count == 0) { hud.Notify("Nothing to undo.", 2f); return; }
+            SaveGame target = undoStack[undoStack.Count - 1];
+            undoStack.RemoveAt(undoStack.Count - 1);
+            redoStack.Add(CaptureSave());
+            Reload(target, "Undone. Ctrl+Y redoes it.");
+        }
+
+        public void Redo()
+        {
+            if (rebuilding || Simulation == null) { return; }
+            if (redoStack.Count == 0) { hud.Notify("Nothing to redo.", 2f); return; }
+            SaveGame target = redoStack[redoStack.Count - 1];
+            redoStack.RemoveAt(redoStack.Count - 1);
+            undoStack.Add(CaptureSave());
+            Reload(target, "Redone.");
+        }
+
+        private void Reload(SaveGame target, string notice)
+        {
+            var view = new SaveGame();
+            rig.CaptureView(view);
+            target.CameraX = view.CameraX;
+            target.CameraZ = view.CameraZ;
+            target.CameraYaw = view.CameraYaw;
+            target.CameraDistance = view.CameraDistance;
+            target.SpeedLevel = Clock.SpeedLevel;
+            ToolType tool = tools.CurrentTool;
+
+            rebuilding = true;
+            Simulation = null;
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                Destroy(transform.GetChild(i).gameObject);
+            }
+
+            StartCoroutine(Rebuild(target, notice, tool));
+        }
+
+        private IEnumerator Rebuild(SaveGame target, string notice, ToolType tool)
+        {
+            yield return null; // let the old objects go first
+            Begin(target, notice);
+            tools.SetTool(tool);
+            rebuilding = false;
         }
 
         /// <summary>True while the pause menu is open: the clock stops and the camera and tools ignore input.</summary>
@@ -168,6 +244,18 @@ namespace UrbanGenesis.Game
             }
 
             Keyboard keyboard = Keyboard.current;
+            if (keyboard != null && (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed))
+            {
+                if (keyboard.zKey.wasPressedThisFrame)
+                {
+                    if (keyboard.leftShiftKey.isPressed) { Redo(); } else { Undo(); }
+                }
+                else if (keyboard.yKey.wasPressedThisFrame)
+                {
+                    Redo();
+                }
+            }
+
             if (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
             {
                 Clock.TogglePause();

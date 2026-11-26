@@ -87,6 +87,45 @@ namespace UrbanGenesis.Game
         }
         public float BrushRadius { get; private set; }
 
+        /// <summary>Raised just before the player changes the city, so the game can remember the old state for Undo.</summary>
+        public event System.Action BeforeChange;
+
+        /// <summary>Raised when a change that was announced turned out to change nothing (the remembered state is dropped again).</summary>
+        public event System.Action ChangeDiscarded;
+
+        private void AnnounceChange()
+        {
+            System.Action handler = BeforeChange;
+            if (handler != null) { handler(); }
+        }
+
+        private void DiscardChange()
+        {
+            System.Action handler = ChangeDiscarded;
+            if (handler != null) { handler(); }
+        }
+
+        private string armedKey = "";
+        private float armedUntil;
+
+        /// <summary>
+        /// Asks the player to click twice for something that destroys things: the first click shows the message,
+        /// the same click again within a few seconds returns true.
+        /// </summary>
+        private bool Confirmed(string key, string message)
+        {
+            if (armedKey == key && Time.unscaledTime < armedUntil)
+            {
+                armedKey = "";
+                return true;
+            }
+
+            armedKey = key;
+            armedUntil = Time.unscaledTime + 6f;
+            ShowResult(message + " Click again to confirm.");
+            return false;
+        }
+
         /// <summary>Traffic, so the Inspect tool can show how many vehicles are on a road.</summary>
         public UrbanGenesis.Simulation.Traffic.CityTraffic Traffic { get; set; }
 
@@ -383,6 +422,7 @@ namespace UrbanGenesis.Game
             }
 
             bool turnOn = SelectedJunction.TrafficLightsOff;
+            AnnounceChange();
             sim.SetTrafficLights(SelectedJunction, turnOn);
             ShowResult(turnOn ? "Traffic lights switched on" : "Traffic lights switched off");
         }
@@ -506,7 +546,15 @@ namespace UrbanGenesis.Game
 
             if (hover != null && plan != null && plan.IsValid && onMap && mouse.leftButton.wasPressedThisFrame)
             {
+                if (plan.Demolitions.Count > 0 && !Confirmed("upgrade" + hover.Id,
+                    "This demolishes " + plan.Demolitions.Count + (plan.Demolitions.Count == 1 ? " building." : " buildings.")))
+                {
+                    return;
+                }
+
+                AnnounceChange();
                 string error = sim.UpgradeRoad(hover, UpgradeType);
+                if (error != null) { DiscardChange(); }
                 ShowResult(error ?? "Rebuilt as a " + target + ".");
                 shownRevision = -1;
             }
@@ -592,8 +640,10 @@ namespace UrbanGenesis.Game
                     {
                         string error;
                         bool allow = !node.IsLaneConnected(SelectedLaneRoad, SelectedLane, hitRoad, hitLane);
+                        AnnounceChange();
                         if (!sim.SetLaneConnection(node, SelectedLaneRoad, SelectedLane, hitRoad, hitLane, allow, out error))
                         {
+                            DiscardChange();
                             ShowResult(error);
                         }
 
@@ -794,9 +844,11 @@ namespace UrbanGenesis.Game
                 return;
             }
 
+            AnnounceChange();
             RoadSegment segment = sim.PlaceRoad(plan, inTheWay > 0);
             if (segment == null)
             {
+                DiscardChange();
                 ShowResult("The road could not be built");
                 return;
             }
@@ -952,8 +1004,17 @@ namespace UrbanGenesis.Game
             {
                 if (mouse.leftButton.wasPressedThisFrame)
                 {
+                    double roadAlong;
+                    RoadSegment roadUnder = bulldoze ? sim.Roads.FindSegmentNear(p, RoadSpecs.MaxHalfWidth, out roadAlong) : null;
+                    if (roadUnder != null && roadUnder.Curve.DistanceTo(p) <= roadUnder.HalfWidth + 1.0
+                        && !Confirmed("road" + roadUnder.Id, "This removes the road and everything built beside it (half the price comes back)."))
+                    {
+                        return;
+                    }
+
                     painting = true;
                     paintedCount = 0;
+                    AnnounceChange();
                     if (bulldoze)
                     {
                         paintedCount += sim.Bulldoze(p, BrushRadius, true);
@@ -976,6 +1037,7 @@ namespace UrbanGenesis.Game
             if (painting && (mouse.leftButton.wasReleasedThisFrame || !mouse.leftButton.isPressed))
             {
                 painting = false;
+                if (paintedCount == 0) { DiscardChange(); }
                 if (bulldoze)
                 {
                     ShowResult(paintedCount == 0 ? "Nothing to clear" : "Cleared " + paintedCount + " things");

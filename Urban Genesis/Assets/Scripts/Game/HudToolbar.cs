@@ -62,6 +62,8 @@ namespace UrbanGenesis.Game
         private VisualElement playButton;
         private Label cityDetail;
         private Label treasuryValue;
+        private const double LowMoney = 5000.0;
+        private bool lowMoneyWarned, deficitWarned;
         private Label treasuryChange;
         private Label jobsValue, jobsChange, milestoneDetail;
         private Label populationValue;
@@ -115,6 +117,8 @@ namespace UrbanGenesis.Game
 
         /// <summary>Raised by the menu button in the clock panel (asks to go back to the main menu).</summary>
         public event Action MainMenuRequested;
+        public event Action UndoRequested;
+        public event Action RedoRequested;
 
         public void Init(CitySimulation simulation, TickClock tickClock, ToolController toolController, CameraRig cameraRig, string name)
         {
@@ -319,6 +323,7 @@ namespace UrbanGenesis.Game
                 "Q / E: rotate the camera",
                 "I or 9: inspect a building or road",
                 "O: show how full the roads are",
+                "Ctrl+Z: undo, Ctrl+Y (or Ctrl+Shift+Z): redo",
                 "Mouse wheel: zoom",
                 "Right mouse drag: rotate and tilt",
                 "Middle mouse drag: pan",
@@ -468,6 +473,19 @@ namespace UrbanGenesis.Game
             return tex;
         }
 
+        private VisualElement TextButton(string text, Action onClick)
+        {
+            var button = new VisualElement();
+            button.AddToClassList("ug-btn");
+            button.style.justifyContent = Justify.Center;
+            button.AddToClassList("ug-btn--text");
+            Label label = Text(text, "ug-text--soft", Weight.Medium);
+            label.style.fontSize = 11;
+            button.Add(label);
+            button.RegisterCallback<ClickEvent>(e => onClick());
+            return button;
+        }
+
         private VisualElement IconButton(string iconName, bool small, Action onClick)
         {
             var button = new VisualElement();
@@ -589,6 +607,8 @@ namespace UrbanGenesis.Game
             divider.style.marginRight = 5;
             panel.Add(divider);
 
+            panel.Add(TextButton("Undo", () => { Action a = UndoRequested; if (a != null) { a(); } }));
+            panel.Add(TextButton("Redo", () => { Action a = RedoRequested; if (a != null) { a(); } }));
             panel.Add(IconButton("route", false, () => { tools.ToggleTrafficOverlay(); Notify(tools.TrafficOverlayOn ? "Traffic overlay on: green is quiet, amber busy, red full (O toggles)." : "Traffic overlay off."); }));
             panel.Add(IconButton("bell", false, () => Notify("Notifications are not available yet.")));
             panel.Add(IconButton("save", false, () => { Action requested = SaveRequested; if (requested != null) { requested(); } }));
@@ -1306,7 +1326,26 @@ namespace UrbanGenesis.Game
                 SetText(treasuryChange, (net >= 0 ? "+" : "-") + CitySimulation.FormatMoney(Math.Abs(net)) + " / wk");
                 treasuryChange.EnableInClassList("ug-text--good", net >= 0);
                 treasuryChange.EnableInClassList("ug-text--bad", net < 0);
-                treasuryValue.EnableInClassList("ug-text--bad", treasury.Balance < 0);
+                treasuryValue.EnableInClassList("ug-text--bad", treasury.Balance < LowMoney);
+                if (treasury.Balance < LowMoney && !lowMoneyWarned)
+                {
+                    lowMoneyWarned = true;
+                    Notify("Low funds: only " + CitySimulation.FormatMoney(treasury.Balance) + " left. Roads cost money, tax income pays for them.", 6f);
+                }
+                else if (treasury.Balance >= LowMoney * 1.5)
+                {
+                    lowMoneyWarned = false;
+                }
+
+                if (net < 0 && sim.BuildingCount > 0 && !deficitWarned)
+                {
+                    deficitWarned = true;
+                    Notify("Expenses (" + CitySimulation.FormatMoney(treasury.WeeklyUpkeep) + "/wk) are above income (" + CitySimulation.FormatMoney(treasury.WeeklyIncome) + "/wk). The treasury is shrinking.", 7f);
+                }
+                else if (net >= 0)
+                {
+                    deficitWarned = false;
+                }
             }
 
             // City numbers. There is no economy yet: population is an estimate from the residential buildings,

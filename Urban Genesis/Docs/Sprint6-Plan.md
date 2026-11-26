@@ -27,10 +27,10 @@ Order rule: fix what confuses a first-time player, then show information, then p
 
 ## Phase C: protect the player
 
-- [ ] Warn before destructive actions: zoning over zoned lots or buildings, demolishing, upgrading a road that removes buildings (show count, ask to confirm). *(UX 13)*
-- [ ] **Undo** (and redo) for building, zoning, demolishing and upgrading. *(UX 13)*
-- [ ] "Clear zoning" and "Demolish" with fill mode so a whole side can be removed in one click; make Clear zoning easy to find. **(verify)** *(UX 6)*
-- [ ] Low-money and expenses-above-income alerts. *(#39, #40)*
+- [x] Warn before destructive actions (second click to confirm for upgrades that demolish and for removing a road; Undo covers the rest): zoning over zoned lots or buildings, demolishing, upgrading a road that removes buildings (show count, ask to confirm). *(UX 13)*
+- [x] **Undo** (and redo, Ctrl+Z / Ctrl+Y and HUD buttons) for building, zoning, demolishing and upgrading. *(UX 13)*
+- [x] "Clear zoning" and "Demolish" with fill mode (Clear zoning chip in the zoning options, key 8, Fill side toggle) so a whole side can be removed in one click; make Clear zoning easy to find. **(verify)** *(UX 6)*
+- [x] Low-money and expenses-above-income alerts. *(#39, #40)*
 
 ## Phase D: balance
 
