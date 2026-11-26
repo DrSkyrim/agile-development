@@ -68,8 +68,7 @@ namespace UrbanGenesis.Simulation
                     Type = (int)seg.Type,
                     Open = seg.OpenFraction,
                     Outside = seg.IsOutsideConnection,
-                    Power = seg.HasPower,
-                    Water = seg.HasWater
+                    Power = seg.HasPower
                 });
             }
 
@@ -79,6 +78,14 @@ namespace UrbanGenesis.Simulation
                 {
                     s.Zones.Add(new CitySnapshot.ZoneData { X = lot.Center.X, Y = lot.Center.Y, Zone = (int)lot.Zone });
                 }
+            }
+
+            foreach (WaterPipe pipe in pipes)
+            {
+                s.Pipes.Add(pipe.A.X);
+                s.Pipes.Add(pipe.A.Y);
+                s.Pipes.Add(pipe.B.X);
+                s.Pipes.Add(pipe.B.Y);
             }
 
             foreach (Building b in buildings.Values)
@@ -157,7 +164,6 @@ namespace UrbanGenesis.Simulation
                 var curve = new RoadCurve(new Vec2(d.P0X, d.P0Y), new Vec2(d.P1X, d.P1Y), new Vec2(d.P2X, d.P2Y));
                 RoadSegment seg = city.Roads.RestoreSegment(d.Id, d.A, d.B, curve, (RoadType)d.Type, d.Open, d.Outside);
                 seg.HasPower = d.Power;
-                seg.HasWater = d.Water;
                 if (d.Outside)
                 {
                     city.outsideConnections.Add(new OutsideConnection { Segment = seg });
@@ -188,6 +194,17 @@ namespace UrbanGenesis.Simulation
                 }
             }
 
+            for (int i = 0; s.Pipes != null && i + 3 < s.Pipes.Count; i += 4)
+            {
+                city.pipes.Add(new WaterPipe
+                {
+                    Id = city.nextPipeId++,
+                    A = new Vec2(s.Pipes[i], s.Pipes[i + 1]),
+                    B = new Vec2(s.Pipes[i + 2], s.Pipes[i + 3])
+                });
+            }
+
+            city.servicesDirty = true;
             city.nextBuildingId = Math.Max(city.nextBuildingId, s.NextBuildingId);
             for (int i = 0; s.WorkSegments != null && i < s.WorkSegments.Count && i < s.WorkReopenTicks.Count; i++)
             {
@@ -254,7 +271,7 @@ namespace UrbanGenesis.Simulation
                 lots.Add(lot);
             }
 
-            if (lots.Count == 0)
+            if (lots.Count == 0 && !CivicInfo.IsFreestanding(template.Shape))
             {
                 return false;
             }

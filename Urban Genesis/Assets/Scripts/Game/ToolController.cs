@@ -43,6 +43,8 @@ namespace UrbanGenesis.Game
         private HudToolbar hud;
 
         // Road drawing
+        private bool pipeDrawing;         // water pipe tool: a start point is set, the next click lays the pipe
+        private Vec2 pipeStart;
         private int roadStage;            // 0 = nothing placed, 1 = start placed, 2 = start and bend placed (curved only)
         private Vec2 roadStart;
         private Vec2 roadBend;
@@ -170,7 +172,9 @@ namespace UrbanGenesis.Game
                     return roadStage > 0 ? "Click to place the next point. Right-click or Esc cancels." : RoadFacts(RoadType) + " Click to start.";
                 case ToolType.Junction: return "Click a junction to change its lights and lane connections.";
                 case ToolType.Facility: return CivicInfo.Name(FacilityShape) + ": " + CivicInfo.Description(FacilityShape);
-                case ToolType.Utility: return UtilityKind == UtilityKind.Power ? "Click a road to lay a power cable along it." : "Click a road to lay a water and sewage pipe along it.";
+                case ToolType.Utility:
+                    if (UtilityKind == UtilityKind.Power) { return "Click a road to lay a power cable along it."; }
+                    return pipeDrawing ? "Click to lay the pipe to there and carry on. Right-click or Esc stops." : "Click to start a water pipe anywhere. Pipes that cross or touch are joined.";
                 case ToolType.Inspect: return "Point at a building or a road to see its details.";
                 case ToolType.Upgrade: return RoadFacts(UpgradeType) + " Click a road to rebuild it (you pay the difference).";
                 case ToolType.Bulldoze: return "Click or drag to demolish. Roads refund half their price, buildings go for free.";
@@ -295,7 +299,7 @@ namespace UrbanGenesis.Game
                 return;
             }
 
-            bool roadBusy = roadStage > 0;
+            bool roadBusy = roadStage > 0 || pipeDrawing;
 
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
@@ -537,8 +541,88 @@ namespace UrbanGenesis.Game
             }
         }
 
+        private void UpdatePipe(Mouse mouse, bool onMap, Vec2 p)
+        {
+            cityRenderer.BeginPreview();
+            PipePlan plan = null;
+            Vec2 snapped = onMap ? sim.SnapPipePoint(p) : p;
+            if (onMap && pipeDrawing)
+            {
+                plan = sim.PlanPipe(pipeStart, p);
+                cityRenderer.PreviewRibbonAbove(new[] { plan.A, plan.B }, 1.5, plan.IsValid ? CityPalette.PreviewValid : CityPalette.PreviewInvalid);
+                foreach (RoadSegment road in plan.Crossed)
+                {
+                    cityRenderer.PreviewRibbon(road.Curve.Sample(4.0), road.HalfWidth, BulldozeHighlight);
+                }
+            }
+            else if (onMap)
+            {
+                cityRenderer.PreviewDisc(snapped, 3.0, CityPalette.PreviewValid);
+            }
+
+            cityRenderer.EndPreview();
+            previewShown = true;
+            shownTool = ToolType.None;
+
+            if (!onMap)
+            {
+                liveText = pipeDrawing ? "Water pipe: point at the map" : "";
+            }
+            else if (plan == null)
+            {
+                liveText = "Water pipe (" + CitySimulation.FormatMoney(sim.Treasury.UtilityCost(100.0, UtilityKind.Water) / 100.0) + " per metre): click to start";
+            }
+            else if (!plan.IsValid)
+            {
+                liveText = plan.Error;
+            }
+            else
+            {
+                liveText = "Water pipe, " + (int)plan.Length + " m: " + CitySimulation.FormatMoney(plan.Cost)
+                    + (plan.Crossed.Count > 0 ? ". Closes " + plan.Crossed.Count + (plan.Crossed.Count == 1 ? " road" : " roads") + " for " + CitySimulation.UtilityWorkDays + " days (orange)" : ". No road is in the way")
+                    + ". Click to lay it.";
+            }
+
+            if (!onMap || !mouse.leftButton.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            if (!pipeDrawing)
+            {
+                pipeStart = snapped;
+                pipeDrawing = true;
+                return;
+            }
+
+            if (plan == null || !plan.IsValid)
+            {
+                return;
+            }
+
+            AnnounceChange();
+            string error = sim.LayPipe(pipeStart, p);
+            if (error != null)
+            {
+                DiscardChange();
+                ShowResult(error);
+                return;
+            }
+
+            pipeStart = plan.B;
+            ShowResult(plan.Crossed.Count > 0
+                ? "Pipe is being laid. " + plan.Crossed.Count + (plan.Crossed.Count == 1 ? " road is" : " roads are") + " closed for " + CitySimulation.UtilityWorkDays + " days."
+                : "Pipe laid.");
+        }
+
         private void UpdateUtility(Mouse mouse, bool onMap, Vec2 p)
         {
+            if (UtilityKind == UtilityKind.Water)
+            {
+                UpdatePipe(mouse, onMap, p);
+                return;
+            }
+
             RoadSegment hover = null;
             if (onMap)
             {
@@ -573,7 +657,7 @@ namespace UrbanGenesis.Game
             }
             else
             {
-                liveText = what + ": " + CitySimulation.FormatMoney(plan.Cost) + ". The road is closed for " + CitySimulation.UtilityWorkDays + " days while crews work. Click to lay it.";
+                liveText = what + ": " + CitySimulation.FormatMoney(plan.Cost) + ". The road is closed for " + CitySimulation.UtilityWorkDays + " days while crews work" + (sim.HasRoadworks(hover) ? " (extends the roadworks already going on)" : "") + ". Click to lay it.";
             }
 
             if (hover != null && plan != null && plan.IsValid && onMap && mouse.leftButton.wasPressedThisFrame)
@@ -1102,6 +1186,7 @@ namespace UrbanGenesis.Game
         private void CancelRoad()
         {
             roadStage = 0;
+            pipeDrawing = false;
         }
 
         // ------------------------------------------------------------ zone and bulldoze brush
@@ -1205,7 +1290,16 @@ namespace UrbanGenesis.Game
                 }
                 else
                 {
-                    liveText = lots.Count == 0 ? "Bulldoze: nothing here" : "Bulldoze: press and drag to clear buildings and zoning";
+                    WaterPipe pipe = sim.PipeNear(p, CitySimulation.BulldozePipeRadius);
+                    if (pipe != null)
+                    {
+                        cityRenderer.PreviewRibbon(new[] { pipe.A, pipe.B }, 1.5, BulldozeHighlight);
+                        liveText = "Bulldoze: click to dig up this water pipe (nothing is refunded)";
+                    }
+                    else
+                    {
+                        liveText = lots.Count == 0 ? "Bulldoze: nothing here" : "Bulldoze: press and drag to clear buildings and zoning";
+                    }
                 }
 
                 foreach (Lot lot in lots)

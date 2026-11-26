@@ -893,7 +893,7 @@ namespace UrbanGenesis.Simulation
             first.OpenFraction = old.OpenFraction;
             second.OpenFraction = old.OpenFraction;
             first.HasPower = second.HasPower = old.HasPower;
-            first.HasWater = second.HasWater = old.HasWater;
+            
 
             segments[first.Id] = first;
             segments[second.Id] = second;

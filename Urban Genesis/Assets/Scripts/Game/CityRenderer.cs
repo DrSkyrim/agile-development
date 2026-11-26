@@ -186,10 +186,12 @@ namespace UrbanGenesis.Game
                     closures.Ribbon(OffsetLine(segment, segment.HalfWidth * 0.55), 0.45, 0.32f, new Color(1.00f, 0.85f, 0.15f, 0.95f));
                 }
 
-                if (segment.HasWater)
-                {
-                    closures.Ribbon(OffsetLine(segment, -segment.HalfWidth * 0.55), 0.45, 0.32f, new Color(0.30f, 0.70f, 1.00f, 0.95f));
-                }
+            }
+
+            // Water and sewage pipes run straight across the land, whether or not a road is above them.
+            foreach (WaterPipe pipe in sim.Pipes)
+            {
+                closures.Ribbon(new[] { pipe.A, pipe.B }, 1.1, 0.30f, new Color(0.30f, 0.70f, 1.00f, 0.95f));
             }
 
             Building burning = sim.BurningBuilding;
@@ -658,6 +660,12 @@ namespace UrbanGenesis.Game
         public void PreviewRibbon(IList<Vec2> centreLine, double halfWidth, Color color)
         {
             preview.Ribbon(centreLine, halfWidth, PreviewHeight, color);
+        }
+
+        /// <summary>Like <see cref="PreviewRibbon(IList{Vec2}, double, Color)"/> but drawn a little higher, so it shows on top of another preview.</summary>
+        public void PreviewRibbonAbove(IList<Vec2> centreLine, double halfWidth, Color color)
+        {
+            preview.Ribbon(centreLine, halfWidth, PreviewHeight + 0.15f, color);
         }
 
         public void PreviewDisc(Vec2 center, double radius, Color color)

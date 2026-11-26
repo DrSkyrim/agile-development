@@ -174,6 +174,27 @@ namespace UrbanGenesis.Simulation
             return Vec2.Distance(p, a + ab * u);
         }
 
+        /// <summary>Smallest distance between the segments a-b and c-d (zero if they cross or touch).</summary>
+        public static double SegmentDistance(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
+        {
+            Vec2 r = b - a;
+            Vec2 s = d - c;
+            double denominator = Vec2.Cross(r, s);
+            if (Math.Abs(denominator) > 1e-12)
+            {
+                double t = Vec2.Cross(c - a, s) / denominator;
+                double u = Vec2.Cross(c - a, r) / denominator;
+                if (t >= 0.0 && t <= 1.0 && u >= 0.0 && u <= 1.0)
+                {
+                    return 0.0;
+                }
+            }
+
+            return Math.Min(
+                Math.Min(DistanceToSegment(a, c, d), DistanceToSegment(b, c, d)),
+                Math.Min(DistanceToSegment(c, a, b), DistanceToSegment(d, a, b)));
+        }
+
         /// <summary>Points along the edges of a polygon (its corners, and extra points along each edge) for checking clearance.</summary>
         public static List<Vec2> BoundarySamples(IList<Vec2> polygon, int extraPerEdge)
         {

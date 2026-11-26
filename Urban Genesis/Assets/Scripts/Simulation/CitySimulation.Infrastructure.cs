@@ -44,6 +44,25 @@ namespace UrbanGenesis.Simulation
             return best;
         }
 
+        /// <summary>The point on the river's middle line that is closest to <paramref name="p"/>.</summary>
+        public Vec2 NearestPoint(Vec2 p)
+        {
+            double best = double.MaxValue;
+            Vec2 result = p;
+            for (int i = 0; i + 1 < Points.Count; i++)
+            {
+                Vec2 a = Points[i];
+                Vec2 ab = Points[i + 1] - a;
+                double len2 = ab.LengthSquared;
+                double t = len2 < 1e-9 ? 0.0 : Math.Max(0.0, Math.Min(1.0, Vec2.Dot(p - a, ab) / len2));
+                Vec2 q = a + ab * t;
+                double d = Vec2.Distance(p, q);
+                if (d < best) { best = d; result = q; }
+            }
+
+            return result;
+        }
+
         private static double DistanceToSegment(Vec2 p, Vec2 a, Vec2 b)
         {
             Vec2 ab = b - a;
@@ -142,14 +161,20 @@ namespace UrbanGenesis.Simulation
             switch (shape)
             {
                 case BuildingShape.PowerPlant: return "Feeds every road that has a power cable connected to it.";
-                case BuildingShape.WaterTower: return "Supplies water to roads with a pipe connected to it. Must stand near the river.";
-                case BuildingShape.SewageOutlet: return "Takes the sewage away through the same pipes. Must stand near the river.";
+                case BuildingShape.WaterTower: return "Supplies water to every road a connected pipe runs across. Stands near the river, no road needed.";
+                case BuildingShape.SewageOutlet: return "Takes the sewage away through the same pipes. Stands near the river, no road needed.";
                 case BuildingShape.Hospital: return "Ambulances drive out to the homes.";
                 case BuildingShape.PoliceStation: return "Police cars patrol the streets.";
                 case BuildingShape.FireStation: return "Puts out fires. Without one, burning buildings are lost.";
                 case BuildingShape.School: return "School buses collect the children.";
                 default: return "";
             }
+        }
+
+        /// <summary>True for buildings that stand anywhere near the river instead of on a lot beside a road.</summary>
+        public static bool IsFreestanding(BuildingShape shape)
+        {
+            return shape == BuildingShape.WaterTower || shape == BuildingShape.SewageOutlet;
         }
 
         public static bool NeedsRiver(BuildingShape shape)
@@ -180,6 +205,29 @@ namespace UrbanGenesis.Simulation
         public Vec2 Back;
         public Vec2[] Footprint;
         internal List<Lot> Lots;
+    }
+
+    /// <summary>A water and sewage pipe: a straight underground run between two points, free of roads.</summary>
+    public sealed class WaterPipe
+    {
+        public int Id { get; internal set; }
+        public Vec2 A { get; internal set; }
+        public Vec2 B { get; internal set; }
+        public double Length { get { return Vec2.Distance(A, B); } }
+        public Aabb Bounds { get { return new Aabb(Math.Min(A.X, B.X), Math.Min(A.Y, B.Y), Math.Max(A.X, B.X), Math.Max(A.Y, B.Y)); } }
+    }
+
+    public sealed class PipePlan
+    {
+        public bool IsValid;
+        public string Error = "";
+        public double Cost;
+        public double Length;
+        public Vec2 A;
+        public Vec2 B;
+
+        /// <summary>The roads the pipe runs under; each is closed for the roadworks.</summary>
+        public List<RoadSegment> Crossed = new List<RoadSegment>();
     }
 
     public sealed class UtilityPlan
@@ -338,6 +386,11 @@ namespace UrbanGenesis.Simulation
                 return plan;
             }
 
+            if (CivicInfo.IsFreestanding(shape))
+            {
+                return PlanFreestanding(plan, shape, point);
+            }
+
             Lot lot = Lots.LotAt(point);
             if (lot == null)
             {
@@ -366,19 +419,60 @@ namespace UrbanGenesis.Simulation
             plan.Footprint = Building.MakeFootprint(center, back, template.Width * RoadNetwork.LotSize, template.Depth * RoadNetwork.LotSize);
             plan.Lots = lots;
 
-            if (CivicInfo.NeedsRiver(shape))
+            if (!Treasury.CanAfford(plan.Cost))
             {
-                if (River == null)
+                plan.Error = "Not enough money: " + FormatMoney(plan.Cost) + " needed.";
+                return plan;
+            }
+
+            plan.IsValid = true;
+            return plan;
+        }
+
+        /// <summary>A water tower or sewage outlet: it needs open ground near the river, not a lot beside a road.</summary>
+        private FacilityPlan PlanFreestanding(FacilityPlan plan, BuildingShape shape, Vec2 point)
+        {
+            if (River == null)
+            {
+                plan.Error = "This map has no river.";
+                return plan;
+            }
+
+            BuildingTemplate template = plan.Template;
+            Vec2 nearest = River.NearestPoint(point);
+            Vec2 away = point - nearest;
+            Vec2 back = away.LengthSquared < 1e-6 ? new Vec2(0.0, 1.0) : away.Normalized;
+            plan.Center = point;
+            plan.Back = back;
+            plan.Footprint = Building.MakeFootprint(point, back, template.Width * RoadNetwork.LotSize, template.Depth * RoadNetwork.LotSize);
+            plan.Lots = new List<Lot>();
+
+            double half = Roads.WorldBounds.MaxX;
+            foreach (Vec2 corner in plan.Footprint)
+            {
+                if (Math.Abs(corner.X) > half || Math.Abs(corner.Y) > half)
                 {
-                    plan.Error = "This map has no river.";
+                    plan.Error = "That is off the edge of the map.";
                     return plan;
                 }
 
-                if (River.DistanceTo(center) > River.IntakeRadius)
+                if (River.DistanceTo(corner) < River.HalfWidth + 1.0)
                 {
-                    plan.Error = "Too far from the river: a " + CivicInfo.Name(shape).ToLowerInvariant() + " must stand within " + (int)River.IntakeRadius + " m of it.";
+                    plan.Error = "That is in the water: build on the bank.";
                     return plan;
                 }
+            }
+
+            if (River.DistanceTo(point) > River.IntakeRadius)
+            {
+                plan.Error = "Too far from the river: a " + CivicInfo.Name(shape).ToLowerInvariant() + " must stand within " + (int)River.IntakeRadius + " m of it.";
+                return plan;
+            }
+
+            if (OverlapsRoad(plan.Footprint) || OverlapsBuilding(plan.Footprint))
+            {
+                plan.Error = "No room: something is in the way.";
+                return plan;
             }
 
             if (!Treasury.CanAfford(plan.Cost))
@@ -422,39 +516,79 @@ namespace UrbanGenesis.Simulation
             return list;
         }
 
-        // ------------------------------------------------------------ cables and pipes
+        // ------------------------------------------------------------ cables (along roads) and pipes (anywhere)
 
         public const int UtilityWorkDays = 3;
 
+        /// <summary>Two pipes closer together than this (crossing, touching, ends meeting) are joined.</summary>
+        public const double PipeConnectRadius = 4.0;
+
+        /// <summary>A pipe end clicked this close to another pipe snaps onto it.</summary>
+        public const double PipeSnapRadius = 12.0;
+
+        /// <summary>A pipe feeds a road if it runs under it or ends this close beside it.</summary>
+        public const double PipeReach = 8.0;
+
+        /// <summary>Clicking with the bulldozer this close to a pipe digs it up.</summary>
+        public const double BulldozePipeRadius = 4.0;
+
+        public const double MinPipeLength = 8.0;
+        public const double MaxPipeLength = 600.0;
+
         private readonly Dictionary<int, int> worksUntil = new Dictionary<int, int>();
+        private readonly List<WaterPipe> pipes = new List<WaterPipe>();
+        private int nextPipeId = 1;
 
         public bool HasRoadworks(RoadSegment segment)
         {
             return worksUntil.ContainsKey(segment.Id);
         }
 
-        public static bool HasLine(RoadSegment segment, UtilityKind kind)
+        public IEnumerable<WaterPipe> Pipes { get { return pipes; } }
+
+        public int PipeCount { get { return pipes.Count; } }
+
+        /// <summary>
+        /// Closes the road for <see cref="UtilityWorkDays"/> days from now. If crews are already digging there,
+        /// the closure is simply extended, so a cable laid on top of a pipe costs only the extra days.
+        /// </summary>
+        private void StartRoadworks(RoadSegment segment)
         {
-            return kind == UtilityKind.Power ? segment.HasPower : segment.HasWater;
+            int end = TickCount + UtilityWorkDays * GameTime.TicksPerDay;
+            int existing;
+            if (worksUntil.TryGetValue(segment.Id, out existing) && existing > end) { end = existing; }
+            worksUntil[segment.Id] = end;
+            segment.OpenFraction = 0f;
         }
 
+        public static bool HasLine(RoadSegment segment, UtilityKind kind)
+        {
+            return kind == UtilityKind.Power && segment.HasPower;
+        }
+
+        /// <summary>Checks a power cable along a road. (Water pipes are free of roads: see <see cref="PlanPipe"/>.)</summary>
         public UtilityPlan PlanUtility(RoadSegment segment, UtilityKind kind)
         {
             var plan = new UtilityPlan { Segment = segment, Kind = kind };
-            string what = kind == UtilityKind.Power ? "power cable" : "water and sewage pipe";
+            if (kind != UtilityKind.Power)
+            {
+                plan.Error = "Water pipes are drawn across the land, not along a road.";
+                return plan;
+            }
+
             if (segment.IsOutsideConnection || segment.HasLots == false)
             {
-                plan.Error = "Highways carry no " + what + "s: lay them along ordinary roads.";
+                plan.Error = "Highways carry no power cables: lay them along ordinary roads.";
                 return plan;
             }
 
-            if (HasLine(segment, kind))
+            if (segment.HasPower)
             {
-                plan.Error = "This road already has a " + what + ".";
+                plan.Error = "This road already has a power cable.";
                 return plan;
             }
 
-            if (segment.IsClosed)
+            if (segment.IsClosed && !HasRoadworks(segment))
             {
                 plan.Error = "The road is closed right now. Try again when it reopens.";
                 return plan;
@@ -471,19 +605,179 @@ namespace UrbanGenesis.Simulation
             return plan;
         }
 
-        /// <summary>Lays the line and closes the road for <see cref="UtilityWorkDays"/> days while the crews dig. Returns an error message, or null.</summary>
+        /// <summary>Lays a power cable and closes the road for <see cref="UtilityWorkDays"/> days while the crews dig. Returns an error message, or null.</summary>
         public string LayUtility(RoadSegment segment, UtilityKind kind)
         {
             UtilityPlan plan = PlanUtility(segment, kind);
             if (!plan.IsValid) { return plan.Error; }
 
             Treasury.Charge(plan.Cost);
-            if (kind == UtilityKind.Power) { segment.HasPower = true; } else { segment.HasWater = true; }
-            segment.OpenFraction = 0f;
-            worksUntil[segment.Id] = TickCount + UtilityWorkDays * GameTime.TicksPerDay;
+            segment.HasPower = true;
+            StartRoadworks(segment);
             servicesDirty = true;
             Revision++;
             return null;
+        }
+
+        /// <summary>The pipe end or pipe body nearest to the point if there is one within <see cref="PipeSnapRadius"/>, otherwise the point itself.</summary>
+        public Vec2 SnapPipePoint(Vec2 p)
+        {
+            Vec2 best = p;
+            double bestDistance = PipeSnapRadius;
+            bool snapped = false;
+            foreach (WaterPipe pipe in pipes)
+            {
+                double d = Vec2.Distance(p, pipe.A);
+                if (d < bestDistance) { bestDistance = d; best = pipe.A; snapped = true; }
+                d = Vec2.Distance(p, pipe.B);
+                if (d < bestDistance) { bestDistance = d; best = pipe.B; snapped = true; }
+            }
+
+            if (snapped) { return best; }
+
+            foreach (WaterPipe pipe in pipes)
+            {
+                double u;
+                double d = Geometry.DistanceToSegment(p, pipe.A, pipe.B, out u);
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    best = pipe.A + (pipe.B - pipe.A) * u;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>Checks a pipe between two points: its length, cost, and the roads it would run under (those get closed).</summary>
+        public PipePlan PlanPipe(Vec2 from, Vec2 to)
+        {
+            var plan = new PipePlan { A = SnapPipePoint(from) };
+            plan.B = SnapPipePoint(to);
+            plan.Length = Vec2.Distance(plan.A, plan.B);
+
+            double half = Roads.WorldBounds.MaxX;
+            if (Math.Abs(plan.A.X) > half || Math.Abs(plan.A.Y) > half || Math.Abs(plan.B.X) > half || Math.Abs(plan.B.Y) > half)
+            {
+                plan.Error = "That is off the edge of the map.";
+                return plan;
+            }
+
+            if (plan.Length < MinPipeLength)
+            {
+                plan.Error = "Too short: pick a point further away.";
+                return plan;
+            }
+
+            if (plan.Length > MaxPipeLength)
+            {
+                plan.Error = "Too long: a pipe run can be at most " + (int)MaxPipeLength + " m. Lay it in pieces.";
+                return plan;
+            }
+
+            plan.Crossed = RoadsAbove(plan.A, plan.B);
+            foreach (RoadSegment road in plan.Crossed)
+            {
+                if (road.IsClosed && !HasRoadworks(road))
+                {
+                    plan.Error = "A road on the way is closed right now. Try again when it reopens.";
+                    return plan;
+                }
+            }
+
+            plan.Cost = Treasury.UtilityCost(plan.Length, UtilityKind.Water);
+            if (!Treasury.CanAfford(plan.Cost))
+            {
+                plan.Error = "Not enough money: " + FormatMoney(plan.Cost) + " needed.";
+                return plan;
+            }
+
+            plan.IsValid = true;
+            return plan;
+        }
+
+        /// <summary>Lays the pipe; every road it runs under is closed for the roadworks. Returns an error message, or null.</summary>
+        public string LayPipe(Vec2 from, Vec2 to)
+        {
+            PipePlan plan = PlanPipe(from, to);
+            if (!plan.IsValid) { return plan.Error; }
+
+            Treasury.Charge(plan.Cost);
+            pipes.Add(new WaterPipe { Id = nextPipeId++, A = plan.A, B = plan.B });
+            foreach (RoadSegment road in plan.Crossed) { StartRoadworks(road); }
+            servicesDirty = true;
+            Revision++;
+            return null;
+        }
+
+        /// <summary>Roads whose surface the straight line a-b passes over.</summary>
+        public List<RoadSegment> RoadsAbove(Vec2 a, Vec2 b)
+        {
+            var found = new List<RoadSegment>();
+            var box = new Aabb(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.X, b.X), Math.Max(a.Y, b.Y));
+            foreach (RoadSegment road in Roads.SegmentsNear(box, RoadSpecs.MaxHalfWidth))
+            {
+                if (DistanceToRoad(a, b, road) <= road.HalfWidth) { found.Add(road); }
+            }
+
+            return found;
+        }
+
+        private static double DistanceToRoad(Vec2 a, Vec2 b, RoadSegment road)
+        {
+            List<Vec2> line = road.Curve.Sample(4.0);
+            double best = double.MaxValue;
+            for (int i = 0; i + 1 < line.Count; i++)
+            {
+                best = Math.Min(best, Geometry.SegmentDistance(a, b, line[i], line[i + 1]));
+            }
+
+            return best;
+        }
+
+        public WaterPipe PipeNear(Vec2 p, double radius)
+        {
+            WaterPipe best = null;
+            double bestDistance = radius;
+            foreach (WaterPipe pipe in pipes)
+            {
+                double d = Geometry.DistanceToSegment(p, pipe.A, pipe.B);
+                if (d <= bestDistance) { bestDistance = d; best = pipe; }
+            }
+
+            return best;
+        }
+
+        /// <summary>Digs the pipe up again. Nothing is refunded and no road is closed.</summary>
+        public bool RemovePipe(WaterPipe pipe)
+        {
+            if (pipe == null || !pipes.Remove(pipe)) { return false; }
+            servicesDirty = true;
+            Revision++;
+            return true;
+        }
+
+        /// <summary>True if a pipe touches the (water tower or sewage outlet) building.</summary>
+        public bool IsConnectedToPipes(Building b)
+        {
+            foreach (WaterPipe pipe in pipes)
+            {
+                if (PipeTouches(pipe, b)) { return true; }
+            }
+
+            return false;
+        }
+
+        private static bool PipeTouches(WaterPipe pipe, Building b)
+        {
+            if (Geometry.PointInConvex(pipe.A, b.Footprint) || Geometry.PointInConvex(pipe.B, b.Footprint)) { return true; }
+            Vec2[] f = b.Footprint;
+            for (int i = 0; i < f.Length; i++)
+            {
+                if (Geometry.SegmentDistance(pipe.A, pipe.B, f[i], f[(i + 1) % f.Length]) <= PipeConnectRadius) { return true; }
+            }
+
+            return false;
         }
 
         // ------------------------------------------------------------ who is served
@@ -501,20 +795,38 @@ namespace UrbanGenesis.Simulation
         internal void RecomputeServices()
         {
             servicesDirty = false;
-            Flood(UtilityKind.Power, BuildingShape.PowerPlant, poweredSegments);
-            Flood(UtilityKind.Water, BuildingShape.WaterTower, wateredSegments);
-            Flood(UtilityKind.Water, BuildingShape.SewageOutlet, sewerSegments);
+            FloodPower();
+
+            // Pipes that touch each other form one network; a network feeds what its tower or outlet is joined to.
+            int n = pipes.Count;
+            var next = new List<int>[n];
+            for (int i = 0; i < n; i++) { next[i] = new List<int>(); }
+            for (int i = 0; i < n; i++)
+            {
+                Aabb box = pipes[i].Bounds.Expanded(PipeConnectRadius);
+                for (int j = i + 1; j < n; j++)
+                {
+                    if (box.Overlaps(pipes[j].Bounds) && Geometry.SegmentDistance(pipes[i].A, pipes[i].B, pipes[j].A, pipes[j].B) <= PipeConnectRadius)
+                    {
+                        next[i].Add(j);
+                        next[j].Add(i);
+                    }
+                }
+            }
+
+            FloodPipes(BuildingShape.WaterTower, next, wateredSegments);
+            FloodPipes(BuildingShape.SewageOutlet, next, sewerSegments);
         }
 
-        private void Flood(UtilityKind kind, BuildingShape source, HashSet<int> result)
+        private void FloodPower()
         {
-            result.Clear();
+            poweredSegments.Clear();
             var queue = new Queue<RoadSegment>();
             foreach (Building b in buildings.Values)
             {
-                if (b.Shape != source || b.Lots.Count == 0) { continue; }
+                if (b.Shape != BuildingShape.PowerPlant || b.Lots.Count == 0) { continue; }
                 RoadSegment host = Roads.GetSegment(b.Lots[0].Key.SegmentId);
-                if (host != null && HasLine(host, kind) && result.Add(host.Id)) { queue.Enqueue(host); }
+                if (host != null && host.HasPower && poweredSegments.Add(host.Id)) { queue.Enqueue(host); }
             }
 
             while (queue.Count > 0)
@@ -525,7 +837,43 @@ namespace UrbanGenesis.Simulation
                 {
                     foreach (RoadSegment other in ends[e].Segments)
                     {
-                        if (HasLine(other, kind) && result.Add(other.Id)) { queue.Enqueue(other); }
+                        if (other.HasPower && poweredSegments.Add(other.Id)) { queue.Enqueue(other); }
+                    }
+                }
+            }
+        }
+
+        private void FloodPipes(BuildingShape source, List<int>[] next, HashSet<int> servedSegments)
+        {
+            servedSegments.Clear();
+            var reached = new bool[pipes.Count];
+            var queue = new Queue<int>();
+            foreach (Building b in buildings.Values)
+            {
+                if (b.Shape != source) { continue; }
+                for (int i = 0; i < pipes.Count; i++)
+                {
+                    if (!reached[i] && PipeTouches(pipes[i], b)) { reached[i] = true; queue.Enqueue(i); }
+                }
+            }
+
+            while (queue.Count > 0)
+            {
+                int i = queue.Dequeue();
+                foreach (int j in next[i])
+                {
+                    if (!reached[j]) { reached[j] = true; queue.Enqueue(j); }
+                }
+            }
+
+            for (int i = 0; i < pipes.Count; i++)
+            {
+                if (!reached[i]) { continue; }
+                foreach (RoadSegment road in Roads.SegmentsNear(pipes[i].Bounds, RoadSpecs.MaxHalfWidth + PipeReach))
+                {
+                    if (road.HasLots && DistanceToRoad(pipes[i].A, pipes[i].B, road) <= road.HalfWidth + PipeReach)
+                    {
+                        servedSegments.Add(road.Id);
                     }
                 }
             }

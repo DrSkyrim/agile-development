@@ -38,6 +38,9 @@ namespace UrbanGenesis.Simulation
         public List<int> WorkSegments = new List<int>();
         public List<int> WorkReopenTicks = new List<int>();
 
+        /// <summary>Water pipes as ax, ay, bx, by, ax, ay, ...</summary>
+        public List<double> Pipes = new List<double>();
+
         public int NextNodeId;
         public int NextSegmentId;
         public int NextBuildingId;
@@ -79,7 +82,6 @@ namespace UrbanGenesis.Simulation
             public float Open = 1f;
             public bool Outside;
             public bool Power;
-            public bool Water;
         }
 
         [Serializable]

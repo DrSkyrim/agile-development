@@ -52,9 +52,10 @@ Order rule: fix what confuses a first-time player, then show information, then p
 ## Phase F: infrastructure and services (decided by the product owner, 2026-11-26)
 
 - [x] River on every new map (roads cannot cross it or run along its banks; water tower and sewage outlet must stand within 85 m of it).
-- [x] Power plant, water tower, sewage outlet (always available), placed on a free lot area beside a road.
-- [x] Cables and pipes: laid along a whole road with the Power and Water tools; the road is closed for 3 days while crews work (orange on the map); lines are drawn on the road (yellow power, blue water).
-- [x] Services: a building is served when its road has a power cable, a water pipe, and both connect through junctions to a power plant, a water tower and a sewage outlet.
+- [x] Power plant (on a free lot area beside a road); water tower and sewage outlet (always available) stand anywhere on the river bank, within 85 m of it, no road needed.
+- [x] Cables: laid along a whole road; the road is closed for 3 days while crews work (orange on the map); drawn yellow on the road.
+- [x] Water pipes: drawn freely across the land (click, click, carries on until Esc/right-click), blue lines. Only roads a pipe runs under are closed (3 days). Pipes that cross or touch are joined, ends snap onto other pipes. Bulldozer digs a pipe up. A cable laid on a road already closed for roadworks only extends the closure to 3 days from now.
+- [x] Services: a building is served when its road has a power cable connected (through junctions) to a power plant, and a pipe network joined to a water tower and a sewage outlet runs under or within 8 m of its road.
 - [x] Once the first milestone (100 residents) is passed, new buildings only grow on served roads and unserved buildings earn nothing (the Inspect panel and the advice line say what is missing).
 - [x] Milestone rewards replace the money bonus: 100 hospital, 1,000 police station, 5,000 fire station and dense residential zone, 10,000 school.
 - [x] Service vehicles in the traffic: ambulances, police cars, school buses; fire trucks race to fires.

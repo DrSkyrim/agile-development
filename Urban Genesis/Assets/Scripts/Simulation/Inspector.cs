@@ -34,7 +34,7 @@ namespace UrbanGenesis.Simulation
                 }
                 else if (b.Shape == BuildingShape.WaterTower || b.Shape == BuildingShape.SewageOutlet)
                 {
-                    text.Append(host != null && host.HasWater ? "Connected to the pipe on its road.\n" : "Not connected: lay a water pipe along the road it stands on.\n");
+                    text.Append(sim.IsConnectedToPipes(b) ? "Connected to the pipe network.\n" : "Not connected: run a water pipe up to it.\n");
                 }
 
                 text.Append("Cost to build: ").Append(CitySimulation.FormatMoney(CivicInfo.Cost(b.Shape))).Append(", demolishing gives nothing back.");
@@ -45,7 +45,7 @@ namespace UrbanGenesis.Simulation
             if (missing.Length > 0)
             {
                 text.Append("NOT SERVED: no ").Append(missing).Append(". It sits idle and earns nothing.\n");
-                text.Append("Lay cables and pipes along its road and connect them to a power plant, water tower and sewage outlet.");
+                text.Append("Lay a power cable along its road (connected to a power plant) and run a water pipe across or next to the road (connected to a water tower and a sewage outlet).");
                 return text.ToString();
             }
 

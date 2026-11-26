@@ -605,6 +605,7 @@ namespace UrbanGenesis.Simulation
 
         private void OnSegmentAdded(RoadSegment segment)
         {
+            servicesDirty = true;
             RefreshAround(segment);
         }
 
@@ -736,6 +737,11 @@ namespace UrbanGenesis.Simulation
                     Treasury.Recompute();
                     changed++;
                 }
+            }
+
+            if (includeRoad && changed == 0 && RemovePipe(PipeNear(center, BulldozePipeRadius)))
+            {
+                changed++;
             }
 
             var doomed = new List<Building>();
