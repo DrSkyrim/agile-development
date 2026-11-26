@@ -58,6 +58,9 @@ namespace UrbanGenesis.Game
         private Mesh congestionMesh;
         private readonly MeshBuilder congestion = new MeshBuilder();
         private Mesh closureMesh;
+        private Mesh riverMesh;
+        private readonly MeshBuilder riverBuilder = new MeshBuilder();
+        private River riverShown;
         private readonly MeshBuilder closures = new MeshBuilder();
         private float closureRefreshAt;
         private bool congestionVisible;
@@ -86,6 +89,7 @@ namespace UrbanGenesis.Game
             previewMesh = CreateOverlayObject("Tool Preview", 3000);
             congestionMesh = CreateOverlayObject("Traffic Overlay", 2900);
             closureMesh = CreateOverlayObject("Closed Roads", 2950);
+            riverMesh = CreateOverlayObject("River", 2050);
 
             buildingRoot = new GameObject("Buildings").transform;
             buildingRoot.SetParent(transform, false);
@@ -152,6 +156,19 @@ namespace UrbanGenesis.Game
             congestion.Apply(congestionMesh);
         }
 
+        private IList<Vec2> OffsetLine(RoadSegment segment, double offset)
+        {
+            var points = new List<Vec2>();
+            double length = segment.Length;
+            for (double l = 0.0; l < length + 3.9; l += 4.0)
+            {
+                double at = Math.Min(l, length);
+                points.Add(segment.Curve.PointAtLength(at) + segment.Curve.NormalAtLength(at) * offset);
+            }
+
+            return points;
+        }
+
         private void RefreshClosures()
         {
             closures.Clear();
@@ -159,15 +176,53 @@ namespace UrbanGenesis.Game
             {
                 if (segment.IsClosed)
                 {
-                    closures.Ribbon(segment.Curve.Sample(4.0), segment.HalfWidth, 0.28f, new Color(0.95f, 0.10f, 0.10f, 0.85f));
+                    Color color = sim.HasRoadworks(segment) ? new Color(1.00f, 0.55f, 0.05f, 0.85f) : new Color(0.95f, 0.10f, 0.10f, 0.85f);
+                    closures.Ribbon(segment.Curve.Sample(4.0), segment.HalfWidth, 0.28f, color);
                 }
+
+                // Cables and pipes laid along the road, drawn as thin lines on its two sides.
+                if (segment.HasPower)
+                {
+                    closures.Ribbon(OffsetLine(segment, segment.HalfWidth * 0.55), 0.45, 0.32f, new Color(1.00f, 0.85f, 0.15f, 0.95f));
+                }
+
+                if (segment.HasWater)
+                {
+                    closures.Ribbon(OffsetLine(segment, -segment.HalfWidth * 0.55), 0.45, 0.32f, new Color(0.30f, 0.70f, 1.00f, 0.95f));
+                }
+            }
+
+            Building burning = sim.BurningBuilding;
+            if (burning != null)
+            {
+                bool flicker = ((int)(Time.unscaledTime * 4f)) % 2 == 0;
+                Vec2[] f = burning.Footprint;
+                closures.Quad(f[0], f[1], f[2], f[3], 0.9f, flicker ? new Color(1.00f, 0.25f, 0.05f, 0.80f) : new Color(1.00f, 0.60f, 0.10f, 0.80f));
             }
 
             closures.Apply(closureMesh);
         }
 
+        private void RefreshRiver()
+        {
+            riverShown = sim.River;
+            riverBuilder.Clear();
+            if (riverShown != null)
+            {
+                riverBuilder.Ribbon(riverShown.Points, riverShown.HalfWidth, 0.06f, new Color(0.18f, 0.42f, 0.78f, 1f));
+                riverBuilder.Ribbon(riverShown.Points, riverShown.HalfWidth + 3.0, 0.04f, new Color(0.30f, 0.52f, 0.40f, 1f));
+            }
+
+            riverBuilder.Apply(riverMesh);
+        }
+
         private void LateUpdate()
         {
+            if (sim.River != riverShown)
+            {
+                RefreshRiver();
+            }
+
             if (Time.unscaledTime >= closureRefreshAt)
             {
                 RefreshClosures();

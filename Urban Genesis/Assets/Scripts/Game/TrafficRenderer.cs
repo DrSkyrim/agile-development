@@ -24,11 +24,19 @@ namespace UrbanGenesis.Game
 
         private CityTraffic traffic;
         private readonly Dictionary<int, View> views = new Dictionary<int, View>();
-        private readonly List<Transform>[] pool = { new List<Transform>(), new List<Transform>(), new List<Transform>() };
+        private static readonly string[] TypeNames = { "Car", "ShortTruck", "LongTruck", "Ambulance", "PoliceCar", "FireTruck", "SchoolBus" };
+        private readonly List<Transform>[] pool = NewPool();
+
+        private static List<Transform>[] NewPool()
+        {
+            var p = new List<Transform>[TypeNames.Length];
+            for (int i = 0; i < p.Length; i++) { p[i] = new List<Transform>(); }
+            return p;
+        }
         private readonly Dictionary<int, GameObject> prefabs = new Dictionary<int, GameObject>();
         private Material[] carColors;
         private Material[] cabColors;
-        private Material white, trailerBlue, trailerGray, dark, glass;
+        private Material white, trailerBlue, trailerGray, dark, glass, red, policeBlue, busYellow;
 
         public void Init(CityTraffic cityTraffic)
         {
@@ -44,10 +52,13 @@ namespace UrbanGenesis.Game
             trailerGray = Make(0.62f, 0.64f, 0.66f);
             dark = Make(0.07f, 0.07f, 0.08f);
             glass = Make(0.35f, 0.50f, 0.62f);
+            red = Make(0.85f, 0.10f, 0.10f);
+            policeBlue = Make(0.12f, 0.20f, 0.55f);
+            busYellow = Make(0.95f, 0.75f, 0.10f);
 
-            for (int t = 0; t < 3; t++)
+            for (int t = 0; t < TypeNames.Length; t++)
             {
-                string name = t == 0 ? "Car" : t == 1 ? "ShortTruck" : "LongTruck";
+                string name = TypeNames[t];
                 GameObject prefab = Resources.Load<GameObject>("Vehicles/" + name);
                 if (prefab != null) { prefabs[t] = prefab; }
             }
@@ -165,6 +176,42 @@ namespace UrbanGenesis.Game
                 Wheels(root, 1.15f, 2.6f, 0.5f);
                 Wheels(root, 1.15f, -1.6f, 0.5f);
                 Wheels(root, 1.15f, -2.9f, 0.5f);
+            }
+            else if (v.Type == VehicleType.Ambulance)
+            {
+                Part(root, "Body", 0f, 1.35f, -0.2f, 2.3f, 1.9f, 5.4f, white);
+                Part(root, "Stripe", 0f, 1.35f, -0.2f, 2.35f, 0.3f, 5.45f, red);
+                Part(root, "Windshield", 0f, 1.75f, 2.5f, 2.0f, 0.7f, 0.05f, glass);
+                Part(root, "Light", 0f, 2.35f, 2.0f, 1.2f, 0.2f, 0.3f, red);
+                Wheels(root, 1.0f, 1.8f, 0.4f);
+                Wheels(root, 1.0f, -1.9f, 0.4f);
+            }
+            else if (v.Type == VehicleType.PoliceCar)
+            {
+                Part(root, "Body", 0f, 0.65f, 0f, 1.8f, 0.7f, 4.6f, policeBlue);
+                Part(root, "Cabin", 0f, 1.25f, -0.2f, 1.6f, 0.55f, 2.3f, white);
+                Part(root, "Light", 0f, 1.6f, -0.2f, 1.0f, 0.15f, 0.3f, red);
+                Wheels(root, 0.9f, 1.4f, 0.3f);
+                Wheels(root, 0.9f, -1.4f, 0.3f);
+            }
+            else if (v.Type == VehicleType.FireTruck)
+            {
+                Part(root, "Chassis", 0f, 0.65f, 0f, 2.4f, 0.3f, 9.4f, dark);
+                Part(root, "Cab", 0f, 1.8f, 3.2f, 2.4f, 2.1f, 2.4f, red);
+                Part(root, "Windshield", 0f, 2.2f, 4.42f, 2.1f, 0.8f, 0.05f, glass);
+                Part(root, "Body", 0f, 1.9f, -1.4f, 2.5f, 2.2f, 6.2f, red);
+                Part(root, "Ladder", 0f, 3.15f, -1.4f, 0.6f, 0.2f, 6.0f, white);
+                Wheels(root, 1.15f, 3.0f, 0.5f);
+                Wheels(root, 1.15f, -2.2f, 0.5f);
+                Wheels(root, 1.15f, -3.5f, 0.5f);
+            }
+            else if (v.Type == VehicleType.SchoolBus)
+            {
+                Part(root, "Body", 0f, 1.85f, 0f, 2.4f, 2.4f, 10.4f, busYellow);
+                Part(root, "Windows", 0f, 2.3f, 0f, 2.45f, 0.7f, 9.0f, glass);
+                Part(root, "Windshield", 0f, 2.2f, 5.22f, 2.1f, 1.0f, 0.05f, glass);
+                Wheels(root, 1.15f, 3.4f, 0.55f);
+                Wheels(root, 1.15f, -3.4f, 0.55f);
             }
             else
             {

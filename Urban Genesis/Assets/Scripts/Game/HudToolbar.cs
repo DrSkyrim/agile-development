@@ -28,7 +28,7 @@ namespace UrbanGenesis.Game
         /// <summary>The in-game date and time the city started at (kept in the save).</summary>
         public DateTime GameStart { get { return StartDate; } set { StartDate = value; } }
 
-        public static readonly int[] Milestones = { 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000 };
+        public static readonly int[] Milestones = CityMilestones.Targets;
 
         private enum Weight { Regular, Medium, SemiBold }
 
@@ -90,7 +90,7 @@ namespace UrbanGenesis.Game
         private Label lightsChipLabel;
         private VisualElement resetLanesChip;
         private VisualElement chipFill;
-        private readonly VisualElement[] zoneChips = new VisualElement[4];
+        private readonly VisualElement[] zoneChips = new VisualElement[5];
         private Label brushLabel;
         private VisualElement scaleBar;
         private Label scaleLabel;
@@ -275,6 +275,21 @@ namespace UrbanGenesis.Game
             var ground = new Color32(34, 44, 52, 255);
             for (int i = 0; i < minimapPixels.Length; i++) { minimapPixels[i] = ground; }
 
+            if (sim.River != null)
+            {
+                var water = new Color32(60, 120, 210, 255);
+                for (int i = 0; i + 1 < sim.River.Points.Count; i++)
+                {
+                    for (double t = 0.0; t < 1.0; t += 0.25)
+                    {
+                        Vec2 point = Vec2.Lerp(sim.River.Points[i], sim.River.Points[i + 1], t);
+                        int rx = (int)((point.X - b.MinX) / width * MinimapPixels);
+                        int ry = (int)((point.Y - b.MinY) / height * MinimapPixels);
+                        for (int dx = 0; dx < 3; dx++) { PaintMinimapPixel(rx + dx - 1, ry, water); PaintMinimapPixel(rx, ry + dx - 1, water); }
+                    }
+                }
+            }
+
             foreach (RoadSegment segment in sim.Roads.Segments)
             {
                 var road = RoadSpecs.IsHighway(segment.Type) ? new Color32(235, 190, 90, 255) : new Color32(170, 180, 190, 255);
@@ -291,7 +306,8 @@ namespace UrbanGenesis.Game
             {
                 int px = (int)((building.Center.X - b.MinX) / width * MinimapPixels);
                 int py = (int)((building.Center.Y - b.MinY) / height * MinimapPixels);
-                Color32 color = building.Zone == ZoneType.Residential ? new Color32(90, 200, 120, 255)
+                Color32 color = building.IsCivic ? new Color32(225, 120, 235, 255)
+                    : building.IsResidential ? new Color32(90, 200, 120, 255)
                     : building.Zone == ZoneType.Commercial ? new Color32(90, 150, 240, 255) : new Color32(240, 200, 70, 255);
                 for (int dx = 0; dx < 2; dx++) { for (int dy = 0; dy < 2; dy++) { PaintMinimapPixel(px + dx, py + dy, color); } }
             }
@@ -413,6 +429,7 @@ namespace UrbanGenesis.Game
                 "Q / E: rotate the camera",
                 "I or 9: inspect a building or road",
                 "O: show how full the roads are",
+                "Power / Water / Services (toolbar): lay cables and pipes, place plants, towers and stations",
                 "Ctrl+Z: undo, Ctrl+Y (or Ctrl+Shift+Z): redo",
                 "Mouse wheel: zoom",
                 "Right mouse drag: rotate and tilt",
@@ -883,6 +900,14 @@ namespace UrbanGenesis.Game
             junctionOptions.Add(resetLanesChip);
             optionsPanel.Add(junctionOptions);
 
+            groupOptions[0] = BuildGroupRow(new[] { ("Power cable", (Action)(() => tools.SelectUtility(UtilityKind.Power)), (Func<bool>)(() => tools.CurrentTool == ToolType.Utility && tools.UtilityKind == UtilityKind.Power), (Func<string>)(() => "Power cable  " + CitySimulation.FormatMoney(sim.Treasury.PowerLinePerMetre) + "/m")),
+                FacilityEntry(BuildingShape.PowerPlant) });
+            groupOptions[1] = BuildGroupRow(new[] { ("Water pipe", (Action)(() => tools.SelectUtility(UtilityKind.Water)), (Func<bool>)(() => tools.CurrentTool == ToolType.Utility && tools.UtilityKind == UtilityKind.Water), (Func<string>)(() => "Water pipe  " + CitySimulation.FormatMoney(sim.Treasury.WaterPipePerMetre) + "/m")),
+                FacilityEntry(BuildingShape.WaterTower), FacilityEntry(BuildingShape.SewageOutlet) });
+            groupOptions[2] = BuildGroupRow(new[] { FacilityEntry(BuildingShape.Hospital), FacilityEntry(BuildingShape.PoliceStation),
+                FacilityEntry(BuildingShape.FireStation), FacilityEntry(BuildingShape.School) });
+            for (int g = 0; g < groupOptions.Length; g++) { optionsPanel.Add(groupOptions[g]); }
+
             zoneOptions = new VisualElement();
             zoneOptions.style.flexDirection = FlexDirection.Row;
             zoneOptions.style.alignItems = Align.Center;
@@ -892,6 +917,12 @@ namespace UrbanGenesis.Game
             zoneOptions.Add(zoneChips[0]);
             zoneOptions.Add(zoneChips[1]);
             zoneOptions.Add(zoneChips[2]);
+            zoneChips[4] = Chip("Dense residential", () =>
+            {
+                if (sim.IsUnlocked(Feature.DenseResidential)) { tools.SetTool(ToolType.ZoneDense); }
+                else { Notify("Dense residential zones unlock at 5,000 residents.", 5f); }
+            }, "ug-dot--r");
+            zoneOptions.Add(zoneChips[4]);
             zoneChips[3] = Chip("Clear zoning", () => tools.SetTool(ToolType.ZoneClear), null);
             zoneOptions.Add(zoneChips[3]);
             var zoneDivider = Divider(true);
@@ -944,9 +975,15 @@ namespace UrbanGenesis.Game
             AddTool(bar, "grid-2x2", "Zoning", true,
                 () => tools.IsZoneTool,
                 () => tools.SetTool(tools.IsZoneTool ? ToolType.None : lastZoneTool));
-            AddTool(bar, "zap", "Power", false, null, null);
-            AddTool(bar, "droplets", "Water", false, null, null);
-            AddTool(bar, "shield-plus", "Services", false, null, null);
+            AddTool(bar, "zap", "Power", true,
+                () => InGroup(0),
+                () => { if (InGroup(0)) { tools.SetTool(ToolType.None); } else { tools.SelectUtility(UtilityKind.Power); } });
+            AddTool(bar, "droplets", "Water", true,
+                () => InGroup(1),
+                () => { if (InGroup(1)) { tools.SetTool(ToolType.None); } else { tools.SelectUtility(UtilityKind.Water); } });
+            AddTool(bar, "shield-plus", "Services", true,
+                () => InGroup(2),
+                () => { if (InGroup(2)) { tools.SetTool(ToolType.None); } else { SelectFirstService(); } });
             AddTool(bar, "tram-front", "Transit", false, null, null);
             AddTool(bar, "trees", "Parks", false, null, null);
             AddTool(bar, "mountain", "Terrain", false, null, null);
@@ -959,6 +996,84 @@ namespace UrbanGenesis.Game
             AddTool(bar, "pickaxe", "Demolish", true,
                 () => tools.CurrentTool == ToolType.Bulldoze,
                 () => tools.SetTool(tools.CurrentTool == ToolType.Bulldoze ? ToolType.None : ToolType.Bulldoze));
+        }
+
+        // ------------------------------------------------------------ power, water and service tool groups
+
+        private readonly VisualElement[] groupOptions = new VisualElement[3];
+        private readonly List<GroupChip> groupChips = new List<GroupChip>();
+
+        private sealed class GroupChip
+        {
+            public VisualElement Element;
+            public Label Label;
+            public Func<bool> IsOn;
+            public Func<string> Text;
+        }
+
+        /// <summary>True if the active tool belongs to group 0 (power), 1 (water) or 2 (services).</summary>
+        private bool InGroup(int group)
+        {
+            if (tools.CurrentTool == ToolType.Utility)
+            {
+                return group == (tools.UtilityKind == UtilityKind.Power ? 0 : 1);
+            }
+
+            if (tools.CurrentTool == ToolType.Facility)
+            {
+                BuildingShape shape = tools.FacilityShape;
+                if (shape == BuildingShape.PowerPlant) { return group == 0; }
+                if (shape == BuildingShape.WaterTower || shape == BuildingShape.SewageOutlet) { return group == 1; }
+                return group == 2;
+            }
+
+            return false;
+        }
+
+        private void SelectFirstService()
+        {
+            tools.SelectFacility(BuildingShape.Hospital);
+        }
+
+        private (string, Action, Func<bool>, Func<string>) FacilityEntry(BuildingShape shape)
+        {
+            return (CivicInfo.Name(shape), (Action)(() =>
+                {
+                    if (sim.IsUnlocked(shape)) { tools.SelectFacility(shape); }
+                    else
+                    {
+                        Feature f = CivicInfo.RequiredFeature(shape).Value;
+                        Notify("The " + CityMilestones.Name(f) + " unlocks at a population milestone (see the bar at the top).", 5f);
+                    }
+                }),
+                (Func<bool>)(() => tools.CurrentTool == ToolType.Facility && tools.FacilityShape == shape),
+                (Func<string>)(() => CivicInfo.Name(shape) + "  " + CitySimulation.FormatMoney(CivicInfo.Cost(shape)) + (sim.IsUnlocked(shape) ? "" : "  (locked)")));
+        }
+
+        private VisualElement BuildGroupRow((string, Action, Func<bool>, Func<string>)[] entries)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            foreach (var entry in entries)
+            {
+                VisualElement chip = Chip(entry.Item4(), entry.Item2, null);
+                var chipInfo = new GroupChip { Element = chip, Label = (Label)chip.ElementAt(0), IsOn = entry.Item3, Text = entry.Item4 };
+                groupChips.Add(chipInfo);
+                row.Add(chip);
+            }
+
+            return row;
+        }
+
+        private void RefreshGroupChips()
+        {
+            for (int i = 0; i < groupChips.Count; i++)
+            {
+                GroupChip chip = groupChips[i];
+                SetOn(chip.Element, "ug-chip--on", chip.IsOn());
+                SetText(chip.Label, chip.Text());
+            }
         }
 
         private VisualElement IconButtonSmall(string iconName, Action onClick)
@@ -1288,7 +1403,10 @@ namespace UrbanGenesis.Game
             bool brush = tools.IsBrushTool;
             bool junction = tools.CurrentTool == ToolType.Junction;
             bool upgrade = tools.CurrentTool == ToolType.Upgrade;
-            SetDisplay(optionsPanel, road || brush || junction || upgrade);
+            bool group = InGroup(0) || InGroup(1) || InGroup(2);
+            SetDisplay(optionsPanel, road || brush || junction || upgrade || group);
+            for (int g = 0; g < groupOptions.Length; g++) { SetDisplay(groupOptions[g], InGroup(g)); }
+            RefreshGroupChips();
             SetDisplay(upgradeOptions, upgrade);
             if (upgrade)
             {
@@ -1335,6 +1453,8 @@ namespace UrbanGenesis.Game
                 SetOn(zoneChips[1], "ug-chip--on", tools.CurrentTool == ToolType.ZoneCommercial);
                 SetOn(zoneChips[2], "ug-chip--on", tools.CurrentTool == ToolType.ZoneIndustrial);
                 SetOn(zoneChips[3], "ug-chip--on", tools.CurrentTool == ToolType.ZoneClear);
+                SetOn(zoneChips[4], "ug-chip--on", tools.CurrentTool == ToolType.ZoneDense);
+                SetOn(zoneChips[4], "ug-chip--locked", !sim.IsUnlocked(Feature.DenseResidential));
                 SetOn(chipFill, "ug-chip--on", tools.FillMode);
             }
 
@@ -1481,19 +1601,23 @@ namespace UrbanGenesis.Game
 
             EconomySnapshot snapshot = economy.Snapshot;
             int target = Milestones[Milestones.Length - 1];
+            int targetIndex = Milestones.Length - 1;
             int previous = 0;
             for (int i = 0; i < Milestones.Length; i++)
             {
                 if (population < Milestones[i])
                 {
                     target = Milestones[i];
+                    targetIndex = i;
                     previous = i > 0 ? Milestones[i - 1] : 0;
                     break;
                 }
             }
 
             SetText(milestoneTarget, FormatShort(target));
-            SetText(milestoneDetail, "Reach " + target.ToString("N0", CultureInfo.InvariantCulture) + " residents (now " + population.ToString("N0", CultureInfo.InvariantCulture) + ")");
+            string rewardText = CityMilestones.Reward(targetIndex);
+            SetText(milestoneDetail, "Reach " + target.ToString("N0", CultureInfo.InvariantCulture) + " residents (now " + population.ToString("N0", CultureInfo.InvariantCulture) + ")"
+                + (rewardText.Length > 0 ? " and it " + rewardText : ""));
             float progress = Mathf.Clamp01((population - previous) / (float)(target - previous));
             milestoneFill.style.width = new StyleLength(new Length(progress * 100f, LengthUnit.Percent));
 

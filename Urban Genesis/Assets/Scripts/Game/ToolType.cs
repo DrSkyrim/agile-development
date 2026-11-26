@@ -11,6 +11,9 @@ namespace UrbanGenesis.Game
         Junction = 6,
         Upgrade = 7,
         ZoneClear = 8,
-        Inspect = 9
+        Inspect = 9,
+        Facility = 10,
+        Utility = 11,
+        ZoneDense = 12
     }
 }

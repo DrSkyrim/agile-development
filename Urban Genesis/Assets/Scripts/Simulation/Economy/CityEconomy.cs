@@ -341,6 +341,27 @@ namespace UrbanGenesis.Simulation
 
         private string ChooseAdvice()
         {
+            if (sim.UtilitiesRequired)
+            {
+                int idle = 0;
+                var missing = new HashSet<string>();
+                foreach (Building b in sim.Buildings)
+                {
+                    string what = sim.MissingServices(b);
+                    if (what.Length > 0)
+                    {
+                        idle++;
+                        foreach (string part in what.Split(',')) { missing.Add(part.Trim()); }
+                    }
+                }
+
+                if (idle > 0)
+                {
+                    return idle + (idle == 1 ? " building has" : " buildings have") + " no " + string.Join("/", new List<string>(missing).ToArray())
+                        + ": lay cables and pipes along their road and connect them to a plant, tower and outlet.";
+                }
+            }
+
             EconomySnapshot s = Snapshot;
             if (s.Residents > 0.0 && s.Workers > 0.0 && s.UnemploymentRate > 0.25)
             {

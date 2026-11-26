@@ -114,6 +114,7 @@
 }
 .ug-chip .ug-text { color: rgb(176, 189, 201); font-size: 11px; }
 .ug-chip:hover { background-color: rgba(255, 255, 255, 0.08); }
+.ug-chip--locked .ug-text { color: rgb(120, 130, 140); }
 .ug-chip--on { background-color: rgb(52, 77, 104); }
 .ug-chip--on:hover { background-color: rgb(52, 77, 104); }
 .ug-chip--on .ug-text { color: rgb(113, 183, 255); }

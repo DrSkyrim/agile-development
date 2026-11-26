@@ -48,3 +48,17 @@ Order rule: fix what confuses a first-time player, then show information, then p
 - [ ] Real models and textures (#4, #5, #13, #25).
 - [ ] Infrastructure (#17, epic): for now this means an **electricity** network and a **water and sewage** network (details to settle before building).
 - [ ] Menus: several save slots, settings screen.
+
+## Phase F: infrastructure and services (decided by the product owner, 2026-11-26)
+
+- [x] River on every new map (roads cannot cross it or run along its banks; water tower and sewage outlet must stand within 85 m of it).
+- [x] Power plant, water tower, sewage outlet (always available), placed on a free lot area beside a road.
+- [x] Cables and pipes: laid along a whole road with the Power and Water tools; the road is closed for 3 days while crews work (orange on the map); lines are drawn on the road (yellow power, blue water).
+- [x] Services: a building is served when its road has a power cable, a water pipe, and both connect through junctions to a power plant, a water tower and a sewage outlet.
+- [x] Once the first milestone (100 residents) is passed, new buildings only grow on served roads and unserved buildings earn nothing (the Inspect panel and the advice line say what is missing).
+- [x] Milestone rewards replace the money bonus: 100 hospital, 1,000 police station, 5,000 fire station and dense residential zone, 10,000 school.
+- [x] Service vehicles in the traffic: ambulances, police cars, school buses; fire trucks race to fires.
+- [x] Fire as a random event: with a fire station the fire is put out, without one the building burns down.
+- [x] Dense residential zone (apartment blocks and high-rises).
+- Not decided yet: whether services should affect anything besides traffic (for example hospitals and population growth), and whether demolishing a civic building should refund money (now it does not).
+- Old saves: a save made before this phase that already has 100+ residents will switch to "services required" at once and its buildings will sit idle until cables and pipes are laid.

@@ -17,6 +17,7 @@ namespace UrbanGenesis.Game
         public static readonly Color32 RoadCentre = new Color32(226, 196, 84, 255);
 
         private static readonly Color32 ResidentialFill = new Color32(112, 196, 106, 255);
+        private static readonly Color32 DenseResidentialFill = new Color32(64, 196, 190, 255);
         private static readonly Color32 CommercialFill = new Color32(92, 142, 230, 255);
         private static readonly Color32 IndustrialFill = new Color32(234, 198, 78, 255);
 
@@ -35,6 +36,7 @@ namespace UrbanGenesis.Game
             switch (zone)
             {
                 case ZoneType.Residential: return ResidentialFill;
+                case ZoneType.DenseResidential: return DenseResidentialFill;
                 case ZoneType.Commercial: return CommercialFill;
                 case ZoneType.Industrial: return IndustrialFill;
                 default: return Ground;
@@ -78,6 +80,8 @@ namespace UrbanGenesis.Game
             switch (zone)
             {
                 case ZoneType.Residential: return 0.82f;
+                case ZoneType.DenseResidential: return 0.86f;
+                case ZoneType.Civic: return 0.95f;
                 case ZoneType.Commercial: return 0.62f;
                 case ZoneType.Industrial: return 0.42f;
                 default: return 0.70f;

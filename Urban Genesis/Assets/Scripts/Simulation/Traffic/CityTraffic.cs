@@ -50,6 +50,35 @@ namespace UrbanGenesis.Simulation.Traffic
             TripsPerVolume = 1.0;
             VehiclesPerBuilding = 0.5;
             OutsideTripsPerTick = 0.04;
+            city.FireStarted += OnFire;
+        }
+
+        /// <summary>Chance per tick, for each kind of service building the city has, that one of its vehicles heads out.</summary>
+        public double ServiceTripsPerTick = 0.02;
+
+        private void OnFire(Building burning)
+        {
+            if (burning.Lots.Count == 0) { return; }
+            List<Building> stations = city.FacilitiesOf(BuildingShape.FireStation);
+            if (stations.Count == 0 || stations[0].Lots.Count == 0) { return; }
+            Enqueue(VehicleType.FireTruck, stations[0].Lots[0].Key.SegmentId, burning.Lots[0].Key.SegmentId, true);
+        }
+
+        private void SpawnServiceTraffic()
+        {
+            SpawnServiceVehicle(BuildingShape.Hospital, VehicleType.Ambulance);
+            SpawnServiceVehicle(BuildingShape.PoliceStation, VehicleType.PoliceCar);
+            SpawnServiceVehicle(BuildingShape.School, VehicleType.SchoolBus);
+        }
+
+        private void SpawnServiceVehicle(BuildingShape shape, VehicleType type)
+        {
+            if (rng.NextDouble() >= ServiceTripsPerTick || city.BuildingCount < 8) { return; }
+            List<Building> facilities = city.FacilitiesOf(shape);
+            if (facilities.Count == 0) { return; }
+            Building from = facilities[rng.Next(facilities.Count)];
+            int target = RandomBuildingSegment();
+            if (from.Lots.Count > 0 && target >= 0) { Enqueue(type, from.Lots[0].Key.SegmentId, target); }
         }
 
         public TrafficSignals Signals { get; private set; }
@@ -119,6 +148,7 @@ namespace UrbanGenesis.Simulation.Traffic
             }
 
             SpawnOutsideTraffic();
+            SpawnServiceTraffic();
             RebuildLanes();
             DrainPending();
         }
@@ -187,9 +217,9 @@ namespace UrbanGenesis.Simulation.Traffic
             return -1;
         }
 
-        private void Enqueue(VehicleType type, int fromSegment, int toSegment)
+        private void Enqueue(VehicleType type, int fromSegment, int toSegment, bool atFront = false)
         {
-            if (pending.Count >= 40)
+            if (pending.Count >= 40 && !atFront)
             {
                 return;
             }
@@ -201,14 +231,15 @@ namespace UrbanGenesis.Simulation.Traffic
                 return;
             }
 
-            pending.Add(new Request
+            var request = new Request
             {
                 Type = type,
                 FromSegmentId = fromSegment,
                 ToSegmentId = toSegment,
                 FromS = PickSpot(from),
                 ToS = PickSpot(to)
-            });
+            };
+            if (atFront) { pending.Insert(0, request); } else { pending.Add(request); }
         }
 
         // A spot beside the road to start or stop at: away from the junctions at either end where it can be.
@@ -228,7 +259,7 @@ namespace UrbanGenesis.Simulation.Traffic
             int tries = Math.Min(pending.Count, 25);
             for (int i = 0; i < tries && pending.Count > 0; i++)
             {
-                if (vehicles.Count >= EffectiveMaxVehicles)
+                if (vehicles.Count >= EffectiveMaxVehicles && pending[0].Type != VehicleType.FireTruck)
                 {
                     return;
                 }

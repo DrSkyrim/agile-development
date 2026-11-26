@@ -87,6 +87,24 @@ namespace UrbanGenesis.Game
         }
         public float BrushRadius { get; private set; }
 
+        /// <summary>Which civic building the Facility tool places.</summary>
+        public BuildingShape FacilityShape { get; private set; }
+
+        /// <summary>Which line the Utility tool lays.</summary>
+        public UtilityKind UtilityKind { get; private set; }
+
+        public void SelectFacility(BuildingShape shape)
+        {
+            FacilityShape = shape;
+            SetTool(ToolType.Facility);
+        }
+
+        public void SelectUtility(UtilityKind kind)
+        {
+            UtilityKind = kind;
+            SetTool(ToolType.Utility);
+        }
+
         /// <summary>Raised just before the player changes the city, so the game can remember the old state for Undo.</summary>
         public event System.Action BeforeChange;
 
@@ -151,6 +169,8 @@ namespace UrbanGenesis.Game
                 case ToolType.Road:
                     return roadStage > 0 ? "Click to place the next point. Right-click or Esc cancels." : RoadFacts(RoadType) + " Click to start.";
                 case ToolType.Junction: return "Click a junction to change its lights and lane connections.";
+                case ToolType.Facility: return CivicInfo.Name(FacilityShape) + ": " + CivicInfo.Description(FacilityShape);
+                case ToolType.Utility: return UtilityKind == UtilityKind.Power ? "Click a road to lay a power cable along it." : "Click a road to lay a water and sewage pipe along it.";
                 case ToolType.Inspect: return "Point at a building or a road to see its details.";
                 case ToolType.Upgrade: return RoadFacts(UpgradeType) + " Click a road to rebuild it (you pay the difference).";
                 case ToolType.Bulldoze: return "Click or drag to demolish. Roads refund half their price, buildings go for free.";
@@ -259,6 +279,9 @@ namespace UrbanGenesis.Game
                 case ToolType.Junction: return "Junctions";
                 case ToolType.Upgrade: return "Upgrade";
                 case ToolType.ZoneClear: return "Clear zoning";
+                case ToolType.ZoneDense: return "Dense residential";
+                case ToolType.Facility: return "Services";
+                case ToolType.Utility: return "Cables and pipes";
                 default: return "None";
             }
         }
@@ -332,6 +355,14 @@ namespace UrbanGenesis.Game
             else if (CurrentTool == ToolType.Inspect)
             {
                 UpdateInspect(onMap, ground);
+            }
+            else if (CurrentTool == ToolType.Facility)
+            {
+                UpdateFacility(mouse, onMap, ground);
+            }
+            else if (CurrentTool == ToolType.Utility)
+            {
+                UpdateUtility(mouse, onMap, ground);
             }
             else
             {
@@ -464,6 +495,94 @@ namespace UrbanGenesis.Game
             }
 
             SelectedJunction = node;
+        }
+
+        private void UpdateFacility(Mouse mouse, bool onMap, Vec2 p)
+        {
+            cityRenderer.BeginPreview();
+            FacilityPlan plan = null;
+            if (onMap)
+            {
+                plan = sim.PlanFacility(FacilityShape, p);
+                if (plan.Footprint != null)
+                {
+                    cityRenderer.PreviewQuad(plan.Footprint, plan.IsValid ? CityPalette.PreviewValid : CityPalette.PreviewInvalid);
+                }
+            }
+
+            cityRenderer.EndPreview();
+            previewShown = true;
+            shownTool = ToolType.None;
+
+            string name = CivicInfo.Name(FacilityShape);
+            if (plan == null)
+            {
+                liveText = name + " (" + CitySimulation.FormatMoney(CivicInfo.Cost(FacilityShape)) + "): point at the land beside a road";
+            }
+            else if (!plan.IsValid)
+            {
+                liveText = plan.Error;
+            }
+            else
+            {
+                liveText = name + ": " + CitySimulation.FormatMoney(plan.Cost) + ". Click to build. " + CivicInfo.Description(FacilityShape);
+            }
+
+            if (plan != null && plan.IsValid && onMap && mouse.leftButton.wasPressedThisFrame)
+            {
+                AnnounceChange();
+                Building built = sim.PlaceFacility(plan);
+                if (built == null) { DiscardChange(); }
+                ShowResult(built != null ? name + " built." : "Could not build here.");
+            }
+        }
+
+        private void UpdateUtility(Mouse mouse, bool onMap, Vec2 p)
+        {
+            RoadSegment hover = null;
+            if (onMap)
+            {
+                double along;
+                RoadSegment near = sim.Roads.FindSegmentNear(p, RoadSpecs.MaxHalfWidth, out along);
+                if (near != null && near.Curve.DistanceTo(p) <= near.HalfWidth + 1.0)
+                {
+                    hover = near;
+                }
+            }
+
+            cityRenderer.BeginPreview();
+            UtilityPlan plan = null;
+            if (hover != null)
+            {
+                plan = sim.PlanUtility(hover, UtilityKind);
+                cityRenderer.PreviewRibbon(hover.Curve.Sample(4.0), hover.HalfWidth, plan.IsValid ? CityPalette.PreviewValid : CityPalette.PreviewInvalid);
+            }
+
+            cityRenderer.EndPreview();
+            previewShown = true;
+            shownTool = ToolType.None;
+
+            string what = UtilityKind == UtilityKind.Power ? "Power cable" : "Water and sewage pipe";
+            if (plan == null)
+            {
+                liveText = what + ": point at a road to lay it along the whole stretch";
+            }
+            else if (!plan.IsValid)
+            {
+                liveText = plan.Error;
+            }
+            else
+            {
+                liveText = what + ": " + CitySimulation.FormatMoney(plan.Cost) + ". The road is closed for " + CitySimulation.UtilityWorkDays + " days while crews work. Click to lay it.";
+            }
+
+            if (hover != null && plan != null && plan.IsValid && onMap && mouse.leftButton.wasPressedThisFrame)
+            {
+                AnnounceChange();
+                string error = sim.LayUtility(hover, UtilityKind);
+                if (error != null) { DiscardChange(); }
+                ShowResult(error ?? what + " is being laid. The road is closed for " + CitySimulation.UtilityWorkDays + " days.");
+            }
         }
 
         private void UpdateInspect(bool onMap, Vec2 p)
@@ -1242,6 +1361,7 @@ namespace UrbanGenesis.Game
                 case ToolType.ZoneResidential: return ZoneType.Residential;
                 case ToolType.ZoneCommercial: return ZoneType.Commercial;
                 case ToolType.ZoneIndustrial: return ZoneType.Industrial;
+                case ToolType.ZoneDense: return ZoneType.DenseResidential;
                 default: return ZoneType.None;
             }
         }
