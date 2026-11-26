@@ -51,6 +51,73 @@ namespace UrbanGenesis.Simulation
         /// <summary>Number of simulation ticks run so far.</summary>
         public int TickCount { get; private set; }
 
+        // ------------------------------------------------------------ random events
+
+        /// <summary>If true, now and then a road is closed for a day (an accident or roadworks). Off by default, so tests stay predictable.</summary>
+        public bool RandomEventsEnabled { get; set; }
+
+        /// <summary>Chance per game day that a road closes, while none is closed.</summary>
+        public double EventChancePerDay = 0.25;
+
+        /// <summary>Raised with a message for the player when something happens.</summary>
+        public event Action<string> EventHappened;
+
+        private RoadSegment closedByEvent;
+        private int reopenAtTick;
+
+        private void RaiseEvent(string message)
+        {
+            Action<string> handler = EventHappened;
+            if (handler != null) { handler(message); }
+        }
+
+        private void RunEvents()
+        {
+            if (TickCount % GameTime.TicksPerDay != 0)
+            {
+                return;
+            }
+
+            // A closure left over from an old save has no timer: open it again.
+            foreach (RoadSegment segment in Roads.Segments)
+            {
+                if (segment != closedByEvent && segment.IsClosed) { segment.OpenFraction = 1f; }
+            }
+
+            if (closedByEvent != null)
+            {
+                if (TickCount >= reopenAtTick)
+                {
+                    closedByEvent.OpenFraction = 1f;
+                    RaiseEvent(RoadSpecs.Name(closedByEvent.Type) + " #" + closedByEvent.Id + " is open again.");
+                    closedByEvent = null;
+                }
+
+                return;
+            }
+
+            if (TickCount < 3 * GameTime.TicksPerDay || rng.NextDouble() >= EventChancePerDay)
+            {
+                return;
+            }
+
+            var candidates = new List<RoadSegment>();
+            foreach (RoadSegment segment in Roads.Segments)
+            {
+                if (!segment.IsOutsideConnection && !RoadSpecs.IsHighway(segment.Type)) { candidates.Add(segment); }
+            }
+
+            if (candidates.Count < 4)
+            {
+                return;
+            }
+
+            closedByEvent = candidates[rng.Next(candidates.Count)];
+            closedByEvent.OpenFraction = 0f;
+            reopenAtTick = TickCount + GameTime.TicksPerDay;
+            RaiseEvent("Accident: " + RoadSpecs.Name(closedByEvent.Type).ToLowerInvariant() + " #" + closedByEvent.Id + " is closed for a day (shown in red). Traffic finds another way, if there is one.");
+        }
+
         /// <summary>Goes up every time roads, lots, zones or buildings change. Handy for "redraw if changed".</summary>
         public int Revision { get; private set; }
 
@@ -704,6 +771,10 @@ namespace UrbanGenesis.Simulation
             }
 
             Treasury.Tick();
+            if (RandomEventsEnabled)
+            {
+                RunEvents();
+            }
 
             residentialCandidates.Clear();
             commercialCandidates.Clear();

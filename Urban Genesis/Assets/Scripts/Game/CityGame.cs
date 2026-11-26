@@ -85,6 +85,9 @@ namespace UrbanGenesis.Game
             rig.Init(hud, (float)(Simulation.Roads.WorldBounds.MaxX));
             tools.Init(Simulation, rig, cityRenderer, hud);
             tools.Traffic = Traffic;
+            Simulation.RandomEventsEnabled = true;
+            Simulation.EventHappened += message => hud.Notify(message, 8f);
+            milestonesRewarded = save != null ? save.MilestonesRewarded : 0;
             tools.BeforeChange += PushUndo;
             tools.ChangeDiscarded += DiscardUndo;
             hud.UndoRequested += Undo;
@@ -122,6 +125,30 @@ namespace UrbanGenesis.Game
             }
 
             EnsureLight();
+        }
+
+        // ------------------------------------------------------------ milestone rewards
+
+        private int milestonesRewarded;
+        private float milestoneCheckAt;
+
+        /// <summary>Every population milestone pays its target times ten dollars, once.</summary>
+        private void CheckMilestones()
+        {
+            if (Time.unscaledTime < milestoneCheckAt) { return; }
+            milestoneCheckAt = Time.unscaledTime + 1f;
+
+            int population = 0;
+            foreach (Building b in Simulation.Buildings) { population += b.Residents; }
+            while (milestonesRewarded < HudToolbar.Milestones.Length && population >= HudToolbar.Milestones[milestonesRewarded])
+            {
+                int target = HudToolbar.Milestones[milestonesRewarded];
+                milestonesRewarded++;
+                double reward = target * 10.0;
+                Simulation.Treasury.Grant(reward);
+                hud.Notify("Milestone: " + target.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " residents! Reward: "
+                    + CitySimulation.FormatMoney(reward) + ".", 8f);
+            }
         }
 
         // ------------------------------------------------------------ undo and redo
@@ -216,6 +243,7 @@ namespace UrbanGenesis.Game
             save.Money = Simulation.Treasury.Balance;
             save.SpeedLevel = Clock.SpeedLevel;
             save.StartDateTicks = gameStart.Ticks;
+            save.MilestonesRewarded = milestonesRewarded;
             rig.CaptureView(save);
             save.City = Simulation.Capture();
             return save;
@@ -261,6 +289,7 @@ namespace UrbanGenesis.Game
                 Clock.TogglePause();
             }
 
+            CheckMilestones();
             int ticksDue = Clock.Advance(Time.unscaledDeltaTime);
             for (int i = 0; i < ticksDue; i++)
             {

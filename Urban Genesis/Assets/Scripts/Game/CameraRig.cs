@@ -88,6 +88,9 @@ namespace UrbanGenesis.Game
             ApplyToCamera();
         }
 
+        /// <summary>The ground point the camera looks at (x, z in metres).</summary>
+        public Vector2 FocusPoint { get { return new Vector2(focus.x, focus.z); } }
+
         /// <summary>Looks at this spot on the map (x, z in metres).</summary>
         public void FocusOn(float x, float z)
         {

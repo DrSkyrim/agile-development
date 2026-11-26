@@ -39,11 +39,11 @@ Order rule: fix what confuses a first-time player, then show information, then p
 
 ## Phase E: more game
 
-- [ ] Minimap in a corner. *(UX 3)*
-- [ ] Capacity check for new buildings: estimated traffic they add and a congestion warning. *(story 7, #36)*
+- [x] Minimap in a corner (bottom left, click to jump). *(UX 3)*
+- [x] Capacity check for new buildings, first version: the Inspect panel shows how full the road in front of a building is and warns when it is jammed. *(story 7, #36)*
 - [ ] Pollution / environment indicator: wishlist, along with happiness. *(UX first impressions)*
 - [ ] Traffic feeds back into the economy (congestion changes travel cost and growth).
-- [ ] Day/night cycle (#12), random events with road closure (#11, #9), first milestone reward (#14).
+- [x] Random events with road closure (#11, #9): an accident closes a street for a day, shown in red. [x] Milestone reward (#14): every population milestone pays target x $10. [ ] Day/night cycle (#12): postponed, the ground and roads use unlit materials, so it needs the new assets and materials first.
 - [ ] Sound effects and music (#16, #21, #41).
 - [ ] Real models and textures (#4, #5, #13, #25).
 - [ ] Infrastructure (#17, epic): for now this means an **electricity** network and a **water and sewage** network (details to settle before building).

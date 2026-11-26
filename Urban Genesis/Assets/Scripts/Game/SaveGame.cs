@@ -12,6 +12,9 @@ namespace UrbanGenesis.Game
         public const int CurrentVersion = 1;
 
         public int Version = CurrentVersion;
+
+        /// <summary>How many population milestones have paid their reward already.</summary>
+        public int MilestonesRewarded;
         public string CityName;
         public string SavedAt;
 

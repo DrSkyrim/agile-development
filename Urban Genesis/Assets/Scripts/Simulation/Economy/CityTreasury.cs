@@ -58,6 +58,20 @@ namespace UrbanGenesis.Simulation
         public double LastDayEnd { get; private set; }
         public int DaysClosed { get; private set; }
 
+        public double GrantedToday { get; private set; }
+        public double LastDayGranted { get; private set; }
+
+        /// <summary>Money given to the city (milestone rewards).</summary>
+        public void Grant(double amount)
+        {
+            if (IsEnabled && amount > 0.0)
+            {
+                Balance += amount;
+                GrantedToday += amount;
+                RaiseChanged();
+            }
+        }
+
         /// <summary>Raised after each day's income and upkeep are settled.</summary>
         public event Action DayClosed;
 
@@ -204,6 +218,8 @@ namespace UrbanGenesis.Simulation
                 LastDayUpkeep = WeeklyUpkeep / 7.0;
                 LastDaySpent = SpentToday;
                 LastDayRefunded = RefundedToday;
+                LastDayGranted = GrantedToday;
+                GrantedToday = 0.0;
                 Balance += WeeklyNet / 7.0;
                 LastDayShortfall = 0.0;
                 if (Balance < 0.0)

@@ -474,7 +474,7 @@ namespace UrbanGenesis.Game
                 Building building;
                 if (sim.TryGetBuildingAt(p, out building))
                 {
-                    text = Inspector.DescribeBuilding(sim, building);
+                    text = Inspector.DescribeBuilding(sim, building, Traffic);
                 }
                 else
                 {

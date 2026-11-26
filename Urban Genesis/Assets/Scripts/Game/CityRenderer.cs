@@ -57,6 +57,9 @@ namespace UrbanGenesis.Game
         private Mesh previewMesh;
         private Mesh congestionMesh;
         private readonly MeshBuilder congestion = new MeshBuilder();
+        private Mesh closureMesh;
+        private readonly MeshBuilder closures = new MeshBuilder();
+        private float closureRefreshAt;
         private bool congestionVisible;
         private float congestionRefreshAt;
         private readonly MeshBuilder preview = new MeshBuilder();
@@ -82,6 +85,7 @@ namespace UrbanGenesis.Game
             lotMesh = CreateOverlayObject("Lots", 2200);
             previewMesh = CreateOverlayObject("Tool Preview", 3000);
             congestionMesh = CreateOverlayObject("Traffic Overlay", 2900);
+            closureMesh = CreateOverlayObject("Closed Roads", 2950);
 
             buildingRoot = new GameObject("Buildings").transform;
             buildingRoot.SetParent(transform, false);
@@ -148,8 +152,28 @@ namespace UrbanGenesis.Game
             congestion.Apply(congestionMesh);
         }
 
+        private void RefreshClosures()
+        {
+            closures.Clear();
+            foreach (RoadSegment segment in sim.Roads.Segments)
+            {
+                if (segment.IsClosed)
+                {
+                    closures.Ribbon(segment.Curve.Sample(4.0), segment.HalfWidth, 0.28f, new Color(0.95f, 0.10f, 0.10f, 0.85f));
+                }
+            }
+
+            closures.Apply(closureMesh);
+        }
+
         private void LateUpdate()
         {
+            if (Time.unscaledTime >= closureRefreshAt)
+            {
+                RefreshClosures();
+                closureRefreshAt = Time.unscaledTime + 0.5f;
+            }
+
             if (congestionVisible && Time.unscaledTime >= congestionRefreshAt)
             {
                 RefreshCongestion();

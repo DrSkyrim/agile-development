@@ -28,7 +28,7 @@ namespace UrbanGenesis.Game
         /// <summary>The in-game date and time the city started at (kept in the save).</summary>
         public DateTime GameStart { get { return StartDate; } set { StartDate = value; } }
 
-        private static readonly int[] Milestones = { 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000 };
+        public static readonly int[] Milestones = { 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000 };
 
         private enum Weight { Regular, Medium, SemiBold }
 
@@ -227,6 +227,86 @@ namespace UrbanGenesis.Game
             }
         }
 
+        // ------------------------------------------------------------ minimap
+
+        private const int MinimapPixels = 160;
+        private Texture2D minimapTexture;
+        private Color32[] minimapPixels;
+        private float minimapRefreshAt;
+
+        private void BuildMinimap()
+        {
+            VisualElement panel = Panel("Minimap", false);
+            Place(panel, 24, null, null, 150);
+            panel.style.paddingLeft = 4; panel.style.paddingRight = 4; panel.style.paddingTop = 4; panel.style.paddingBottom = 4;
+            minimapTexture = new Texture2D(MinimapPixels, MinimapPixels, TextureFormat.RGBA32, false);
+            minimapTexture.filterMode = FilterMode.Point;
+            minimapPixels = new Color32[MinimapPixels * MinimapPixels];
+
+            var map = new VisualElement();
+            Size(map, MinimapPixels, MinimapPixels);
+            map.style.backgroundImage = new StyleBackground(minimapTexture);
+            map.RegisterCallback<ClickEvent>(e =>
+            {
+                Aabb b = sim.Roads.WorldBounds;
+                float fx = Mathf.Clamp01(e.localPosition.x / MinimapPixels);
+                float fy = 1f - Mathf.Clamp01(e.localPosition.y / MinimapPixels);
+                rig.FocusOn((float)(b.MinX + fx * (b.MaxX - b.MinX)), (float)(b.MinY + fy * (b.MaxY - b.MinY)));
+            });
+            panel.Add(map);
+        }
+
+        private void PaintMinimapPixel(int x, int y, Color32 color)
+        {
+            if (x >= 0 && y >= 0 && x < MinimapPixels && y < MinimapPixels)
+            {
+                minimapPixels[y * MinimapPixels + x] = color;
+            }
+        }
+
+        private void RefreshMinimap()
+        {
+            if (Time.unscaledTime < minimapRefreshAt) { return; }
+            minimapRefreshAt = Time.unscaledTime + 1.0f;
+
+            Aabb b = sim.Roads.WorldBounds;
+            double width = b.MaxX - b.MinX;
+            double height = b.MaxY - b.MinY;
+            var ground = new Color32(34, 44, 52, 255);
+            for (int i = 0; i < minimapPixels.Length; i++) { minimapPixels[i] = ground; }
+
+            foreach (RoadSegment segment in sim.Roads.Segments)
+            {
+                var road = RoadSpecs.IsHighway(segment.Type) ? new Color32(235, 190, 90, 255) : new Color32(170, 180, 190, 255);
+                int thick = RoadSpecs.IsHighway(segment.Type) ? 2 : 1;
+                foreach (Vec2 point in segment.Curve.Sample(6.0))
+                {
+                    int px = (int)((point.X - b.MinX) / width * MinimapPixels);
+                    int py = (int)((point.Y - b.MinY) / height * MinimapPixels);
+                    for (int dx = 0; dx < thick; dx++) { for (int dy = 0; dy < thick; dy++) { PaintMinimapPixel(px + dx, py + dy, road); } }
+                }
+            }
+
+            foreach (Building building in sim.Buildings)
+            {
+                int px = (int)((building.Center.X - b.MinX) / width * MinimapPixels);
+                int py = (int)((building.Center.Y - b.MinY) / height * MinimapPixels);
+                Color32 color = building.Zone == ZoneType.Residential ? new Color32(90, 200, 120, 255)
+                    : building.Zone == ZoneType.Commercial ? new Color32(90, 150, 240, 255) : new Color32(240, 200, 70, 255);
+                for (int dx = 0; dx < 2; dx++) { for (int dy = 0; dy < 2; dy++) { PaintMinimapPixel(px + dx, py + dy, color); } }
+            }
+
+            // Where the camera is looking.
+            Vector2 focus = rig.FocusPoint;
+            int cx = (int)((focus.x - b.MinX) / width * MinimapPixels);
+            int cy = (int)((focus.y - b.MinY) / height * MinimapPixels);
+            var white = new Color32(255, 255, 255, 255);
+            for (int d = -4; d <= 4; d++) { PaintMinimapPixel(cx + d, cy, white); PaintMinimapPixel(cx, cy + d, white); }
+
+            minimapTexture.SetPixels32(0, 0, MinimapPixels, MinimapPixels, minimapPixels);
+            minimapTexture.Apply(false, false);
+        }
+
         private VisualElement summaryPanel;
         private Label summaryLabel;
         private float summaryHideAt;
@@ -266,6 +346,11 @@ namespace UrbanGenesis.Game
                 if (t.LastDayShortfall > 0.5)
                 {
                     m.Append("Unpaid upkeep: ").Append(CitySimulation.FormatMoney(t.LastDayShortfall)).Append(" (the treasury ran dry)\n");
+                }
+
+                if (t.LastDayGranted > 0.5)
+                {
+                    m.Append("Milestone rewards: +").Append(CitySimulation.FormatMoney(t.LastDayGranted)).Append('\n');
                 }
 
                 m.Append("End of day: ").Append(CitySimulation.FormatMoney(t.LastDayEnd));
@@ -382,6 +467,7 @@ namespace UrbanGenesis.Game
             BuildHelp();
             BuildInspect();
             BuildSummary();
+            BuildMinimap();
 
             built = true;
             Refresh();
@@ -1267,6 +1353,7 @@ namespace UrbanGenesis.Game
 
             UpdateInspect();
             UpdateSummary();
+            RefreshMinimap();
 
             // Advisory: the tool's live message first, then a transient notice, then a hint for what to do next.
             string title;

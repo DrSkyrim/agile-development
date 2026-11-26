@@ -16,7 +16,7 @@ namespace UrbanGenesis.Simulation
             return kind + " #" + b.Id;
         }
 
-        public static string DescribeBuilding(CitySimulation sim, Building b)
+        public static string DescribeBuilding(CitySimulation sim, Building b, CityTraffic traffic = null)
         {
             var text = new StringBuilder();
             BuildingEconomy e = sim.Economy.StatusOf(b);
@@ -54,6 +54,14 @@ namespace UrbanGenesis.Simulation
                 }
 
                 income = filled * t.TaxPerEmployedWorkerPerWeek + (b.Zone == ZoneType.Commercial ? e.EffectiveService * t.TaxPerShopperServedPerWeek : 0.0);
+            }
+
+            RoadSegment front = sim.Roads.GetSegment(e.SegmentId);
+            if (front != null && traffic != null)
+            {
+                double fill = VehiclesOn(traffic, front) / Capacity(front);
+                text.Append("Road in front: ").Append(RoadSpecs.Name(front.Type).ToLowerInvariant()).Append(", ").Append(Percent(fill)).Append(" full")
+                    .Append(fill >= 0.7 ? " - jammed, more buildings here will make it worse\n" : fill >= 0.35 ? " - getting busy\n" : " - plenty of room\n");
             }
 
             text.Append("Tax income: about ").Append(CitySimulation.FormatMoney(income)).Append(" per week\n");
