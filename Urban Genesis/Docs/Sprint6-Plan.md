@@ -2,6 +2,20 @@
 
 Built from `Gaps-for-Sprint6.md` (what the user stories still need) and the first UX evaluation (Mohamed Gamal, 23 Nov 2026). Items marked **(verify)** are things the tester reported that may already work and just are not discoverable; they get checked first.
 
+## Status (updated 27 Nov 2026)
+
+| Phase | Branch | State |
+|---|---|---|
+| A: first-impression fixes | `feature/sprint-6` | done, except the zoom-out road bug (waiting for tester details) |
+| B: information | `feature/sprint-6` | done |
+| C: protect the player | `feature/sprint-6` | done (plus the Undo/Redo arrow icons) |
+| D: balance | `feature/sprint-6-d` | done |
+| E: more game | `feature/sprint-6-d` | minimap, random events, menus done; pollution, traffic-to-economy, day/night, sound, real assets still open |
+| F: infrastructure and services | `feature/sprint-6-d` | done |
+| G: menus (save slots, settings) | `feature/sprint-6-d` | done, compile-checked only |
+
+`feature/sprint-6-d` holds everything in `feature/sprint-6` plus D to G. Test checklist for D to G: `Sprint6-D-TestChecklist.md`.
+
 Order rule: fix what confuses a first-time player, then show information, then protect the player from mistakes, then balance, then add new content.
 
 ## Phase A: first-impression fixes (small, do first)
@@ -43,16 +57,17 @@ Order rule: fix what confuses a first-time player, then show information, then p
 - [x] Capacity check for new buildings, first version: the Inspect panel shows how full the road in front of a building is and warns when it is jammed. *(story 7, #36)*
 - [ ] Pollution / environment indicator: wishlist, along with happiness. *(UX first impressions)*
 - [ ] Traffic feeds back into the economy (congestion changes travel cost and growth).
-- [x] Random events with road closure (#11, #9): an accident closes a street for a day, shown in red. [x] Milestone reward (#14): every population milestone pays target x $10. [ ] Day/night cycle (#12): postponed, the ground and roads use unlit materials, so it needs the new assets and materials first.
+- [x] Random events with road closure (#11, #9): an accident closes a street for a day, shown in red (fires are in Phase F). [x] Milestone reward (#14): first a money bonus, now replaced by the unlocks of Phase F. [ ] Day/night cycle (#12): postponed, the ground and roads use unlit materials, so it needs the new assets and materials first.
 - [ ] Sound effects and music (#16, #21, #41).
 - [ ] Real models and textures (#4, #5, #13, #25).
-- [ ] Infrastructure (#17, epic): for now this means an **electricity** network and a **water and sewage** network (details to settle before building).
+- [x] Infrastructure (#17, epic): an **electricity** network and a **water and sewage** network, see Phase F.
 - [x] Menus: five save slots (see Phase G), settings screen.
 
 ## Phase F: infrastructure and services (decided by the product owner, 2026-11-26)
 
 - [x] River on every new map (roads cannot cross it or run along its banks; water tower and sewage outlet must stand within 85 m of it).
 - [x] Power plant (on a free lot area beside a road); water tower and sewage outlet (always available) stand anywhere on the river bank, within 85 m of it, no road needed.
+- [x] The highway to the outside world is never closed by pipes (they pass under it).
 - [x] Cables: laid along a whole road; the road is closed for 3 days while crews work (orange on the map); drawn yellow on the road.
 - [x] Water pipes: drawn freely across the land (click, click, carries on until Esc/right-click), blue lines. Only roads a pipe runs under are closed (3 days). Pipes that cross or touch are joined, ends snap onto other pipes. Bulldozer digs a pipe up. A cable laid on a road already closed for roadworks only extends the closure to 3 days from now.
 - [x] Services: a building is served when its road has a power cable connected (through junctions) to a power plant, and a pipe network joined to a water tower and a sewage outlet runs under or within 8 m of its road.
@@ -62,11 +77,18 @@ Order rule: fix what confuses a first-time player, then show information, then p
 - [x] Fire as a random event: with a fire station the fire is put out, without one the building burns down.
 - [x] Dense residential zone (apartment blocks and high-rises).
 - Not decided yet: whether services should affect anything besides traffic (for example hospitals and population growth), and whether demolishing a civic building should refund money (now it does not).
-- Old saves: a save made before this phase that already has 100+ residents will switch to "services required" at once and its buildings will sit idle until cables and pipes are laid.
+- Old saves: a save made before this phase that already has 100+ residents will switch to "services required" at once and its buildings will sit idle until cables and pipes are laid. Saves made while pipes were still tied to roads lose those pipes.
 
 ## Phase G: menus (save slots and settings)
 
 - [x] Five save slots. Main menu: Continue (the most recently saved slot), Load game (slot list, minus button deletes after a second click), New city, Settings, Quit. Pause menu: Save (to the city's slot), Save to another slot, Settings, Main menu; the toolbar save button saves straight to the city's slot, or opens the slot list for a new city. An old single-slot save appears in slot 1.
 - [x] Settings (kept per user, apply at once): edge scrolling on/off, camera speed 50-200%, interface size 80-150%, reset to defaults.
-- [x] Pipes pass under the highway to the outside world without closing it.
-- Not tested in the engine yet: all of this is UI built in code and has only been compile-checked.
+- Not tested in the engine yet: the menus are UI built in code and have only been compile-checked.
+
+## Still open
+
+- Roads cannot be built when zoomed out (Phase A, needs details from the tester).
+- Traffic feeds back into the economy (Phase E).
+- Pollution indicator, happiness (wishlist).
+- Day/night cycle, sound and music, real models and textures: waiting for a way to hand over asset files (Git LFS setup postponed).
+- Phase F design questions above (service effects, refund for civic buildings).
