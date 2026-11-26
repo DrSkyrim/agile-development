@@ -473,19 +473,6 @@ namespace UrbanGenesis.Game
             return tex;
         }
 
-        private VisualElement TextButton(string text, Action onClick)
-        {
-            var button = new VisualElement();
-            button.AddToClassList("ug-btn");
-            button.style.justifyContent = Justify.Center;
-            button.AddToClassList("ug-btn--text");
-            Label label = Text(text, "ug-text--soft", Weight.Medium);
-            label.style.fontSize = 11;
-            button.Add(label);
-            button.RegisterCallback<ClickEvent>(e => onClick());
-            return button;
-        }
-
         private VisualElement IconButton(string iconName, bool small, Action onClick)
         {
             var button = new VisualElement();
@@ -607,8 +594,8 @@ namespace UrbanGenesis.Game
             divider.style.marginRight = 5;
             panel.Add(divider);
 
-            panel.Add(TextButton("Undo", () => { Action a = UndoRequested; if (a != null) { a(); } }));
-            panel.Add(TextButton("Redo", () => { Action a = RedoRequested; if (a != null) { a(); } }));
+            panel.Add(IconButton("undo-2", false, () => { Action a = UndoRequested; if (a != null) { a(); } }));
+            panel.Add(IconButton("redo-2", false, () => { Action a = RedoRequested; if (a != null) { a(); } }));
             panel.Add(IconButton("route", false, () => { tools.ToggleTrafficOverlay(); Notify(tools.TrafficOverlayOn ? "Traffic overlay on: green is quiet, amber busy, red full (O toggles)." : "Traffic overlay off."); }));
             panel.Add(IconButton("bell", false, () => Notify("Notifications are not available yet.")));
             panel.Add(IconButton("save", false, () => { Action requested = SaveRequested; if (requested != null) { requested(); } }));
