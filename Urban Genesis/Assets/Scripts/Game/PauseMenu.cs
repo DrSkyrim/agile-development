@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -6,7 +7,7 @@ using UrbanGenesis.Simulation;
 namespace UrbanGenesis.Game
 {
     /// <summary>
-    /// The in-game menu: Resume, Save game, Main menu. Open it with Esc (when no tool is active) or by clicking the city name.
+    /// The in-game menu: Resume, Save game (into one of the slots), Settings, Main menu. Open it with Esc (when no tool is active) or by clicking the city name.
     /// While it is open the simulation is paused and the camera and tools ignore input.
     /// </summary>
     public sealed class PauseMenu : MonoBehaviour
@@ -48,6 +49,17 @@ namespace UrbanGenesis.Game
             cameFromHud = false;
             game.MenuOpen = true;
             ShowMain();
+            scrim.style.display = DisplayStyle.Flex;
+        }
+
+        /// <summary>Opens straight on the list of save slots (used when the city has not been saved yet).</summary>
+        public void OpenSave()
+        {
+            if (IsOpen) { return; }
+            status = "";
+            cameFromHud = true;
+            game.MenuOpen = true;
+            ShowSlots(null);
             scrim.style.display = DisplayStyle.Flex;
         }
 
@@ -96,9 +108,15 @@ namespace UrbanGenesis.Game
             }
         }
 
-        private void ShowMain()
+        private void Reset()
         {
             card.Clear();
+            card.style.width = 360;
+        }
+
+        private void ShowMain()
+        {
+            Reset();
             card.Add(MenuUi.Text("Paused", "ug-text--title", MenuUi.Weight.SemiBold));
             card.Add(MenuUi.Text(game.CityName, "ug-text--muted ug-text--soft", MenuUi.Weight.Regular));
             var gap = new VisualElement();
@@ -106,7 +124,17 @@ namespace UrbanGenesis.Game
             card.Add(gap);
 
             card.Add(MenuUi.Button("Resume", "play", true, Close));
-            card.Add(MenuUi.Button("Save game", "save", false, Save));
+            if (game.Slot > 0)
+            {
+                card.Add(MenuUi.Button("Save (slot " + game.Slot + ")", "save", false, Save));
+                card.Add(MenuUi.Button("Save to another slot", "save", false, () => ShowSlots(null)));
+            }
+            else
+            {
+                card.Add(MenuUi.Button("Save game", "save", false, () => ShowSlots(null)));
+            }
+
+            card.Add(MenuUi.Button("Settings", "settings-2", false, () => SettingsPanel.Fill(card, ShowMain)));
             card.Add(MenuUi.Button("Main menu", "menu", false, ShowLeaveConfirm));
 
             if (!string.IsNullOrEmpty(status))
@@ -115,9 +143,32 @@ namespace UrbanGenesis.Game
             }
         }
 
+        /// <summary>The slot list for saving. <paramref name="afterSave"/> runs once the save worked (for "save and exit").</summary>
+        private void ShowSlots(Action afterSave)
+        {
+            SlotList.Fill(card, "Save game", true, slot =>
+            {
+                string error = game.SaveToDisk(slot);
+                if (error != null)
+                {
+                    SlotList.Fill(card, "Save game", true, s => { }, () => { if (cameFromHud) { Close(); } else { ShowMain(); } }, error);
+                    return;
+                }
+
+                if (afterSave != null)
+                {
+                    afterSave();
+                    return;
+                }
+
+                status = "Game saved to slot " + slot + ".";
+                if (cameFromHud) { Close(); } else { ShowMain(); }
+            }, () => { if (cameFromHud) { Close(); } else { ShowMain(); } });
+        }
+
         private void ShowLeaveConfirm()
         {
-            card.Clear();
+            Reset();
             card.Add(MenuUi.Text("Back to the main menu?", "ug-text--title", MenuUi.Weight.SemiBold));
             card.Add(MenuUi.Text("Anything you have not saved will be lost.", "ug-menu-note", MenuUi.Weight.Regular));
             var gap = new VisualElement();
@@ -126,7 +177,13 @@ namespace UrbanGenesis.Game
 
             card.Add(MenuUi.Button("Save and exit", "save", true, () =>
             {
-                string error = game.SaveToDisk();
+                if (game.Slot < 1)
+                {
+                    ShowSlots(game.RequestMainMenu);
+                    return;
+                }
+
+                string error = game.SaveToDisk(game.Slot);
                 if (error != null)
                 {
                     status = error;
@@ -142,8 +199,8 @@ namespace UrbanGenesis.Game
 
         private void Save()
         {
-            string error = game.SaveToDisk();
-            status = error ?? "Game saved.";
+            string error = game.SaveToDisk(game.Slot);
+            status = error ?? "Game saved to slot " + game.Slot + ".";
             ShowMain();
         }
     }

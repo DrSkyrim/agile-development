@@ -159,7 +159,7 @@ namespace UrbanGenesis.Game
             if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) { move.x -= 1f; }
 
             Quaternion yawRotation = Quaternion.Euler(0f, yaw, 0f);
-            float speed = distance * 0.8f * (keyboard.leftShiftKey.isPressed ? 2.5f : 1f);
+            float speed = distance * 0.8f * GameSettings.CameraSpeed * (keyboard.leftShiftKey.isPressed ? 2.5f : 1f);
             focus += yawRotation * new Vector3(move.x, 0f, move.y) * (speed * dt);
 
             // Mouse drags (only if the drag is not on top of the toolbar).
@@ -189,7 +189,7 @@ namespace UrbanGenesis.Game
             // Edge scrolling: push the mouse against the border of the window.
             Vector2 mousePosition = mouse.position.ReadValue();
             bool inside = mousePosition.x >= 0f && mousePosition.y >= 0f && mousePosition.x <= Screen.width && mousePosition.y <= Screen.height;
-            if (inside && pointerFree && !leftDragging && !mouse.leftButton.isPressed && !mouse.rightButton.isPressed && !mouse.middleButton.isPressed)
+            if (GameSettings.EdgeScrolling && inside && pointerFree && !leftDragging && !mouse.leftButton.isPressed && !mouse.rightButton.isPressed && !mouse.middleButton.isPressed)
             {
                 const float margin = 4f;
                 Vector2 edge = Vector2.zero;
@@ -197,7 +197,7 @@ namespace UrbanGenesis.Game
                 if (mousePosition.x >= Screen.width - margin) { edge.x += 1f; }
                 if (mousePosition.y <= margin) { edge.y -= 1f; }
                 if (mousePosition.y >= Screen.height - margin) { edge.y += 1f; }
-                focus += yawRotation * new Vector3(edge.x, 0f, edge.y) * (distance * 0.6f * dt);
+                focus += yawRotation * new Vector3(edge.x, 0f, edge.y) * (distance * 0.6f * GameSettings.CameraSpeed * dt);
             }
 
             // Zoom with the wheel. The raw value differs per platform, so only its sign is used.

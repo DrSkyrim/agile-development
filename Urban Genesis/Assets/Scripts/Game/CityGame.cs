@@ -31,6 +31,9 @@ namespace UrbanGenesis.Game
         /// <summary>The city's name: random for a new city, from the save for a loaded one.</summary>
         public string CityName { get; private set; }
 
+        /// <summary>The save slot (1 to <see cref="SaveStore.SlotCount"/>) this city was loaded from or last saved to; 0 if it has not been saved yet.</summary>
+        public int Slot { get; set; }
+
         public CitySimulation Simulation { get; private set; }
         public TickClock Clock { get; private set; }
         public CityTraffic Traffic { get; private set; }
@@ -103,8 +106,14 @@ namespace UrbanGenesis.Game
             hud.MainMenuRequested += pauseMenu.OpenLeaveConfirm;
             hud.SaveRequested += () =>
             {
-                string error = SaveToDisk();
-                hud.Notify(error ?? "Game saved.", 3f);
+                if (Slot < 1)
+                {
+                    pauseMenu.OpenSave();
+                    return;
+                }
+
+                string error = SaveToDisk(Slot);
+                hud.Notify(error ?? "Game saved to slot " + Slot + ".", 3f);
             };
 
             if (save == null)
@@ -225,10 +234,12 @@ namespace UrbanGenesis.Game
             return save;
         }
 
-        /// <summary>Writes the save file. Returns null on success, or a message about what went wrong.</summary>
-        public string SaveToDisk()
+        /// <summary>Writes the save to a slot and remembers it as this city's slot. Returns null on success, or a message about what went wrong.</summary>
+        public string SaveToDisk(int slot)
         {
-            return SaveStore.Write(CaptureSave());
+            string error = SaveStore.Write(slot, CaptureSave());
+            if (error == null) { Slot = slot; }
+            return error;
         }
 
         public void RequestMainMenu()

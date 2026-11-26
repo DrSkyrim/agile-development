@@ -47,7 +47,7 @@ Order rule: fix what confuses a first-time player, then show information, then p
 - [ ] Sound effects and music (#16, #21, #41).
 - [ ] Real models and textures (#4, #5, #13, #25).
 - [ ] Infrastructure (#17, epic): for now this means an **electricity** network and a **water and sewage** network (details to settle before building).
-- [ ] Menus: several save slots, settings screen.
+- [x] Menus: five save slots (see Phase G), settings screen.
 
 ## Phase F: infrastructure and services (decided by the product owner, 2026-11-26)
 
@@ -63,3 +63,10 @@ Order rule: fix what confuses a first-time player, then show information, then p
 - [x] Dense residential zone (apartment blocks and high-rises).
 - Not decided yet: whether services should affect anything besides traffic (for example hospitals and population growth), and whether demolishing a civic building should refund money (now it does not).
 - Old saves: a save made before this phase that already has 100+ residents will switch to "services required" at once and its buildings will sit idle until cables and pipes are laid.
+
+## Phase G: menus (save slots and settings)
+
+- [x] Five save slots. Main menu: Continue (the most recently saved slot), Load game (slot list, minus button deletes after a second click), New city, Settings, Quit. Pause menu: Save (to the city's slot), Save to another slot, Settings, Main menu; the toolbar save button saves straight to the city's slot, or opens the slot list for a new city. An old single-slot save appears in slot 1.
+- [x] Settings (kept per user, apply at once): edge scrolling on/off, camera speed 50-200%, interface size 80-150%, reset to defaults.
+- [x] Pipes pass under the highway to the outside world without closing it.
+- Not tested in the engine yet: all of this is UI built in code and has only been compile-checked.

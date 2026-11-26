@@ -710,14 +710,14 @@ namespace UrbanGenesis.Simulation
             return null;
         }
 
-        /// <summary>Roads whose surface the straight line a-b passes over.</summary>
+        /// <summary>Roads whose surface the straight line a-b passes over (the highway to the outside world is left alone: pipes pass under it without closing it).</summary>
         public List<RoadSegment> RoadsAbove(Vec2 a, Vec2 b)
         {
             var found = new List<RoadSegment>();
             var box = new Aabb(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.X, b.X), Math.Max(a.Y, b.Y));
             foreach (RoadSegment road in Roads.SegmentsNear(box, RoadSpecs.MaxHalfWidth))
             {
-                if (DistanceToRoad(a, b, road) <= road.HalfWidth) { found.Add(road); }
+                if (!road.IsOutsideConnection && DistanceToRoad(a, b, road) <= road.HalfWidth) { found.Add(road); }
             }
 
             return found;

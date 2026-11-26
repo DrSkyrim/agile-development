@@ -9,8 +9,14 @@ namespace UrbanGenesis.Game
     {
         private VisualElement root;
 
-        public void Show(Action onNewCity, Action onContinue)
+        private Action newCity;
+        private Action<int> loadSlot;
+        private VisualElement buttons;
+
+        public void Show(Action onNewCity, Action<int> onLoadSlot)
         {
+            newCity = onNewCity;
+            loadSlot = onLoadSlot;
             if (root == null)
             {
                 root = MenuUi.CreateRoot(transform, "Main Menu UI", 30);
@@ -36,12 +42,23 @@ namespace UrbanGenesis.Game
             background.Add(title);
             background.Add(MenuUi.Text("CITY PLANNING SIMULATOR", "ug-menu-tagline", MenuUi.Weight.Medium));
 
-            var buttons = new VisualElement();
+            buttons = new VisualElement();
+            background.Add(buttons);
+            ShowMain();
+
+            var footer = MenuUi.Text("Prototype  ·  Milestone 1", "ug-text--muted ug-menu-footer", MenuUi.Weight.Regular);
+            background.Add(footer);
+        }
+
+        private void ShowMain()
+        {
+            buttons.Clear();
             buttons.style.width = 340;
 
+            int recent = SaveStore.MostRecentSlot();
             string error;
-            SaveGame save = SaveStore.Exists ? SaveStore.Read(out error) : null;
-            buttons.Add(MenuUi.Button("Continue", "play", save != null, onContinue, save != null));
+            SaveGame save = recent > 0 ? SaveStore.Read(recent, out error) : null;
+            buttons.Add(MenuUi.Button("Continue", "play", save != null, () => loadSlot(recent), save != null));
             if (save != null)
             {
                 string detail = save.CityName + "  ·  " + save.Population.ToString("N0") + " residents  ·  saved " + save.SavedAt;
@@ -51,12 +68,15 @@ namespace UrbanGenesis.Game
                 buttons.Add(gap);
             }
 
-            buttons.Add(MenuUi.Button("New city", "plus", save == null, onNewCity));
+            buttons.Add(MenuUi.Button("Load game", "save", false, ShowSlots, SaveStore.AnyExists));
+            buttons.Add(MenuUi.Button("New city", "plus", save == null, newCity));
+            buttons.Add(MenuUi.Button("Settings", "settings-2", false, () => SettingsPanel.Fill(buttons, ShowMain)));
             buttons.Add(MenuUi.Button("Quit", "minus", false, Quit));
-            background.Add(buttons);
+        }
 
-            var footer = MenuUi.Text("Prototype  ·  Milestone 1", "ug-text--muted ug-menu-footer", MenuUi.Weight.Regular);
-            background.Add(footer);
+        private void ShowSlots()
+        {
+            SlotList.Fill(buttons, "Load game", false, slot => loadSlot(slot), ShowMain);
         }
 
         public void Hide()

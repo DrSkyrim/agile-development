@@ -108,6 +108,27 @@ namespace UrbanGenesis.Tests
         }
 
         [Test]
+        public void PipesPassUnderTheHighwayToTheOutsideWorldWithoutClosingIt()
+        {
+            var city = new CitySimulation(3);
+            city.Treasury.Enable(1e7);
+            Assert.IsNotNull(city.CreateOutsideConnection(new Random(1)));
+            RoadSegment highway = null;
+            foreach (RoadSegment s in city.Roads.Segments) { if (s.IsOutsideConnection) { highway = s; } }
+            Assert.IsNotNull(highway);
+
+            Vec2 middle = highway.Curve.PointAtLength(highway.Length * 0.5);
+            Vec2 side = new Vec2(-highway.Curve.NormalAtLength(highway.Length * 0.5).X, -highway.Curve.NormalAtLength(highway.Length * 0.5).Y);
+            Vec2 a = middle + highway.Curve.NormalAtLength(highway.Length * 0.5) * 60.0;
+            Vec2 b = middle + side * 60.0;
+            PipePlan plan = city.PlanPipe(a, b);
+            Assert.IsTrue(plan.IsValid, plan.Error);
+            Assert.AreEqual(0, plan.Crossed.Count);
+            Assert.IsNull(city.LayPipe(a, b));
+            Assert.IsFalse(highway.IsClosed);
+        }
+
+        [Test]
         public void ALoosePipeCarriesNothing()
         {
             CitySimulation city = Town();

@@ -179,6 +179,7 @@ namespace UrbanGenesis.Game
             settings.match = 0.5f;
             settings.sortingOrder = 10;
             settings.themeStyleSheet = ScriptableObject.CreateInstance<ThemeStyleSheet>();
+            GameSettings.Track(settings);
 
             // The document starts inactive so the panel settings are assigned before it initialises.
             var go = new GameObject("HUD");

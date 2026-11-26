@@ -20,13 +20,13 @@ namespace UrbanGenesis.Game
 
         private void ShowMenu()
         {
-            menu.Show(() => StartCity(null), ContinueSaved);
+            menu.Show(() => StartCity(null, 0), LoadSlot);
         }
 
-        private void ContinueSaved()
+        private void LoadSlot(int slot)
         {
             string error;
-            SaveGame save = SaveStore.Read(out error);
+            SaveGame save = SaveStore.Read(slot, out error);
             if (save == null)
             {
                 Debug.LogWarning(error);
@@ -34,15 +34,16 @@ namespace UrbanGenesis.Game
                 return;
             }
 
-            StartCity(save);
+            StartCity(save, slot);
         }
 
-        private void StartCity(SaveGame save)
+        private void StartCity(SaveGame save, int slot)
         {
             menu.Hide();
             var go = new GameObject("Urban Genesis City");
             go.transform.SetParent(transform, false);
             city = go.AddComponent<CityGame>();
+            city.Slot = slot;
             city.MainMenuRequested += LeaveCity;
             city.Begin(save);
         }
