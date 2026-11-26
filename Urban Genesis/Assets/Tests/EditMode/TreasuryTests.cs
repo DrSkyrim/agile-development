@@ -50,7 +50,7 @@ namespace UrbanGenesis.Tests
         public void ZonesAndBuildingsAreFree()
         {
             var city = new CitySimulation(1);
-            city.Treasury.Enable(city.Treasury.BuildCostPerMetre * 400.0);
+            city.Treasury.Enable(city.Treasury.BuildCostPerMetre * 400.0 + 2000.0);
             city.PlaceRoad(city.PlanRoad(A, null, B));
             double after = city.Treasury.Balance;
             city.Economy.DemandDrivesGrowth = false;
@@ -141,6 +141,32 @@ namespace UrbanGenesis.Tests
             for (int i = 0; i < 100; i++) { city.Step(); }
             Assert.AreEqual(0.0, city.Treasury.WeeklyIncome, 0.0001);
             Assert.IsTrue(city.Treasury.WeeklyNet < 0.0);
+        }
+
+        [Test]
+        public void ARoadThatTheCityCouldNotKeepPayingForIsRefused()
+        {
+            var city = new CitySimulation(1);
+            double cost = city.Treasury.BuildCostPerMetre * 400.0;
+            city.Treasury.Enable(cost);
+            RoadPlan plan = city.PlanRoad(A, null, B);
+            Assert.IsFalse(plan.IsValid);
+            StringAssert.Contains("Too expensive to keep", plan.Error);
+
+            city.Treasury.Enable(cost + 5000.0);
+            Assert.IsTrue(city.PlanRoad(A, null, B).IsValid);
+        }
+
+        [Test]
+        public void UpkeepNeverPushesTheTreasuryBelowZero()
+        {
+            var city = new CitySimulation(1);
+            city.Treasury.Enable(city.Treasury.BuildCostPerMetre * 400.0 + 5000.0);
+            city.PlaceRoad(city.PlanRoad(A, null, B));
+            city.Treasury.Enable(1.0);
+            for (int i = 0; i < GameTime.TicksPerDay + 2; i++) { city.Step(); }
+            Assert.AreEqual(0.0, city.Treasury.Balance, 0.001);
+            Assert.Greater(city.Treasury.LastDayShortfall, 0.0);
         }
     }
 }

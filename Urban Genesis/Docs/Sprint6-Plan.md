@@ -34,8 +34,8 @@ Order rule: fix what confuses a first-time player, then show information, then p
 
 ## Phase D: balance
 
-- [ ] Starting money and prices: the treasury goes negative after a handful of buildings. Rebalance starting funds, road prices, taxes and upkeep; stop spending that would leave the budget negative. *(UX 8)*
-- [ ] Rent and building upkeep per the stories (or update the stories to the tax model; decision pending). *(stories 5, 6)*
+- [x] Starting money and prices (start $100,000; a road is refused if the upkeep it adds would drain the treasury within 4 weeks; unpaid upkeep stops at $0 instead of going negative): the treasury goes negative after a handful of buildings. Rebalance starting funds, road prices, taxes and upkeep; stop spending that would leave the budget negative. *(UX 8)*
+- [x] Rent and building upkeep: DECIDED by the product owner (2026-11-26): keep the tax model, no building upkeep or rent (it would take away from the fun). Update stories 5 and 6 to match. *(stories 5, 6)*
 
 ## Phase E: more game
 
