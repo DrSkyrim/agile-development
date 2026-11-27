@@ -82,8 +82,9 @@ Order rule: fix what confuses a first-time player, then show information, then p
 
 ## UI clean-up (2026-11-27)
 
-- [x] Top right: the placeholder weather and temperature widget, the notifications button and the placeholder city-management panel (layers, statistics, policies, overview map) removed; the session panel no longer gets squeezed. The settings button there now opens the settings screen.
-- [x] Bottom toolbar: the greyed-out Transit, Parks and Terrain placeholders removed.
+- [x] Top right: the placeholder weather and temperature widget and the notifications button removed; the session panel no longer gets squeezed. The settings button there now opens the settings screen.
+- [x] Left: the placeholder panel keeps only the overview map button (layers, statistics and policies removed). It says the feature is not available yet.
+- [x] Bottom toolbar: the greyed-out Transit, Parks and Terrain placeholders stay, to show that features are still in progress.
 
 ## Phase G: menus (save slots and settings)
 

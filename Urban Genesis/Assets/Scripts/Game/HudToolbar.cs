@@ -477,6 +477,7 @@ namespace UrbanGenesis.Game
             BuildIdentity();
             BuildSession();
             BuildAdvisory();
+            BuildCityMenu();
             BuildCameraControls();
             BuildToolArea();
             BuildStatusBar();
@@ -728,6 +729,18 @@ namespace UrbanGenesis.Game
             advisoryPanel.Add(texts);
         }
 
+        /// <summary>Only the overview map for now: a placeholder that shows this feature is still in progress.</summary>
+        private void BuildCityMenu()
+        {
+            VisualElement panel = Panel("City management", false);
+            Place(panel, 24, 304, null, null);
+            panel.style.paddingLeft = 6;
+            panel.style.paddingRight = 6;
+            panel.style.paddingTop = 6;
+            panel.style.paddingBottom = 6;
+            panel.Add(IconButton("map", false, () => Notify("The overview map is not available yet.")));
+        }
+
         private void BuildCameraControls()
         {
             VisualElement panel = Panel("Camera controls", false);
@@ -933,6 +946,9 @@ namespace UrbanGenesis.Game
             AddTool(bar, "shield-plus", "Services", true,
                 () => InGroup(2),
                 () => { if (InGroup(2)) { tools.SetTool(ToolType.None); } else { SelectFirstService(); } });
+            AddTool(bar, "tram-front", "Transit", false, null, null);
+            AddTool(bar, "trees", "Parks", false, null, null);
+            AddTool(bar, "mountain", "Terrain", false, null, null);
             VisualElement barDivider = Divider(true);
             barDivider.style.height = 36;
             bar.Add(barDivider);
