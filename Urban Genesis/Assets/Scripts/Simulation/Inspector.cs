@@ -148,6 +148,12 @@ namespace UrbanGenesis.Simulation
             text.Append(RoadSpecs.LaneLabel(s.Type)).Append(", ").Append(Round(RoadSpecs.Width(s.Type))).Append(" m wide, ").Append(Round(s.Length)).Append(" m long\n");
             text.Append("Capacity: about ").Append(Round(capacity)).Append(" vehicles at once, now ").Append(load)
                 .Append(" (").Append(Percent(load / capacity)).Append(" full)\n");
+            double slowdown = sim.Economy.Congestion.Slowdown(s.Id);
+            if (slowdown >= 1.1)
+            {
+                text.Append("Jams: trips through here take ").Append(Round((slowdown - 1.0) * 100.0)).Append("% longer, which counts against the homes, jobs and shops behind it\n");
+            }
+
             text.Append("Built for ").Append(CitySimulation.FormatMoney(t.RoadCost(s.Length, s.Type))).Append(", demolishing refunds ")
                 .Append(CitySimulation.FormatMoney(t.RoadCost(s.Length, s.Type) * t.RefundShare)).Append('\n');
             text.Append("Upkeep: ").Append(CitySimulation.FormatMoney(t.UpkeepPerMetreOf(s.Type) * s.Length)).Append(" per week");

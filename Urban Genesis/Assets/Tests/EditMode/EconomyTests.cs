@@ -205,6 +205,48 @@ namespace UrbanGenesis.Tests
             Assert.AreEqual(before, city.Economy.Snapshot.Employed, 0.0001);
         }
 
+        private static Dictionary<int, int> Packed(CitySimulation city, double fullness)
+        {
+            var load = new Dictionary<int, int>();
+            foreach (RoadSegment segment in city.Roads.Segments) { load[segment.Id] = (int)(Inspector.Capacity(segment) * fullness); }
+            return load;
+        }
+
+        [Test]
+        public void JammedRoads_CutOffTheCommute_AndTheCityRecoversWhenTheJamClears()
+        {
+            List<RoadSegment> chain;
+            CitySimulation city = HomesAndFactories(out chain);
+            double before = city.Economy.Snapshot.Employed;
+            Assert.IsTrue(before > 0);
+
+            Dictionary<int, int> jam = Packed(city, 1.5);
+            for (int i = 0; i < 30; i++) { city.Economy.ApplyTraffic(jam); }
+            city.Economy.Update();
+            Assert.IsTrue(city.Economy.Snapshot.Employed < before * 0.5, "employed " + city.Economy.Snapshot.Employed + " of " + before);
+            StringAssert.Contains("Traffic jams", city.Economy.Advice);
+            Assert.IsTrue(city.Economy.Congestion.AverageSlowdown > 3.0);
+
+            var empty = new Dictionary<int, int>();
+            for (int i = 0; i < 60; i++) { city.Economy.ApplyTraffic(empty); }
+            city.Economy.Update();
+            Assert.AreEqual(before, city.Economy.Snapshot.Employed, 0.0001);
+            Assert.AreEqual(1.0, city.Economy.Congestion.AverageSlowdown, 1e-9);
+        }
+
+        [Test]
+        public void ALightLoad_DoesNotChangeTheEconomy()
+        {
+            List<RoadSegment> chain;
+            CitySimulation city = HomesAndFactories(out chain);
+            double before = city.Economy.Snapshot.Employed;
+            Dictionary<int, int> light = Packed(city, 0.05);
+            for (int i = 0; i < 30; i++) { city.Economy.ApplyTraffic(light); }
+            city.Economy.Update();
+            Assert.AreEqual(before, city.Economy.Snapshot.Employed, before * 0.05);
+            Assert.AreEqual("", city.Economy.Advice.StartsWith("Traffic") ? city.Economy.Advice : "");
+        }
+
         [Test]
         public void ShopsNeedGoodsFromAFactory_ToServeAnyone()
         {
@@ -301,5 +343,69 @@ namespace UrbanGenesis.Tests
     internal static class CityEconomyDefaults
     {
         public static readonly double IndustrialBase = new EconomyParameters().BaseIndustrialDemand;
+    }
+}
+
+namespace UrbanGenesis.Tests
+{
+    [TestFixture]
+    public class CongestionCostTests
+    {
+        [Test]
+        public void FullRoadsCostMoreUpToACap_ClosedRoadsStayClosed_AndEmptyRoadsRecover()
+        {
+            var city = new CitySimulation(1);
+            RoadSegment a = city.PlaceRoad(city.PlanRoad(new Vec2(-300, 0), null, new Vec2(0, 0)));
+            RoadSegment b = city.PlaceRoad(city.PlanRoad(new Vec2(0, 0), null, new Vec2(300, 0)));
+            var cost = new CongestionRoadCost();
+            double free = cost.Cost(a);
+            Assert.AreEqual(1.0, cost.Slowdown(a.Id), 1e-9);
+
+            int full = (int)Inspector.Capacity(a);
+            var load = new Dictionary<int, int> { { a.Id, full } };
+            int revision = cost.Revision;
+            cost.Update(city.Roads.Segments, load);
+            Assert.IsTrue(cost.Revision > revision, "a visible change asks for new routes");
+            Assert.IsTrue(cost.Slowdown(a.Id) > 1.1 && cost.Slowdown(a.Id) < 2.0, "one reading only moves it part of the way: " + cost.Slowdown(a.Id));
+            Assert.AreEqual(1.0, cost.Slowdown(b.Id), 1e-9, "the empty road is unaffected");
+
+            for (int i = 0; i < 40; i++) { cost.Update(city.Roads.Segments, load); }
+            Assert.AreEqual(CongestionRoadCost.MaxSlowdown, cost.Slowdown(a.Id), 1e-3);
+            Assert.AreEqual(free * CongestionRoadCost.MaxSlowdown, cost.Cost(a), free * 1e-3);
+            Assert.IsTrue(cost.AverageSlowdown > 3.9);
+
+            a.OpenFraction = 0f;
+            Assert.IsTrue(double.IsInfinity(cost.Cost(a)));
+            a.OpenFraction = 1f;
+
+            var empty = new Dictionary<int, int>();
+            for (int i = 0; i < 60; i++) { cost.Update(city.Roads.Segments, empty); }
+            Assert.AreEqual(1.0, cost.Slowdown(a.Id), 1e-9);
+            Assert.AreEqual(1.0, cost.AverageSlowdown, 1e-9);
+        }
+
+        [Test]
+        public void SteadyTraffic_DoesNotKeepInvalidatingTheRoutes()
+        {
+            var city = new CitySimulation(1);
+            RoadSegment a = city.PlaceRoad(city.PlanRoad(new Vec2(-300, 0), null, new Vec2(0, 0)));
+            var cost = new CongestionRoadCost();
+            var load = new Dictionary<int, int> { { a.Id, (int)(Inspector.Capacity(a) * 0.5) } };
+            for (int i = 0; i < 80; i++) { cost.Update(city.Roads.Segments, load); }
+            int revision = cost.Revision;
+            for (int i = 0; i < 20; i++) { cost.Update(city.Roads.Segments, load); }
+            Assert.AreEqual(revision, cost.Revision);
+        }
+
+        [Test]
+        public void TheRoadInspectorSaysWhenJamsSlowTheTripsDown()
+        {
+            var city = new CitySimulation(1);
+            RoadSegment a = city.PlaceRoad(city.PlanRoad(new Vec2(-300, 0), null, new Vec2(0, 0)));
+            Assert.IsFalse(Inspector.DescribeRoad(city, null, a).Contains("Jams"));
+            var load = new Dictionary<int, int> { { a.Id, (int)(Inspector.Capacity(a) * 1.5) } };
+            for (int i = 0; i < 40; i++) { city.Economy.ApplyTraffic(load); }
+            StringAssert.Contains("Jams", Inspector.DescribeRoad(city, null, a));
+        }
     }
 }

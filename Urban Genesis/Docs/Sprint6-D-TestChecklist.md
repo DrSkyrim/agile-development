@@ -19,6 +19,13 @@ Handy facts: start money $100,000. Cable $10 per metre, pipe $14 per metre. Road
 - [ ] Reaching 100, 1,000, 5,000 and 10,000 residents shows a milestone message that names what it unlocks. No money is paid out any more.
 - [ ] The milestone detail in the HUD shows the reward as well as the target.
 
+Traffic feeds the economy
+- [ ] Build homes at one end of a long road and factories at the other, and let the city run. Open the traffic overlay (O): busy roads turn red.
+- [ ] Inspect a very busy road: it has a line "Jams: trips through here take N% longer, which counts against the homes, jobs and shops behind it". An empty road has no such line.
+- [ ] When the average trip is 25% slower or worse the advice line says "Traffic jams make the average trip N% slower..." and suggests upgrading the busiest roads or adding routes.
+- [ ] Upgrading the jammed road (or adding a second route) and waiting a little makes the advice disappear and employment/income recover.
+- [ ] A small, quiet city is not affected (no jam text, income as before).
+
 ## F. River, infrastructure, services
 
 River
@@ -85,6 +92,7 @@ Settings (main menu and pause menu)
 
 ## Known limitations (not bugs)
 
+- Jams are measured from the vehicles you see (a sample of the real trips), so a very big city does not get proportionally worse jams.
 - Services (hospital, police, school) only add vehicles and fire fighting; they do not change growth yet.
 - Demolishing a civic building gives no refund.
 - Old saves with 100+ residents will have idle buildings until cables and pipes are laid; saves made when pipes were tied to roads lose their pipes.

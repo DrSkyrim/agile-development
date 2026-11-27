@@ -94,6 +94,11 @@ namespace UrbanGenesis.Simulation
 
         public EconomyParameters Parameters { get; private set; }
         public RoadGraph Roads { get; private set; }
+
+        /// <summary>How full the roads are and how much that slows trips down. Fed by the traffic, see <see cref="ApplyTraffic"/>.</summary>
+        public CongestionRoadCost Congestion { get; private set; }
+
+        private int congestionRevision = -1;
         public EconomySnapshot Snapshot { get; private set; }
 
         /// <summary>Economy updates between the simulation's ticks (the economy runs every this many ticks).</summary>
@@ -122,6 +127,8 @@ namespace UrbanGenesis.Simulation
             sim = simulation;
             Parameters = new EconomyParameters();
             Roads = new RoadGraph(sim.Roads);
+            Congestion = new CongestionRoadCost();
+            Roads.Cost = Congestion;
             Snapshot = new EconomySnapshot();
             UpdateIntervalTicks = 4;
             DemandDrivesGrowth = true;
@@ -133,6 +140,15 @@ namespace UrbanGenesis.Simulation
             sim.Roads.SegmentAdded += s => Roads.Invalidate();
             sim.Roads.SegmentRemoved += s => Roads.Invalidate();
             sim.Roads.SegmentSplit += (old, a, b, l) => Roads.Invalidate();
+        }
+
+        /// <summary>
+        /// Gives the economy a reading of the traffic (vehicles on every road). Roads that are full make trips cost more
+        /// from the next update on, so fewer homes reach jobs and shops through them. Without traffic the roads are free-flowing.
+        /// </summary>
+        public void ApplyTraffic(IDictionary<int, int> load)
+        {
+            Congestion.Update(sim.Roads.Segments, load);
         }
 
         /// <summary>The 0 to 1 demand for a zone type (how much the city wants more of it right now).</summary>
@@ -362,6 +378,12 @@ namespace UrbanGenesis.Simulation
                 }
             }
 
+            if (Congestion.AverageSlowdown >= 1.25)
+            {
+                return "Traffic jams make the average trip " + (int)Math.Round((Congestion.AverageSlowdown - 1.0) * 100.0)
+                    + "% slower, so jobs and shops count as further away. Upgrade the busiest roads or add routes around them (Inspect shows the jams).";
+            }
+
             EconomySnapshot s = Snapshot;
             if (s.Residents > 0.0 && s.Workers > 0.0 && s.UnemploymentRate > 0.25)
             {
@@ -572,9 +594,10 @@ namespace UrbanGenesis.Simulation
                 signature += (segment.Id + 1) * (double)segment.OpenFraction;
             }
 
-            if (signature != closureSignature)
+            if (signature != closureSignature || Congestion.Revision != congestionRevision)
             {
                 closureSignature = signature;
+                congestionRevision = Congestion.Revision;
                 Roads.Invalidate();
             }
         }

@@ -10,7 +10,7 @@ Built from `Gaps-for-Sprint6.md` (what the user stories still need) and the firs
 | B: information | `feature/sprint-6` | done |
 | C: protect the player | `feature/sprint-6` | done (plus the Undo/Redo arrow icons) |
 | D: balance | `feature/sprint-6-d` | done |
-| E: more game | `feature/sprint-6-d` | minimap, random events, menus done; pollution, traffic-to-economy, day/night, sound, real assets still open |
+| E: more game | `feature/sprint-6-d` | minimap, random events, menus, traffic-to-economy done; day/night, sound, real assets still open; pollution and happiness out of scope |
 | F: infrastructure and services | `feature/sprint-6-d` | done |
 | G: menus (save slots, settings) | `feature/sprint-6-d` | done, compile-checked only |
 
@@ -55,8 +55,8 @@ Order rule: fix what confuses a first-time player, then show information, then p
 
 - [x] Minimap in a corner (bottom left, click to jump). *(UX 3)*
 - [x] Capacity check for new buildings, first version: the Inspect panel shows how full the road in front of a building is and warns when it is jammed. *(story 7, #36)*
-- [ ] Pollution / environment indicator: wishlist, along with happiness. *(UX first impressions)*
-- [ ] Traffic feeds back into the economy (congestion changes travel cost and growth).
+- [-] Pollution / environment indicator: out of scope for this course (product owner, 2026-11-27), along with happiness. *(UX first impressions)*
+- [x] Traffic feeds back into the economy: the vehicles on every road are counted against its capacity; fuller roads cost more to drive (up to 4 times, smoothed over time), so homes reach fewer jobs, shops and deliveries through them, which lowers income and growth. The advice line names jams when the average trip is 25% slower, and the road Inspect panel shows the slowdown.
 - [x] Random events with road closure (#11, #9): an accident closes a street for a day, shown in red (fires are in Phase F). [x] Milestone reward (#14): first a money bonus, now replaced by the unlocks of Phase F. [ ] Day/night cycle (#12): postponed, the ground and roads use unlit materials, so it needs the new assets and materials first.
 - [ ] Sound effects and music (#16, #21, #41).
 - [ ] Real models and textures (#4, #5, #13, #25).
@@ -88,7 +88,6 @@ Order rule: fix what confuses a first-time player, then show information, then p
 ## Still open
 
 - Roads cannot be built when zoomed out (Phase A, needs details from the tester).
-- Traffic feeds back into the economy (Phase E).
-- Pollution indicator, happiness (wishlist).
+- Out of scope for the course: pollution indicator, happiness.
 - Day/night cycle, sound and music, real models and textures: waiting for a way to hand over asset files (Git LFS setup postponed).
 - Phase F design questions above (service effects, refund for civic buildings).

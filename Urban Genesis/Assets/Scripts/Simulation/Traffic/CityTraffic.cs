@@ -53,6 +53,9 @@ namespace UrbanGenesis.Simulation.Traffic
             city.FireStarted += OnFire;
         }
 
+        /// <summary>How often (in ticks) the traffic reports how full the roads are to the economy.</summary>
+        public const int CongestionIntervalTicks = 4;
+
         /// <summary>Chance per tick, for each kind of service building the city has, that one of its vehicles heads out.</summary>
         public double ServiceTripsPerTick = 0.02;
 
@@ -120,6 +123,11 @@ namespace UrbanGenesis.Simulation.Traffic
         /// <summary>Call once per simulation tick: turns the economy's trips into vehicles waiting to enter the roads.</summary>
         public void OnTick()
         {
+            if (city.TickCount % CongestionIntervalTicks == 0)
+            {
+                city.Economy.ApplyTraffic(Inspector.LoadBySegment(this));
+            }
+
             IList<TripFlow> flows = city.Economy.Flows;
             double totalVolume = 0.0;
             for (int i = 0; i < flows.Count; i++) { totalVolume += flows[i].Volume; }
