@@ -104,6 +104,7 @@ namespace UrbanGenesis.Game
             pauseMenu.Init(this, tools);
             hud.MenuRequested += pauseMenu.Open;
             hud.MainMenuRequested += pauseMenu.OpenLeaveConfirm;
+            hud.SettingsRequested += pauseMenu.OpenSettings;
             hud.SaveRequested += () =>
             {
                 if (Slot < 1)

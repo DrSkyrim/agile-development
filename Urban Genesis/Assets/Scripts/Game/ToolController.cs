@@ -177,7 +177,7 @@ namespace UrbanGenesis.Game
                     return pipeDrawing ? "Click to lay the pipe to there and carry on. Right-click or Esc stops." : "Click to start a water pipe anywhere. Pipes that cross or touch are joined.";
                 case ToolType.Inspect: return "Point at a building or a road to see its details.";
                 case ToolType.Upgrade: return RoadFacts(UpgradeType) + " Click a road to rebuild it (you pay the difference).";
-                case ToolType.Bulldoze: return "Click or drag to demolish. Roads refund half their price, buildings go for free.";
+                case ToolType.Bulldoze: return "Click or drag to demolish. Roads, cables, pipes and civic buildings refund half their price; zoned buildings were free.";
                 case ToolType.ZoneClear: return "Drag over zoned land to clear zoning. Esc leaves the tool.";
                 case ToolType.None: return "";
                 default: return IsZoneTool ? "Drag next to a road to paint a zone. The tool stays selected, Esc leaves it." : "";
@@ -1294,7 +1294,7 @@ namespace UrbanGenesis.Game
                     if (pipe != null)
                     {
                         cityRenderer.PreviewRibbon(new[] { pipe.A, pipe.B }, 1.5, BulldozeHighlight);
-                        liveText = "Bulldoze: click to dig up this water pipe (nothing is refunded)";
+                        liveText = "Bulldoze: click to dig up this water pipe (half its price comes back)";
                     }
                     else
                     {

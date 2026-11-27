@@ -163,10 +163,10 @@ namespace UrbanGenesis.Simulation
                 case BuildingShape.PowerPlant: return "Feeds every road that has a power cable connected to it.";
                 case BuildingShape.WaterTower: return "Supplies water to every road a connected pipe runs across. Stands near the river, no road needed.";
                 case BuildingShape.SewageOutlet: return "Takes the sewage away through the same pipes. Stands near the river, no road needed.";
-                case BuildingShape.Hospital: return "Ambulances drive out to the homes.";
+                case BuildingShape.Hospital: return "Ambulances drive out to the homes. People want to move in where care is near: one hospital covers 3,000 residents.";
                 case BuildingShape.PoliceStation: return "Police cars patrol the streets.";
                 case BuildingShape.FireStation: return "Puts out fires. Without one, burning buildings are lost.";
-                case BuildingShape.School: return "School buses collect the children.";
+                case BuildingShape.School: return "School buses collect the children. Educated residents fill more jobs: one school covers 4,000 residents.";
                 default: return "";
             }
         }
@@ -516,6 +516,38 @@ namespace UrbanGenesis.Simulation
             return list;
         }
 
+        // ------------------------------------------------------------ what services do for the city
+
+        public const double ResidentsPerHospital = 3000.0;
+        public const double ResidentsPerSchool = 4000.0;
+
+        /// <summary>At most this much is added to the wish to move in, when hospitals cover everybody.</summary>
+        public const double HospitalDemandBonus = 0.15;
+
+        /// <summary>At most this share more residents are able to work, when schools cover everybody.</summary>
+        public const double SchoolWorkerBonus = 0.2;
+
+        /// <summary>The share (0 to 1) of the residents that the city's buildings of this kind can look after.</summary>
+        public double ServiceCoverage(BuildingShape shape)
+        {
+            double perBuilding = shape == BuildingShape.Hospital ? ResidentsPerHospital : ResidentsPerSchool;
+            int count = FacilitiesOf(shape).Count;
+            if (count == 0) { return 0.0; }
+            double residents = Population;
+            return residents <= 0.0 ? 1.0 : Math.Min(1.0, count * perBuilding / residents);
+        }
+
+        /// <summary>Half of a civic building's price comes back when it is demolished (not when it burns down).</summary>
+        private void DemolishWithRefund(Building building)
+        {
+            if (building.IsCivic)
+            {
+                Treasury.Refund(CivicInfo.Cost(building.Shape) * Treasury.RefundShare);
+            }
+
+            RemoveBuilding(building);
+        }
+
         // ------------------------------------------------------------ cables (along roads) and pipes (anywhere)
 
         public const int UtilityWorkDays = 3;
@@ -748,10 +780,11 @@ namespace UrbanGenesis.Simulation
             return best;
         }
 
-        /// <summary>Digs the pipe up again. Nothing is refunded and no road is closed.</summary>
+        /// <summary>Digs the pipe up again. Half its price comes back and no road is closed.</summary>
         public bool RemovePipe(WaterPipe pipe)
         {
             if (pipe == null || !pipes.Remove(pipe)) { return false; }
+            Treasury.Refund(Treasury.UtilityCost(pipe.Length, UtilityKind.Water) * Treasury.RefundShare);
             servicesDirty = true;
             Revision++;
             return true;

@@ -6,7 +6,7 @@ namespace UrbanGenesis.Simulation
     /// The city's money. Zoning and buildings are free; only roads cost money:
     ///  * building a road costs <see cref="BuildCostPerMetre"/> per metre for a street, <see cref="HighwayBuildCostPerMetre"/> for a highway (taken when it is placed),
     ///  * every road costs upkeep per metre every week (the outside connection, built by the state, is free),
-    ///  * bulldozing a road gives back <see cref="RefundShare"/> of its build cost.
+    ///  * demolishing anything that was paid for (roads, cables, pipes, civic buildings) gives back <see cref="RefundShare"/> of its cost.
     /// Income is tax on the economy that works: each employed worker and each shopper served pays a little each week,
     /// so a city without jobs and shops earns nothing.
     /// Money is off until <see cref="Enable"/> is called, so tests and tools can build without a budget.
@@ -176,16 +176,29 @@ namespace UrbanGenesis.Simulation
             }
         }
 
-        /// <summary>Gives back part of what a bulldozed road cost. The outside connection was free, so it refunds nothing.</summary>
-        internal void RefundRoad(RoadSegment segment)
+        /// <summary>Puts money back after something the player paid for was demolished (see <see cref="RefundShare"/>).</summary>
+        internal void Refund(double amount)
         {
-            if (IsEnabled && !segment.IsOutsideConnection)
+            if (IsEnabled && amount > 0.0)
             {
-                double refund = RoadCost(segment.Length, segment.Type) * RefundShare;
-                Balance += refund;
-                RefundedToday += refund;
+                Balance += amount;
+                RefundedToday += amount;
                 RaiseChanged();
             }
+        }
+
+        /// <summary>What demolishing a road gives back: its share of the road's price and of the power cable on it.</summary>
+        public double RoadRefund(RoadSegment segment)
+        {
+            if (segment.IsOutsideConnection) { return 0.0; }
+            double paid = RoadCost(segment.Length, segment.Type) + (segment.HasPower ? UtilityCost(segment.Length, UtilityKind.Power) : 0.0);
+            return paid * RefundShare;
+        }
+
+        /// <summary>Gives back part of what a bulldozed road (and its cable) cost. The outside connection was free, so it refunds nothing.</summary>
+        internal void RefundRoad(RoadSegment segment)
+        {
+            Refund(RoadRefund(segment));
         }
 
         /// <summary>Takes in the weekly rates again (after an economy update or a road change).</summary>

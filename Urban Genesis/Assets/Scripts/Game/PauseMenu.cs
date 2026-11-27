@@ -52,6 +52,18 @@ namespace UrbanGenesis.Game
             scrim.style.display = DisplayStyle.Flex;
         }
 
+        /// <summary>Opens straight on the settings screen (from the toolbar button).</summary>
+        public void OpenSettings()
+        {
+            if (IsOpen) { return; }
+            status = "";
+            cameFromHud = true;
+            game.MenuOpen = true;
+            Reset();
+            SettingsPanel.Fill(card, Close);
+            scrim.style.display = DisplayStyle.Flex;
+        }
+
         /// <summary>Opens straight on the list of save slots (used when the city has not been saved yet).</summary>
         public void OpenSave()
         {

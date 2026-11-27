@@ -474,7 +474,7 @@ namespace UrbanGenesis.Simulation
 
             for (int i = 0; i < inTheWay.Count; i++)
             {
-                RemoveBuilding(inTheWay[i]);
+                DemolishWithRefund(inTheWay[i]);
             }
 
             double cost = Treasury.RoadCost(plan.Curve.Length, plan.Type);
@@ -551,7 +551,7 @@ namespace UrbanGenesis.Simulation
 
             for (int i = 0; i < plan.Demolitions.Count; i++)
             {
-                RemoveBuilding(plan.Demolitions[i]);
+                DemolishWithRefund(plan.Demolitions[i]);
             }
 
             Treasury.Charge(plan.Cost);
@@ -640,7 +640,7 @@ namespace UrbanGenesis.Simulation
             {
                 if (removed[i].Building != null)
                 {
-                    RemoveBuilding(removed[i].Building);
+                    DemolishWithRefund(removed[i].Building);
                 }
             }
         }
@@ -756,7 +756,7 @@ namespace UrbanGenesis.Simulation
 
             for (int i = 0; i < doomed.Count; i++)
             {
-                RemoveBuilding(doomed[i]);
+                DemolishWithRefund(doomed[i]);
                 changed++;
             }
 

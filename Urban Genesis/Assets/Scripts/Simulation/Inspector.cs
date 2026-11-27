@@ -37,7 +37,15 @@ namespace UrbanGenesis.Simulation
                     text.Append(sim.IsConnectedToPipes(b) ? "Connected to the pipe network.\n" : "Not connected: run a water pipe up to it.\n");
                 }
 
-                text.Append("Cost to build: ").Append(CitySimulation.FormatMoney(CivicInfo.Cost(b.Shape))).Append(", demolishing gives nothing back.");
+                if (b.Shape == BuildingShape.Hospital || b.Shape == BuildingShape.School)
+                {
+                    text.Append("Looks after ").Append(Percent(sim.ServiceCoverage(b.Shape))).Append(" of the city's residents (all of them with one ")
+                        .Append(b.Shape == BuildingShape.Hospital ? "hospital" : "school").Append(" per ")
+                        .Append(((int)(b.Shape == BuildingShape.Hospital ? CitySimulation.ResidentsPerHospital : CitySimulation.ResidentsPerSchool)).ToString("N0")).Append(")\n");
+                }
+
+                text.Append("Cost to build: ").Append(CitySimulation.FormatMoney(CivicInfo.Cost(b.Shape))).Append(", demolishing gives back ")
+                    .Append(CitySimulation.FormatMoney(CivicInfo.Cost(b.Shape) * t.RefundShare)).Append('.');
                 return text.ToString();
             }
 
@@ -155,7 +163,7 @@ namespace UrbanGenesis.Simulation
             }
 
             text.Append("Built for ").Append(CitySimulation.FormatMoney(t.RoadCost(s.Length, s.Type))).Append(", demolishing refunds ")
-                .Append(CitySimulation.FormatMoney(t.RoadCost(s.Length, s.Type) * t.RefundShare)).Append('\n');
+                .Append(CitySimulation.FormatMoney(t.RoadRefund(s))).Append(s.HasPower ? " (with its cable)" : "").Append('\n');
             text.Append("Upkeep: ").Append(CitySimulation.FormatMoney(t.UpkeepPerMetreOf(s.Type) * s.Length)).Append(" per week");
             return text.ToString();
         }

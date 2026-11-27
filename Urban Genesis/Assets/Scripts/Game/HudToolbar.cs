@@ -114,6 +114,7 @@ namespace UrbanGenesis.Game
 
         /// <summary>Raised by the save button in the clock panel.</summary>
         public event Action SaveRequested;
+        public event Action SettingsRequested;
 
         /// <summary>Raised by the menu button in the clock panel (asks to go back to the main menu).</summary>
         public event Action MainMenuRequested;
@@ -476,7 +477,6 @@ namespace UrbanGenesis.Game
             BuildIdentity();
             BuildSession();
             BuildAdvisory();
-            BuildCityMenu();
             BuildCameraControls();
             BuildToolArea();
             BuildStatusBar();
@@ -685,28 +685,9 @@ namespace UrbanGenesis.Game
             panel.style.paddingLeft = 6;
             panel.style.paddingRight = 6;
 
-            // Placeholder weather: the simulation has no weather yet.
-            var weather = new VisualElement();
-            weather.style.flexDirection = FlexDirection.Row;
-            weather.style.alignItems = Align.Center;
-            weather.style.paddingLeft = 8;
-            weather.style.paddingRight = 8;
-            weather.Add(Icon("sun", "ug-icon--sm"));
-            Label temperature = Text("18°C", "ug-text--soft", Weight.Regular);
-            temperature.style.marginLeft = 8;
-            weather.Add(temperature);
-            panel.Add(weather);
-
-            var divider = Divider(true);
-            divider.style.height = 20;
-            divider.style.marginLeft = 5;
-            divider.style.marginRight = 5;
-            panel.Add(divider);
-
             panel.Add(IconButton("undo-2", false, () => { Action a = UndoRequested; if (a != null) { a(); } }));
             panel.Add(IconButton("redo-2", false, () => { Action a = RedoRequested; if (a != null) { a(); } }));
             panel.Add(IconButton("route", false, () => { tools.ToggleTrafficOverlay(); Notify(tools.TrafficOverlayOn ? "Traffic overlay on: green is quiet, amber busy, red full (O toggles)." : "Traffic overlay off."); }));
-            panel.Add(IconButton("bell", false, () => Notify("Notifications are not available yet.")));
             panel.Add(IconButton("save", false, () => { Action requested = SaveRequested; if (requested != null) { requested(); } }));
             var helpButton = new VisualElement();
             helpButton.AddToClassList("ug-btn");
@@ -714,7 +695,7 @@ namespace UrbanGenesis.Game
             helpButton.Add(Text("?", null, Weight.SemiBold));
             helpButton.RegisterCallback<ClickEvent>(e => ToggleHelp());
             panel.Add(helpButton);
-            panel.Add(IconButton("settings-2", false, () => Notify("Settings are not available yet.")));
+            panel.Add(IconButton("settings-2", false, () => { Action requested = SettingsRequested; if (requested != null) { requested(); } }));
             panel.Add(IconButton("menu", false, () => { Action requested = MainMenuRequested; if (requested != null) { requested(); } }));
         }
 
@@ -745,26 +726,6 @@ namespace UrbanGenesis.Game
             texts.Add(advisoryTitle);
             texts.Add(advisoryDetail);
             advisoryPanel.Add(texts);
-        }
-
-        private void BuildCityMenu()
-        {
-            VisualElement panel = Panel("City management", false);
-            Place(panel, 24, 304, null, null);
-            panel.style.paddingLeft = 6;
-            panel.style.paddingRight = 6;
-            panel.style.paddingTop = 6;
-            panel.style.paddingBottom = 6;
-
-            panel.Add(IconButton("layers", false, () => Notify("Map layers are not available yet.")));
-            var divider = Divider(false);
-            divider.style.width = 24;
-            divider.style.marginTop = 4;
-            divider.style.marginBottom = 4;
-            panel.Add(divider);
-            panel.Add(IconButton("chart-no-axes-combined", false, () => Notify("Statistics are not available yet.")));
-            panel.Add(IconButton("landmark", false, () => Notify("City policies are not available yet.")));
-            panel.Add(IconButton("map", false, () => Notify("The overview map is not available yet.")));
         }
 
         private void BuildCameraControls()
@@ -972,9 +933,6 @@ namespace UrbanGenesis.Game
             AddTool(bar, "shield-plus", "Services", true,
                 () => InGroup(2),
                 () => { if (InGroup(2)) { tools.SetTool(ToolType.None); } else { SelectFirstService(); } });
-            AddTool(bar, "tram-front", "Transit", false, null, null);
-            AddTool(bar, "trees", "Parks", false, null, null);
-            AddTool(bar, "mountain", "Terrain", false, null, null);
             VisualElement barDivider = Divider(true);
             barDivider.style.height = 36;
             bar.Add(barDivider);

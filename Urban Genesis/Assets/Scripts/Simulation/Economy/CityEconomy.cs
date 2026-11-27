@@ -221,7 +221,7 @@ namespace UrbanGenesis.Simulation
                 if (b.IsResidential)
                 {
                     e.Residents = b.Residents;
-                    e.Workers = e.Residents * p.WorkingShare;
+                    e.Workers = e.Residents * p.WorkingShare * (1.0 + CitySimulation.SchoolWorkerBonus * sim.ServiceCoverage(BuildingShape.School));
                 }
                 else
                 {
@@ -335,7 +335,8 @@ namespace UrbanGenesis.Simulation
             double goodsSat = s.GoodsSatisfaction;
 
             // Homes: people move in where jobs are going unfilled and shops have room; they stay away while unemployed.
-            double residential = p.BaseResidentialDemand + 0.9 * s.UnfilledJobShare + 0.25 * s.SpareServiceShare - 1.1 * unemployment;
+            double residential = p.BaseResidentialDemand + 0.9 * s.UnfilledJobShare + 0.25 * s.SpareServiceShare - 1.1 * unemployment
+                + CitySimulation.HospitalDemandBonus * sim.ServiceCoverage(BuildingShape.Hospital);
 
             // Industry: wanted when shops lack goods and when people lack jobs; unwanted while goods pile up unsold.
             double industrial = p.BaseIndustrialDemand + 0.8 * unemployment + 0.9 * (1.0 - goodsSat) - 0.9 * s.GoodsSurplusShare;

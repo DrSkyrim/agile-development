@@ -76,8 +76,14 @@ Order rule: fix what confuses a first-time player, then show information, then p
 - [x] Service vehicles in the traffic: ambulances, police cars, school buses; fire trucks race to fires.
 - [x] Fire as a random event: with a fire station the fire is put out, without one the building burns down.
 - [x] Dense residential zone (apartment blocks and high-rises).
-- Not decided yet: whether services should affect anything besides traffic (for example hospitals and population growth), and whether demolishing a civic building should refund money (now it does not).
+- [x] Decided 2026-11-27: hospitals and schools have an effect. One hospital looks after 3,000 residents and adds up to 0.15 to the wish to move in (faster growth); one school covers 4,000 residents and up to 20% more residents are able to work (more jobs filled). Coverage is the share of residents the city's buildings can look after. Police and fire stations keep their vehicles and fire fighting.
+- [x] Decided 2026-11-27: everything the player pays money for gives half its price back when demolished: roads, power cables (with their road), water pipes (bulldozer), civic buildings (also when a road upgrade or a new road demolishes them). Buildings that burn down give nothing.
 - Old saves: a save made before this phase that already has 100+ residents will switch to "services required" at once and its buildings will sit idle until cables and pipes are laid. Saves made while pipes were still tied to roads lose those pipes.
+
+## UI clean-up (2026-11-27)
+
+- [x] Top right: the placeholder weather and temperature widget, the notifications button and the placeholder city-management panel (layers, statistics, policies, overview map) removed; the session panel no longer gets squeezed. The settings button there now opens the settings screen.
+- [x] Bottom toolbar: the greyed-out Transit, Parks and Terrain placeholders removed.
 
 ## Phase G: menus (save slots and settings)
 

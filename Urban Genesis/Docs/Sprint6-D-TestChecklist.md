@@ -2,6 +2,8 @@
 
 Everything in `feature/sprint-6` (phases A to C) is in this branch too, so test that checklist as well. This one covers what was added after it. Tick a box when the behaviour matches; write down anything that does not.
 
+Everything you pay for gives half its price back when you demolish it (roads with their cable, pipes, civic buildings). Hospital covers 3,000 residents, school 4,000.
+
 Handy facts: start money $100,000. Cable $10 per metre, pipe $14 per metre. Roadworks close a road for 3 days (orange). Power plant $15,000, water tower $6,000, sewage outlet $5,000, hospital $12,000, police station $8,000, fire station $8,000, school $10,000.
 
 ## D. Balance
@@ -45,7 +47,7 @@ Water, sewage (changed after your last feedback)
 - [ ] Pipe ends snap onto other pipes. Two pipes that cross are joined (water carries through the crossing).
 - [ ] Pipes are shown as blue lines on the ground, also where there is no road.
 - [ ] A pipe network that is not touching the tower (or outlet) carries nothing: the Inspect panel of the tower says "Not connected".
-- [ ] Demolish tool: clicking on a pipe digs it up (preview shows it highlighted, nothing is refunded). The tower and outlet can be demolished too.
+- [ ] Demolish tool: clicking on a pipe digs it up (preview shows it highlighted, half its price comes back). The tower and outlet can be demolished too.
 - [ ] Laying a cable on a road that is already closed for roadworks (for example from a pipe laid two days ago) is allowed and extends the closure to 3 days from now; the road reopens only after that. A road closed by an accident cannot get a cable or pipe until it reopens.
 
 Services requirement
@@ -56,7 +58,9 @@ Services requirement
 
 Milestone buildings (Services group; locked entries say "(locked)")
 - [ ] Hospital unlocks at 100, police station at 1,000, fire station and dense residential zone at 5,000, school at 10,000. Clicking a locked one explains this.
-- [ ] They are placed on a free area beside a road and cost money; demolishing refunds nothing.
+- [ ] They are placed on a free area beside a road and cost money; demolishing gives half the price back (the Inspect panel says how much).
+- [ ] Hospital: the Inspect panel says how many of the city's residents it looks after. With a hospital, more people want to move in (residential demand rises a bit, more homes grow). One hospital covers 3,000 residents; a bigger city needs more.
+- [ ] School: same coverage line (4,000 residents). With a school the number of working residents, and so filled jobs and tax income, goes up by up to 20%.
 - [ ] Their vehicles appear in the traffic: ambulances, police cars, school buses.
 - [ ] Fire: a random fire starts after the first days. With a fire station a fire truck drives to it and the fire goes out; without one the building burns down. The fire is shown with a flickering overlay and a message.
 
@@ -85,6 +89,17 @@ Settings (main menu and pause menu)
 - [ ] The settings stay after closing and restarting the game.
 - [ ] Slot rows and the − / + buttons look right (not cut off or cramped).
 
+## Refunds
+
+- [ ] Demolishing a road that has a power cable gives back half of the road and half of the cable (the road's Inspect panel shows the sum). The day summary lists the demolition refunds.
+- [ ] Demolishing a pipe, a hospital/police/fire/school/power plant/tower/outlet gives back half of its price.
+- [ ] Upgrading a road or building a new road over such a building also refunds it. A building that burns down gives nothing.
+
+## UI clean-up
+
+- [ ] Top right has no weather/temperature any more; the session buttons (undo, redo, traffic overlay, save, ?, settings, menu) fit without being squeezed, and the settings button opens the settings screen.
+- [ ] No notifications button, no placeholder panel on the left (layers, statistics, policies, map) and no greyed-out Transit, Parks or Terrain tools in the bottom toolbar.
+
 ## Other
 
 - [ ] Undo and redo are arrow icons in the toolbar and still work (Ctrl+Z, Ctrl+Y), also after laying pipes and cables.
@@ -93,7 +108,6 @@ Settings (main menu and pause menu)
 ## Known limitations (not bugs)
 
 - Jams are measured from the vehicles you see (a sample of the real trips), so a very big city does not get proportionally worse jams.
-- Services (hospital, police, school) only add vehicles and fire fighting; they do not change growth yet.
-- Demolishing a civic building gives no refund.
+- Police and fire stations only add vehicles and fire fighting; hospitals and schools have the effects above.
 - Old saves with 100+ residents will have idle buildings until cables and pipes are laid; saves made when pipes were tied to roads lose their pipes.
 - No sound, day/night cycle or real models yet.
