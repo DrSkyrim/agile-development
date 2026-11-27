@@ -235,10 +235,12 @@ namespace UrbanGenesis.Game
         private Texture2D minimapTexture;
         private Color32[] minimapPixels;
         private float minimapRefreshAt;
+        private VisualElement minimapPanel;
 
         private void BuildMinimap()
         {
             VisualElement panel = Panel("Minimap", false);
+            minimapPanel = panel;
             Place(panel, 24, null, null, 150);
             panel.style.paddingLeft = 4; panel.style.paddingRight = 4; panel.style.paddingTop = 4; panel.style.paddingBottom = 4;
             minimapTexture = new Texture2D(MinimapPixels, MinimapPixels, TextureFormat.RGBA32, false);
@@ -729,7 +731,7 @@ namespace UrbanGenesis.Game
             advisoryPanel.Add(texts);
         }
 
-        /// <summary>Only the overview map for now: a placeholder that shows this feature is still in progress.</summary>
+        /// <summary>The overview map button shows or hides the minimap in the bottom left corner.</summary>
         private void BuildCityMenu()
         {
             VisualElement panel = Panel("City management", false);
@@ -738,7 +740,16 @@ namespace UrbanGenesis.Game
             panel.style.paddingRight = 6;
             panel.style.paddingTop = 6;
             panel.style.paddingBottom = 6;
-            panel.Add(IconButton("map", false, () => Notify("The overview map is not available yet.")));
+            VisualElement mapButton = null;
+            mapButton = IconButton("map", false, () =>
+            {
+                bool show = minimapPanel.resolvedStyle.display == DisplayStyle.None;
+                minimapPanel.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+                if (show) { mapButton.AddToClassList("ug-btn--on"); } else { mapButton.RemoveFromClassList("ug-btn--on"); }
+                Notify(show ? "Overview map shown (click it to jump there)." : "Overview map hidden.", 3f);
+            });
+            mapButton.AddToClassList("ug-btn--on");
+            panel.Add(mapButton);
         }
 
         private void BuildCameraControls()

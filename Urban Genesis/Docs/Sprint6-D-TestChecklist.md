@@ -98,7 +98,7 @@ Settings (main menu and pause menu)
 ## UI clean-up
 
 - [ ] Top right has no weather/temperature any more; the session buttons (undo, redo, traffic overlay, save, ?, settings, menu) fit without being squeezed, and the settings button opens the settings screen.
-- [ ] No notifications button. The left side has only the overview map button (it says "not available yet"). The bottom toolbar still shows the greyed-out Transit, Parks and Terrain tools (placeholders for future features).
+- [ ] No notifications button. The left side has only the overview map button; it is lit while the minimap is shown, and clicking it hides or shows the minimap in the bottom left corner. The bottom toolbar still shows the greyed-out Transit, Parks and Terrain tools (placeholders for future features).
 
 ## Other
 
